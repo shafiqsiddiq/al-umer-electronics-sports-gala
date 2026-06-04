@@ -1,0 +1,167 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Image from "next/image";
+
+const STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "active", label: "Active" },
+  { value: "eliminated", label: "Eliminated" },
+  { value: "qualified_main", label: "Qualified Main" },
+  { value: "qualified_loser", label: "Qualified Loser" },
+  { value: "final_eight", label: "Final Eight" },
+];
+
+const SECTION_OPTIONS = [
+  { value: "unassigned", label: "Unassigned" },
+  { value: "A", label: "Section A" },
+  { value: "B", label: "Section B" },
+  { value: "C", label: "Section C" },
+];
+
+export default function TeamEditModal({ team, onClose, onSaved }) {
+  const [form, setForm] = useState({ name: "", section: "unassigned", status: "pending" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (team) {
+      setForm({
+        name: team.name || "",
+        section: team.section || "unassigned",
+        status: team.status || "pending",
+      });
+      setError("");
+    }
+  }, [team]);
+
+  if (!team) return null;
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/teams/${team._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update team");
+      onSaved(data.team);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-xl bg-white p-6 dark:bg-zinc-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <h2 className="text-xl font-bold">Edit Team</h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg px-2 py-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            ✕
+          </button>
+        </div>
+
+        {team.captain && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+            {team.captain.profilePictureUrl ? (
+              <Image
+                src={team.captain.profilePictureUrl}
+                alt={team.captain.name}
+                width={44}
+                height={44}
+                className="h-11 w-11 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-200 text-xs dark:bg-zinc-700">
+                N/A
+              </div>
+            )}
+            <div>
+              <p className="font-medium">{team.captain.name}</p>
+              <p className="text-xs text-zinc-500">Captain · {team.captain.email || "—"}</p>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Team Name</label>
+            <input
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Section</label>
+            <select
+              value={form.section}
+              onChange={(e) => setForm({ ...form, section: e.target.value })}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            >
+              {SECTION_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Status</label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {form.status === "active" && !team.entryFeeImageUrl && (
+              <p className="mt-1 text-xs text-amber-600">Entry fee receipt must be uploaded before setting active.</p>
+            )}
+            {form.status === "active" && team.entryFeeImageUrl && !team.entryFeeVerified && (
+              <p className="mt-1 text-xs text-amber-600">Entry fee must be verified by admin before setting active.</p>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="rounded-lg bg-emerald-600 px-6 py-2 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Save Changes"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-zinc-300 px-6 py-2 dark:border-zinc-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
