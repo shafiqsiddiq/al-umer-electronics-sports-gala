@@ -85,7 +85,6 @@ export default function PlayerTable({
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50/80 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
               <th className="px-5 py-3 font-medium">Player Name</th>
-              <th className="px-5 py-3 font-medium">Father</th>
               <th className="px-5 py-3 font-medium">CNIC</th>
               <th className="px-5 py-3 font-medium">Role</th>
               <th className="px-5 py-3 font-medium text-right">Actions</th>
@@ -103,7 +102,6 @@ export default function PlayerTable({
                     </div>
                   </div>
                 </td>
-                <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">{captain.fatherName || "—"}</td>
                 <td className="px-5 py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">{captain.cnic || "—"}</td>
                 <td className="px-5 py-3">
                   <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
@@ -130,7 +128,6 @@ export default function PlayerTable({
                     <p className="font-medium">{p.name}</p>
                   </div>
                 </td>
-                <td className="px-5 py-3 text-zinc-600 dark:text-zinc-400">{p.fatherName}</td>
                 <td className="px-5 py-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">{p.cnic}</td>
                 <td className="px-5 py-3">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${

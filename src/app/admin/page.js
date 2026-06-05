@@ -4,13 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AdminStatsCards from "@/components/AdminStatsCards";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
+import { useToast } from "@/context/ToastContext";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function AdminDashboard() {
+  const { toast } = useToast();
   const [stats, setStats] = useState(null);
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [confirmFixtures, setConfirmFixtures] = useState(false);
+  const [confirmFinalEight, setConfirmFinalEight] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -39,39 +44,42 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error("Invalid password");
       const loaded = await checkAuth();
       if (!loaded) throw new Error("Logged in but failed to load dashboard stats");
+      window.dispatchEvent(new Event("admin-auth-change"));
+      toast("Logged in successfully as Admin.", "success");
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setLoading(false);
     }
   }
 
-  async function generateFixtures() {
-    if (!confirm("Generate fixtures for all 48 approved teams?")) return;
+  async function executeGenerateFixtures() {
+    setConfirmFixtures(false);
     setGenerating(true);
     try {
       const res = await fetch("/api/tournament/generate-fixtures", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      alert(`Fixtures generated! ${data.matchesCreated} matches created.`);
+      if (!res.ok) throw new Error(data.error || "Failed to generate fixtures");
+      toast(`Fixtures generated! ${data.matchesCreated} matches created.`, "success");
       await checkAuth();
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setGenerating(false);
     }
   }
 
-  async function generateFinalEight() {
-    if (!confirm("Generate Final 8 fixtures from qualified teams?")) return;
+  async function executeGenerateFinalEight() {
+    setConfirmFinalEight(false);
     setGenerating(true);
     try {
       const res = await fetch("/api/tournament/generate-final-eight", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      alert(`Final 8 generated! ${data.matchesCreated} matches created.`);
+      if (!res.ok) throw new Error(data.error || "Failed to generate Final 8");
+      toast(`Final 8 generated! ${data.matchesCreated} matches created.`, "success");
+      await checkAuth();
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setGenerating(false);
     }
@@ -79,7 +87,7 @@ export default function AdminDashboard() {
 
   if (!authed) {
     return (
-      <div className="mx-auto max-w-md">
+      <div className="w-full max-w-md">
         <h1 className="mb-6 text-2xl font-bold">Admin Login</h1>
         <form onSubmit={handleLogin} className="space-y-4">
           <input
@@ -113,14 +121,14 @@ export default function AdminDashboard() {
         <h2 className="text-lg font-semibold">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={generateFixtures}
+            onClick={() => setConfirmFixtures(true)}
             disabled={generating}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             Generate Section Fixtures
           </button>
           <button
-            onClick={generateFinalEight}
+            onClick={() => setConfirmFinalEight(true)}
             disabled={generating}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
@@ -134,6 +142,30 @@ export default function AdminDashboard() {
           </Link>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmFixtures}
+        title="Generate Fixtures"
+        message="Are you sure you want to generate fixtures for all 48 approved teams? This will clear any existing fixtures."
+        confirmText="Generate Fixtures"
+        cancelText="Cancel"
+        onConfirm={executeGenerateFixtures}
+        onCancel={() => setConfirmFixtures(false)}
+        loading={generating}
+        danger={false}
+      />
+
+      <ConfirmModal
+        isOpen={confirmFinalEight}
+        title="Generate Final 8 Fixtures"
+        message="Are you sure you want to generate Final 8 fixtures from the qualified teams?"
+        confirmText="Generate Final 8"
+        cancelText="Cancel"
+        onConfirm={executeGenerateFinalEight}
+        onCancel={() => setConfirmFinalEight(false)}
+        loading={generating}
+        danger={false}
+      />
     </div>
   );
 }

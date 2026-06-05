@@ -13,7 +13,7 @@ function InfoRow({ label, value, mono = false }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <dt className="shrink-0 text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</dt>
-      <dd className={`text-right text-sm font-medium text-zinc-900 dark:text-zinc-100 ${mono ? "font-mono" : ""}`}>
+      <dd className={`text-left sm:text-right text-sm font-medium text-zinc-900 dark:text-zinc-100 break-all sm:break-normal ${mono ? "font-mono" : ""}`}>
         {value || "—"}
       </dd>
     </div>
@@ -50,7 +50,9 @@ export default function CaptainProfileCard({ team, captain, onEditTeam, onEditPr
               ?
             </div>
           )}
-          <p className="mt-3 text-lg font-semibold">{captain?.name}</p>
+          <p className="mt-3 w-full truncate px-2 text-lg font-semibold" title={captain?.name}>
+            {captain?.name}
+          </p>
           <span className="mt-1 inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
             Captain
           </span>
@@ -76,7 +78,7 @@ export default function CaptainProfileCard({ team, captain, onEditTeam, onEditPr
           <InfoRow label="Section" value={team?.section ? team.section.replace(/_/g, " ") : "Unassigned"} />
           <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">Status</dt>
-            <dd>
+            <dd className="text-left sm:text-right">
               <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusStyle}`}>
                 {team?.status?.replace(/_/g, " ") || "—"}
               </span>
@@ -84,7 +86,7 @@ export default function CaptainProfileCard({ team, captain, onEditTeam, onEditPr
           </div>
           <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <dt className="text-xs font-medium uppercase tracking-wide text-zinc-400">Entry Fee</dt>
-            <dd>
+            <dd className="text-left sm:text-right">
               <span
                 className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                   team?.entryFeeVerified

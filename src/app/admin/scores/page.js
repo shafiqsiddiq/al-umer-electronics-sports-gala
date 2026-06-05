@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/context/ToastContext";
 
 export default function AdminScoresPage() {
+  const { toast } = useToast();
   const [matches, setMatches] = useState([]);
   const [updating, setUpdating] = useState(null);
 
@@ -25,10 +27,11 @@ export default function AdminScoresPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || "Failed to update match score");
+      toast("Match score updated successfully.", "success");
       await fetchMatches();
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setUpdating(null);
     }

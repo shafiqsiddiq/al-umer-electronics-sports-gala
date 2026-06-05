@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CaptainProfileForm from "@/components/CaptainProfileForm";
 import TeamProfileForm from "@/components/TeamProfileForm";
+import { useToast } from "@/context/ToastContext";
 
 export default function CaptainSettingsPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingCaptain, setSavingCaptain] = useState(false);
@@ -49,9 +51,10 @@ export default function CaptainSettingsPage() {
       if (!res.ok) throw new Error(result.error || "Failed to update profile");
 
       setTeam((prev) => ({ ...prev, captain: { ...prev.captain, ...result.captain } }));
-      alert("Profile updated successfully");
+      toast("Profile updated successfully", "success");
+      window.dispatchEvent(new Event("profile-update"));
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setSavingCaptain(false);
     }
@@ -69,9 +72,9 @@ export default function CaptainSettingsPage() {
       if (!res.ok) throw new Error(result.error || "Failed to update team");
 
       setTeam(result.team);
-      alert("Team updated successfully");
+      toast("Team updated successfully", "success");
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setSavingTeam(false);
     }

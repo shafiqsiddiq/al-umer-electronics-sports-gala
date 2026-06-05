@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { MAIN_PLAYERS, TOTAL_SQUAD, getSquadCounts } from "@/lib/tournament-logic";
 
@@ -22,6 +23,8 @@ function ProfileAvatar({ src, alt, size = 32 }) {
 }
 
 export default function TeamViewModal({ team, onClose }) {
+  const [cnicPreviewUrl, setCnicPreviewUrl] = useState(null);
+
   if (!team) return null;
 
   const squad = getSquadCounts(team.players || []);
@@ -61,39 +64,56 @@ export default function TeamViewModal({ team, onClose }) {
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
-            <h3 className="mb-3 font-semibold">Captain</h3>
-            <div className="flex items-start gap-3">
+            <h3 className="mb-3 font-semibold text-center sm:text-left">Captain</h3>
+            <div className="flex flex-col items-center mb-4">
               {team.captain?.profilePictureUrl ? (
                 <Image
                   src={team.captain.profilePictureUrl}
                   alt={team.captain.name}
-                  width={56}
-                  height={56}
-                  className="h-14 w-14 rounded-full object-cover"
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 rounded-full object-cover ring-4 ring-emerald-100 dark:ring-emerald-900/40"
                 />
               ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-200 text-xs dark:bg-zinc-700">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-zinc-200 text-xs dark:bg-zinc-700">
                   N/A
                 </div>
               )}
-              <dl className="space-y-1 text-sm">
-                <div><span className="text-zinc-500">Name:</span> {team.captain?.name || "—"}</div>
-                <div><span className="text-zinc-500">Father:</span> {team.captain?.fatherName || "—"}</div>
-                <div><span className="text-zinc-500">CNIC:</span> {team.captain?.cnic || "—"}</div>
-                <div><span className="text-zinc-500">Email:</span> {team.captain?.email || "—"}</div>
-                <div><span className="text-zinc-500">WhatsApp:</span> {team.captain?.whatsapp || team.captain?.phone || "—"}</div>
-              </dl>
             </div>
+            <dl className="space-y-2 text-sm border-t border-zinc-100 pt-3 dark:border-zinc-800">
+              <div className="flex justify-between items-center gap-4"><span className="text-zinc-500">Name:</span> <span className="font-semibold text-zinc-900 dark:text-zinc-100">{team.captain?.name || "—"}</span></div>
+              <div className="flex justify-between items-center gap-4"><span className="text-zinc-500">Father:</span> <span className="font-semibold text-zinc-900 dark:text-zinc-100">{team.captain?.fatherName || "—"}</span></div>
+              <div className="flex justify-between items-center gap-4"><span className="text-zinc-500">CNIC:</span> <span className="font-semibold font-mono text-zinc-900 dark:text-zinc-100">{team.captain?.cnic || "—"}</span></div>
+              <div className="flex justify-between items-center gap-4"><span className="text-zinc-500 shrink-0">Email:</span> <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[200px]" title={team.captain?.email}>{team.captain?.email || "—"}</span></div>
+              <div className="flex justify-between items-center gap-4"><span className="text-zinc-500">WhatsApp:</span> <span className="font-semibold text-zinc-900 dark:text-zinc-100">{team.captain?.whatsapp || team.captain?.phone || "—"}</span></div>
+            </dl>
             {team.captain?.cnicImageUrl && (
-              <div className="mt-3">
-                <p className="mb-1 text-xs text-zinc-500">Captain CNIC</p>
-                <Image
-                  src={team.captain.cnicImageUrl}
-                  alt="Captain CNIC"
-                  width={200}
-                  height={120}
-                  className="max-h-24 w-auto rounded border object-contain dark:border-zinc-700"
-                />
+              <div className="mt-4 border-t border-zinc-100 pt-3 dark:border-zinc-800 flex flex-col items-center">
+                <p className="mb-2 text-xs text-zinc-500 font-medium">Captain CNIC</p>
+                <div 
+                  onClick={() => setCnicPreviewUrl(team.captain.cnicImageUrl)}
+                  className="relative group cursor-pointer"
+                >
+                  <Image
+                    src={team.captain.cnicImageUrl}
+                    alt="Captain CNIC"
+                    width={180}
+                    height={108}
+                    className="h-[108px] w-[180px] rounded-sm border border-zinc-200 dark:border-zinc-700 object-cover shadow-sm bg-zinc-50 dark:bg-zinc-800"
+                  />
+                  <div
+                    className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 rounded-sm transition text-white text-xs font-semibold"
+                  >
+                    View CNIC
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCnicPreviewUrl(team.captain.cnicImageUrl)}
+                  className="mt-2 inline-flex items-center gap-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-2 py-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 transition"
+                >
+                  View Full Size
+                </button>
               </div>
             )}
           </div>
@@ -115,15 +135,30 @@ export default function TeamViewModal({ team, onClose }) {
               </div>
             </dl>
             {team.entryFeeImageUrl && (
-              <div className="mt-3">
-                <p className="mb-1 text-xs text-zinc-500">Entry Fee Receipt</p>
-                <Image
-                  src={team.entryFeeImageUrl}
-                  alt="Entry fee"
-                  width={200}
-                  height={120}
-                  className="max-h-24 w-auto rounded border object-contain dark:border-zinc-700"
-                />
+              <div className="mt-3 flex flex-col items-center sm:items-start">
+                <p className="mb-1 text-xs text-zinc-500 font-medium">Entry Fee Receipt</p>
+                <div 
+                  onClick={() => setCnicPreviewUrl(team.entryFeeImageUrl)}
+                  className="relative group cursor-pointer rounded border border-zinc-200 dark:border-zinc-700 overflow-hidden"
+                >
+                  <Image
+                    src={team.entryFeeImageUrl}
+                    alt="Entry fee"
+                    width={180}
+                    height={108}
+                    className="h-[108px] w-[180px] object-cover bg-zinc-50 dark:bg-zinc-800"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition text-white text-xs font-semibold">
+                    View Receipt
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCnicPreviewUrl(team.entryFeeImageUrl)}
+                  className="mt-2 inline-flex items-center gap-1 rounded bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-2 py-1 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 transition"
+                >
+                  View Full Size
+                </button>
               </div>
             )}
           </div>
@@ -182,6 +217,37 @@ export default function TeamViewModal({ team, onClose }) {
           Close
         </button>
       </div>
+
+      {/* CNIC/Receipt Full-Size Lightbox Modal */}
+      {cnicPreviewUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 transition-all duration-300"
+          onClick={() => setCnicPreviewUrl(null)}
+        >
+          <div
+            className="relative max-h-[85vh] max-w-4xl overflow-hidden rounded-xl bg-zinc-950 p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setCnicPreviewUrl(null)}
+              className="absolute right-4 top-4 z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 hover:scale-105 active:scale-95 transition border border-white/20 text-lg font-bold shadow-lg"
+              title="Close Preview"
+            >
+              ✕
+            </button>
+            <div className="relative h-[70vh] w-[80vw] max-w-3xl">
+              <Image
+                src={cnicPreviewUrl}
+                alt="Full View"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -10,6 +10,17 @@ export default function CaptainLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user?.role === "captain") {
+          router.replace("/captain/dashboard");
+        }
+      })
+      .catch(() => {});
+  }, [router]);
 
   async function handleSubmit(e) {
     e.preventDefault();

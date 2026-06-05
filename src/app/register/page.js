@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCnic, validateCnic } from "@/lib/cnic";
@@ -21,6 +21,17 @@ export default function RegisterPage() {
   const [cnicImage, setCnicImage] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user?.role === "captain") {
+          router.replace("/captain/dashboard");
+        }
+      })
+      .catch(() => {});
+  }, [router]);
 
   function handleCnicChange(e) {
     setForm({ ...form, cnic: formatCnic(e.target.value) });

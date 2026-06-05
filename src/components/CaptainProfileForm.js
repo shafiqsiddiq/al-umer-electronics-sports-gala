@@ -58,7 +58,16 @@ export default function CaptainProfileForm({ captain, onSubmit, onCancel, loadin
         </div>
       )}
 
-      {captain?.profilePictureUrl && (
+      {profilePicture ? (
+        <div className="flex items-center gap-3">
+          <img
+            src={URL.createObjectURL(profilePicture)}
+            alt="New profile preview"
+            className="h-14 w-14 rounded-full object-cover ring-4 ring-emerald-500"
+          />
+          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 animate-pulse">New profile picture selected (preview)</span>
+        </div>
+      ) : captain?.profilePictureUrl ? (
         <div className="flex items-center gap-3">
           <Image
             src={captain.profilePictureUrl}
@@ -69,7 +78,7 @@ export default function CaptainProfileForm({ captain, onSubmit, onCancel, loadin
           />
           <span className="text-sm text-zinc-500">Current profile photo</span>
         </div>
-      )}
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -129,7 +138,7 @@ export default function CaptainProfileForm({ captain, onSubmit, onCancel, loadin
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setProfilePicture(e.target.files[0])}
+            onChange={(e) => setProfilePicture(e.target.files[0] || null)}
             className="w-full text-sm"
           />
         </div>
@@ -138,9 +147,19 @@ export default function CaptainProfileForm({ captain, onSubmit, onCancel, loadin
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setCnicImage(e.target.files[0])}
+            onChange={(e) => setCnicImage(e.target.files[0] || null)}
             className="w-full text-sm"
           />
+          {cnicImage && (
+            <div className="mt-2 flex items-center gap-2">
+              <img
+                src={URL.createObjectURL(cnicImage)}
+                alt="New CNIC preview"
+                className="h-12 w-20 rounded border border-emerald-500 object-cover shadow-sm"
+              />
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">New CNIC selected</span>
+            </div>
+          )}
         </div>
       </div>
 

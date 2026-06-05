@@ -11,6 +11,8 @@ import CaptainStatCards from "@/components/CaptainStatCards";
 import CaptainProfileCard from "@/components/CaptainProfileCard";
 import DashboardModal from "@/components/DashboardModal";
 import { TOTAL_PLAYER_SLOTS, getSquadCounts } from "@/lib/tournament-logic";
+import { useToast } from "@/context/ToastContext";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const STATUS_STYLES = {
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
@@ -30,6 +32,8 @@ function StatusBadge({ status }) {
 
 export default function CaptainDashboard() {
   const router = useRouter();
+  const { toast } = useToast();
+  
   const [team, setTeam] = useState(null);
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +47,10 @@ export default function CaptainDashboard() {
   const [savingCaptain, setSavingCaptain] = useState(false);
   const [savingTeam, setSavingTeam] = useState(false);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
+
+  // Custom Delete Confirm Modal State
+  const [deleteTargetPlayer, setDeleteTargetPlayer] = useState(null);
+  const [deletingPlayerLoading, setDeletingPlayerLoading] = useState(false);
 
   useEffect(() => {
     fetchTeam();
@@ -80,10 +88,12 @@ export default function CaptainDashboard() {
       const res = await fetch("/api/teams/players", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to add player");
+      
       setShowAddPlayer(false);
+      toast(`Player "${playerData.name}" added successfully to the squad!`, "success");
       await fetchTeam();
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setAdding(false);
     }
@@ -105,28 +115,37 @@ export default function CaptainDashboard() {
       const res = await fetch(`/api/teams/players/${editPlayer._id}`, { method: "PATCH", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update player");
+      
       setEditPlayer(null);
+      toast(`Player "${playerData.name}" updated successfully.`, "success");
       await fetchTeam();
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setEditing(false);
     }
   }
 
-  async function handleDeletePlayer(player) {
-    if (!confirm(`Delete ${player.name} from squad?`)) return;
-    setDeletingId(player._id);
+  function handleDeletePlayer(player) {
+    setDeleteTargetPlayer(player);
+  }
+
+  async function executeDeletePlayer() {
+    if (!deleteTargetPlayer) return;
+    setDeletingPlayerLoading(true);
     try {
-      const res = await fetch(`/api/teams/players/${player._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/teams/players/${deleteTargetPlayer._id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete player");
-      if (editPlayer?._id === player._id) setEditPlayer(null);
+      
+      toast(`Player "${deleteTargetPlayer.name}" deleted from squad.`, "success");
+      if (editPlayer?._id === deleteTargetPlayer._id) setEditPlayer(null);
       await fetchTeam();
+      setDeleteTargetPlayer(null);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
-      setDeletingId(null);
+      setDeletingPlayerLoading(false);
     }
   }
 
@@ -148,8 +167,10 @@ export default function CaptainDashboard() {
 
       setTeam((prev) => ({ ...prev, captain: { ...prev.captain, ...result.captain } }));
       setEditingCaptain(false);
+      toast("Profile details updated successfully.", "success");
+      window.dispatchEvent(new Event("profile-update"));
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setSavingCaptain(false);
     }
@@ -169,8 +190,9 @@ export default function CaptainDashboard() {
       setTeam(result.team);
       setPlayers(result.players || []);
       setEditingTeam(false);
+      toast("Team name updated successfully.", "success");
     } catch (err) {
-      alert(err.message);
+      toast(err.message, "error");
     } finally {
       setSavingTeam(false);
     }
@@ -195,24 +217,23 @@ export default function CaptainDashboard() {
       entryFeeImageUrl: data.entryFeeImageUrl,
       entryFeeVerified: data.entryFeeVerified ?? false,
     }));
+    toast("Entry fee receipt uploaded successfully. Pending verification.", "success");
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
-      {/* Top bar */}
-      <div className="border-b border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">Captain Dashboard</p>
-            <h1 className="text-xl font-bold sm:text-2xl">{team?.name}</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <StatusBadge status={team?.status} />
-          </div>
+    <div className="min-h-screen bg-transparent">
+      {/* Workspace Header */}
+      <div className="mb-6 flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center border-b border-zinc-200/80 dark:border-zinc-800 pb-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Captain Workspace</p>
+          <h1 className="text-2xl font-black text-zinc-900 dark:text-white sm:text-3xl tracking-tight mt-0.5">{team?.name}</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <StatusBadge status={team?.status} />
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-6xl py-2">
         {/* Stats — full width at top */}
         <div className="mb-6 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-lg shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-zinc-950/40">
           <CaptainStatCards
@@ -227,7 +248,7 @@ export default function CaptainDashboard() {
 
         <div className="grid items-stretch gap-6 lg:grid-cols-3">
           {/* Sidebar — team & captain profile */}
-          <div className="flex flex-col gap-4 lg:col-span-1">
+          <div className="flex flex-col gap-4 min-w-0 lg:col-span-1">
             <CaptainProfileCard
               className="flex-1"
               team={team}
@@ -235,12 +256,11 @@ export default function CaptainDashboard() {
               onEditTeam={() => setEditingTeam(true)}
               onEditProfile={() => setEditingCaptain(true)}
             />
-
           </div>
 
           {/* Squad management */}
-          <div className="flex flex-col lg:col-span-2">
-            <div className="flex h-full min-h-0 flex-col rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-lg shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-zinc-950/40">
+          <div className="flex flex-col min-w-0 lg:col-span-2">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-lg shadow-zinc-300/30 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-zinc-950/40">
               <PlayerTable
                 players={players}
                 captain={captain}
@@ -309,6 +329,19 @@ export default function CaptainDashboard() {
       )}
 
       {viewPlayer && <PlayerViewModal player={viewPlayer} onClose={() => setViewPlayer(null)} />}
+
+      {/* Reusable Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTargetPlayer}
+        title="Delete Player"
+        message={deleteTargetPlayer ? `Are you sure you want to delete "${deleteTargetPlayer.name}" from your squad? This action cannot be undone.` : ""}
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        onConfirm={executeDeletePlayer}
+        onCancel={() => setDeleteTargetPlayer(null)}
+        loading={deletingPlayerLoading}
+        danger={true}
+      />
     </div>
   );
 }

@@ -2,29 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  Calendar,
-  GitBranch,
-  ClipboardList,
-} from "lucide-react";
+import { Users, Settings } from "lucide-react";
 
 const links = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/teams", label: "Teams", icon: Users },
-  { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
-  { href: "/admin/brackets", label: "Brackets", icon: GitBranch },
-  { href: "/admin/scores", label: "Scores", icon: ClipboardList },
+  { href: "/captain/dashboard", label: "My Team", icon: Users },
+  { href: "/captain/settings", label: "Settings", icon: Settings },
 ];
 
-export default function AdminSidebar() {
+export default function CaptainSidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="w-full md:w-64 shrink-0 border-b md:border-b-0 md:border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="p-4 md:block hidden">
-        <h2 className="text-lg font-bold text-emerald-600">Admin Panel</h2>
+        <h2 className="text-lg font-bold text-emerald-600">Captain Panel</h2>
       </div>
       <nav className="flex flex-row md:flex-col gap-1 md:space-y-1 px-4 py-2.5 md:px-2 md:py-0 overflow-x-auto scrollbar-none pb-3 md:pb-4">
         {links.map(({ href, label, icon: Icon }) => (
