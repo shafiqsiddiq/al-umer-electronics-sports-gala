@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import StorefrontCarousel from "@/components/StorefrontCarousel";
 import {
   Phone,
   MapPin,
@@ -785,72 +786,8 @@ export default function StorefrontHomePage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 transition-colors duration-300">
 
-      {/* 1. HERO SECTION */}
-      <section className="relative h-[600px] w-full overflow-hidden bg-black md:h-[650px] flex items-center">
-        {/* Background Image with Overlay */}
-        <div className="absolute inset-0 h-full w-full">
-          <Image
-            src="/al_umer_storefront.png"
-            alt="Al-Umer Electronics Showroom"
-            fill
-            priority
-            className="object-cover object-center scale-105 opacity-60"
-          />
-          {/* Gradients */}
-          <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-900/80 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-50 via-transparent to-black/35 dark:from-zinc-950" />
-        </div>
-
-        {/* Content */}
-        <div className="relative z-20 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl text-left">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold tracking-wider text-emerald-400 uppercase mb-4 animate-pulse">
-              <ShieldCheck size={12} />
-              Official Brand Dealer
-            </span>
-
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl">
-              <span className="block text-zinc-300 text-sm sm:text-base font-semibold tracking-widest uppercase mb-2">
-                Welcome to Al-Umer Electronics Center
-              </span>
-              <span className="block bg-gradient-to-r from-white via-zinc-100 to-emerald-400 bg-clip-text text-transparent pb-1">
-                Your Home, Upgraded
-              </span>
-            </h1>
-
-            <p className="mt-4 text-base text-zinc-300 sm:text-lg leading-relaxed">
-              Explore premium home appliances, kitchen suite setups, automatic laundry machines, air conditioners, and smart entertainment systems. Located at Bedian Road, Lahore. Trusted products with official warranties.
-            </p>
-
-            {/* CTA Buttons */}
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a
-                href="#products"
-                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 hover:shadow-emerald-500/35 hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <ShoppingBag size={16} />
-                Browse Products
-              </a>
-
-              <Link
-                href="/tournament"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-500/35 bg-zinc-900/40 backdrop-blur-md px-6 py-3.5 text-sm font-semibold text-zinc-200 transition-all duration-300 hover:bg-zinc-800/80 hover:text-white hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Trophy size={16} className="text-amber-400" />
-                Tournament Dashboard
-              </Link>
-
-              <a
-                href="tel:03008443856"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 backdrop-blur-md px-6 py-3.5 text-sm font-semibold text-emerald-400 transition-all duration-300 hover:bg-emerald-500/10 hover:text-emerald-300 hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Phone size={16} />
-                Call Store
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* 1. HERO CAROUSEL */}
+      <StorefrontCarousel onSelectCategory={setActiveCategory} />
 
       {/* 2. STATS & USP SECTION */}
       <section className="relative -mt-16 z-30 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

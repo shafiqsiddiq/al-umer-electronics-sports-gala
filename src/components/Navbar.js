@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, X, Trophy } from "lucide-react";
-import ThemeToggle from "./ThemeToggle";
+import { Menu, X } from "lucide-react";
 import CaptainNavMenu from "./CaptainNavMenu";
 import AdminNavMenu from "./AdminNavMenu";
 
@@ -51,19 +51,35 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link
-          href={isAdmin ? "/admin" : showProtectedNav ? "/captain/dashboard" : "/"}
-          className="flex items-center gap-2 font-bold text-emerald-600"
-        >
-          <Trophy size={22} />
-          <span>
-            {isAdmin ? "Admin Panel" : showProtectedNav && user.teamName ? user.teamName : "Cricket Cup"}
-          </span>
-        </Link>
+      <div className="flex w-full items-center justify-between px-4 md:px-8 py-3">
+        {/* Left Side: Logo */}
+        <div className="flex flex-1 items-center justify-start">
+          <Link
+            href={isAdmin ? "/admin" : showProtectedNav ? "/captain/dashboard" : "/"}
+            className="flex items-center gap-2.5 font-bold text-emerald-600"
+          >
+            <div className="relative h-9 w-9 rounded-lg bg-white dark:bg-zinc-900 p-1 border border-zinc-200 dark:border-zinc-800 shadow-sm flex-shrink-0">
+              <Image
+                src="/al_umer_electronics_logo.png"
+                alt="Al-Umer Electronics Logo"
+                fill
+                className="object-contain p-0.5 rounded"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-extrabold text-zinc-900 dark:text-white leading-tight tracking-wider uppercase">
+                Al-Umer
+              </span>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 -mt-0.5">
+                {isAdmin ? "Admin Panel" : showProtectedNav && user?.teamName ? user.teamName : "Electronics"}
+              </span>
+            </div>
+          </Link>
+        </div>
 
+        {/* Center: Public Links */}
         {!showProtectedNav && (
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden items-center justify-center gap-1 lg:flex">
             {links.map((link) => (
               <Link
                 key={link.href}
@@ -80,11 +96,8 @@ export default function Navbar() {
           </nav>
         )}
 
-        {!showProtectedNav && <div className="flex-1" />}
-
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-
+        {/* Right Side: Auth / Admin Actions */}
+        <div className="flex flex-1 items-center justify-end gap-2">
           {authChecked && showProtectedNav ? (
             isAdmin ? (
               <AdminNavMenu />
@@ -93,14 +106,6 @@ export default function Navbar() {
             )
           ) : authChecked ? (
             <>
-              <a
-                href="http://localhost:3333"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:inline-block"
-              >
-                CMS
-              </a>
               <Link
                 href="/admin"
                 className="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:inline-block"
@@ -152,14 +157,6 @@ export default function Navbar() {
               </Link>
             ))}
             <>
-              <a
-                href="http://localhost:3333"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300"
-              >
-                CMS
-              </a>
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}
