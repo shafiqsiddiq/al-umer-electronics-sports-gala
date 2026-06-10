@@ -768,7 +768,12 @@ export default function StorefrontHomePage() {
 
   // Filter products
   const filteredProducts = activeCategory === "all"
-    ? PRODUCTS
+    ? [
+        ...PRODUCTS.filter(p => p.category === "cooling").slice(0, 3),
+        ...PRODUCTS.filter(p => p.category === "laundry").slice(0, 3),
+        ...PRODUCTS.filter(p => p.category === "kitchen").slice(0, 3),
+        ...PRODUCTS.filter(p => p.category === "entertainment").slice(0, 3)
+      ]
     : PRODUCTS.filter(p => p.category === activeCategory);
 
   // WhatsApp Inquiry link helper
@@ -928,12 +933,12 @@ export default function StorefrontHomePage() {
               </span>
 
               {/* Product Image Panel */}
-              <div className="relative h-56 w-full rounded-t-2xl overflow-hidden border-b border-zinc-200 dark:border-zinc-800">
+              <div className="relative h-64 w-full rounded-t-2xl overflow-hidden border-b border-zinc-200 dark:border-zinc-800">
                 <Image
                   src={product.image}
                   alt={product.name}
                   fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
                   style={{ filter: product.imageFilter || "none" }}
                 />
               </div>
