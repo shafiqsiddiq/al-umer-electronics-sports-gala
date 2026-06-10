@@ -10,6 +10,7 @@ import AdminNavMenu from "./AdminNavMenu";
 
 const links = [
   { href: "/", label: "Home" },
+  { href: "/tournament", label: "Cricket Tournament" },
   { href: "/fixtures", label: "Fixtures" },
   { href: "/live-scores", label: "Live Scores" },
   { href: "/brackets/sections", label: "Sections" },

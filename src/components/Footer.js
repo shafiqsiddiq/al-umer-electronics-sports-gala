@@ -45,12 +45,17 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-bold uppercase text-zinc-900 dark:text-white tracking-widest mb-4 flex items-center gap-2">
               <Trophy size={16} className="text-emerald-500" />
-              Tournament
+              Links
             </h4>
             <ul className="space-y-2.5 text-sm">
               <li>
                 <Link href="/" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
-                  Home
+                  Home (Store)
+                </Link>
+              </li>
+              <li>
+                <Link href="/tournament" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
+                  Cricket Tournament
                 </Link>
               </li>
               <li>
@@ -105,23 +110,23 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-bold uppercase text-zinc-900 dark:text-white tracking-widest mb-4 flex items-center gap-2">
               <Phone size={16} className="text-emerald-500" />
-              Gala Support
+              Contact Store
             </h4>
             <ul className="space-y-3 text-sm text-zinc-500 dark:text-zinc-400">
-              <li className="flex items-center gap-2.5">
-                <MapPin size={16} className="shrink-0 text-emerald-500" />
-                <span>Al-Umer Electronics Main Branch</span>
+              <li className="flex items-start gap-2.5">
+                <MapPin size={16} className="shrink-0 text-emerald-500 mt-0.5" />
+                <span>Al-Umer Electronics Center,<br />Bedian Rd, Heir, Lahore</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Mail size={16} className="shrink-0 text-emerald-500" />
-                <a href="mailto:support@alumer.com" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                  support@alumer.com
+                <a href="mailto:info@alumer.com" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+                  info@alumer.com
                 </a>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone size={16} className="shrink-0 text-emerald-500" />
-                <a href="tel:+923001234567" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-semibold">
-                  +92 300 1234567
+                <a href="tel:03008443856" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-semibold">
+                  0300 8443856
                 </a>
               </li>
             </ul>
