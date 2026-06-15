@@ -7,7 +7,10 @@ import { ChevronLeft, ChevronRight, Play, Trophy, Calendar } from "lucide-react"
 
 const SLIDES = [
   {
-    image: "/cricket_action_shot.png",
+    imageDesktop: "/cricket_action_shot_desktop.png",
+    imageMobile: "/cricket_action_shot_mobile.png",
+    objectPositionDesktop: "object-center",
+    objectPositionMobile: "object-center",
     title: "Al-Umer Electronics Season 3",
     subtitle: "Sports Gala 2026",
     description: "Witness the ultimate battle of 48 local teams competing for the prestigious championship title. Experience high-octane matches, stellar performances, and raw cricket passion.",
@@ -19,7 +22,10 @@ const SLIDES = [
     badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   },
   {
-    image: "/cricket_stadium.png",
+    imageDesktop: "/cricket_stadium_desktop.png",
+    imageMobile: "/cricket_stadium_mobile.png",
+    objectPositionDesktop: "object-center",
+    objectPositionMobile: "object-center",
     title: "Uncompromising Stages",
     subtitle: "Double-Chance Bracket",
     description: "Every team gets their shot at redemption. With 3 knockout sections feeding into a unique double-elimination loser bracket, the drama never ends until the final ball is bowled.",
@@ -31,7 +37,10 @@ const SLIDES = [
     badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
   },
   {
-    image: "/cricket_trophy.png",
+    imageDesktop: "/cricket_trophy_desktop.png",
+    imageMobile: "/cricket_trophy_mobile.png",
+    objectPositionDesktop: "object-center",
+    objectPositionMobile: "object-center",
     title: "The Final Eight Showdown",
     subtitle: "Championship Trophy",
     description: "Only the elite survive to reach the grand finale. Who will raise the prestigious Al-Umer Championship Trophy in front of thousands of fans? The ultimate glory awaits.",
@@ -68,7 +77,7 @@ export default function HeroCarousel() {
 
   return (
     <div
-      className="relative h-[550px] w-full overflow-hidden bg-black md:h-[650px]"
+      className="relative w-full aspect-[9/16] sm:aspect-[4/3] md:aspect-[16/8] h-auto overflow-hidden bg-black"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -82,20 +91,36 @@ export default function HeroCarousel() {
               isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
             }`}
           >
-            {/* Background Image with Ken Burns effect */}
-            <div className="absolute inset-0 h-full w-full">
-              <Image
-                src={slide.image}
-                alt={slide.title}
-                fill
-                priority={index === 0}
-                className={`object-cover object-center transition-transform duration-10000 ease-out ${
-                  isActive ? "scale-105" : "scale-100"
-                }`}
-              />
+            {/* Background Image - Responsive Full-Bleed Layout */}
+            <div className="absolute inset-0 h-full w-full overflow-hidden">
+              {/* Desktop Image */}
+              <div className="hidden md:block absolute inset-0">
+                <Image
+                  src={slide.imageDesktop}
+                  alt={slide.title}
+                  fill
+                  priority={index === 0}
+                  className={`object-cover ${slide.objectPositionDesktop} transition-transform duration-10000 ease-out ${
+                    isActive ? "scale-105" : "scale-100"
+                  }`}
+                />
+              </div>
+              {/* Mobile Image */}
+              <div className="md:hidden absolute inset-0">
+                <Image
+                  src={slide.imageMobile}
+                  alt={slide.title}
+                  fill
+                  priority={index === 0}
+                  className={`object-cover ${slide.objectPositionMobile} transition-transform duration-10000 ease-out ${
+                    isActive ? "scale-105" : "scale-100"
+                  }`}
+                />
+              </div>
+              
               {/* Premium dark gradient overlays */}
               <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-black/30" />
+              <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-zinc-950 to-transparent" />
             </div>
 
             {/* Slide Content */}
@@ -167,14 +192,14 @@ export default function HeroCarousel() {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 z-30 -translate-y-1/2 rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-500 hover:text-white hover:border-emerald-400 hover:scale-110 active:scale-95 sm:left-6"
+        className="hidden md:flex absolute left-4 top-1/2 z-30 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-500 hover:text-white hover:border-emerald-400 hover:scale-110 active:scale-95 md:left-6"
         aria-label="Previous slide"
       >
         <ChevronLeft size={24} />
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 z-30 -translate-y-1/2 rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-500 hover:text-white hover:border-emerald-400 hover:scale-110 active:scale-95 sm:right-6"
+        className="hidden md:flex absolute right-4 top-1/2 z-30 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-500 hover:text-white hover:border-emerald-400 hover:scale-110 active:scale-95 md:right-6"
         aria-label="Next slide"
       >
         <ChevronRight size={24} />

@@ -7,7 +7,10 @@ import { ChevronLeft, ChevronRight, ShoppingBag, Trophy, Phone, ShieldCheck } fr
 
 const SLIDES = [
   {
-    image: "/luxury_home_theater.png",
+    imageDesktop: "/luxury_home_theater_desktop.png",
+    imageMobile: "/luxury_home_theater_mobile.png",
+    objectPositionDesktop: "object-center",
+    objectPositionMobile: "object-center",
     title: "Immersive Entertainment",
     subtitle: "Smart LEDs & Sound Systems",
     description: "Transform your living space with our premium bezel-less QLED smart TVs and theater-grade soundbars. Experience cinema-quality entertainment at home.",
@@ -18,7 +21,10 @@ const SLIDES = [
     categoryFilter: "entertainment"
   },
   {
-    image: "/luxury_smart_kitchen.png",
+    imageDesktop: "/luxury_smart_kitchen_desktop.png",
+    imageMobile: "/luxury_smart_kitchen_mobile.png",
+    objectPositionDesktop: "object-center",
+    objectPositionMobile: "object-center",
     title: "The Heart of Your Home",
     subtitle: "Luxury Kitchen Suites",
     description: "Discover state-of-the-art gas hobs, convection microwave ovens, and smart inverter refrigerators designed for modern culinary excellence.",
@@ -29,7 +35,10 @@ const SLIDES = [
     categoryFilter: "kitchen"
   },
   {
-    image: "/luxury_laundry_room.png",
+    imageDesktop: "/luxury_laundry_room_desktop.png",
+    imageMobile: "/luxury_laundry_room_mobile.png",
+    objectPositionDesktop: "object-center",
+    objectPositionMobile: "object-center",
     title: "Effortless Fabric Care",
     subtitle: "Premium Washers & Dryers",
     description: "Upgrade your laundry routine with quiet inverter direct-drive washing machines and energy-efficient drying systems. Gentle on clothes, smart on power.",
@@ -75,7 +84,7 @@ export default function StorefrontCarousel({ onSelectCategory }) {
 
   return (
     <div
-      className="relative h-[600px] w-full overflow-hidden bg-black md:h-[650px]"
+      className="relative w-full aspect-[9/16] sm:aspect-[4/3] md:aspect-[16/8] h-auto overflow-hidden bg-black"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -89,20 +98,37 @@ export default function StorefrontCarousel({ onSelectCategory }) {
               isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
             }`}
           >
-            {/* Background Image with Ken Burns effect */}
-            <div className="absolute inset-0 h-full w-full">
-              <Image
-                src={slide.image}
-                alt={slide.title}
-                fill
-                priority={index === 0}
-                className={`object-cover object-center transition-transform duration-10000 ease-out ${
-                  isActive ? "scale-105" : "scale-100"
-                }`}
-              />
+            {/* Background Image - Responsive Full-Bleed Layout */}
+            <div className="absolute inset-0 h-full w-full overflow-hidden">
+              {/* Desktop Image */}
+              <div className="hidden md:block absolute inset-0">
+                <Image
+                  src={slide.imageDesktop}
+                  alt={slide.title}
+                  fill
+                  priority={index === 0}
+                  className={`object-cover ${slide.objectPositionDesktop} transition-transform duration-10000 ease-out ${
+                    isActive ? "scale-105" : "scale-100"
+                  }`}
+                />
+              </div>
+              {/* Mobile Image */}
+              <div className="md:hidden absolute inset-0">
+                <Image
+                  src={slide.imageMobile}
+                  alt={slide.title}
+                  fill
+                  priority={index === 0}
+                  className={`object-cover ${slide.objectPositionMobile} transition-transform duration-10000 ease-out ${
+                    isActive ? "scale-105" : "scale-100"
+                  }`}
+                />
+              </div>
+              
               {/* Premium dark gradient overlays */}
               <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/90 via-zinc-900/50 to-transparent" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-50 via-transparent to-black/30 dark:from-zinc-950" />
+              <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-slate-50 to-transparent dark:from-zinc-950" />
+              <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-black/50 to-transparent" />
             </div>
 
             {/* Slide Content */}
@@ -182,14 +208,14 @@ export default function StorefrontCarousel({ onSelectCategory }) {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 z-30 -translate-y-1/2 rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 hover:scale-110 active:scale-95 sm:left-6"
+        className="hidden md:flex absolute left-4 top-1/2 z-30 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 hover:scale-110 active:scale-95 md:left-6"
         aria-label="Previous slide"
       >
         <ChevronLeft size={24} />
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 z-30 -translate-y-1/2 rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 hover:scale-110 active:scale-95 sm:right-6"
+        className="hidden md:flex absolute right-4 top-1/2 z-30 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-700/50 bg-zinc-950/40 p-3 text-zinc-300 backdrop-blur-sm transition-all duration-300 hover:bg-emerald-600 hover:text-white hover:border-emerald-500 hover:scale-110 active:scale-95 md:right-6"
         aria-label="Next slide"
       >
         <ChevronRight size={24} />
