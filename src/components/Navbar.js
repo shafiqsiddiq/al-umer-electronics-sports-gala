@@ -118,12 +118,12 @@ export default function Navbar() {
               >
                 Captain Login
               </Link>
-              <Link
-                href="/register"
+              <button
+                onClick={() => window.dispatchEvent(new Event("open-register"))}
                 className="hidden rounded-lg border border-emerald-600 px-3 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 sm:inline-block"
               >
                 Register
-              </Link>
+              </button>
             </>
           ) : null}
 
@@ -171,13 +171,15 @@ export default function Navbar() {
               >
                 Captain Login
               </Link>
-              <Link
-                href="/register"
-                onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  window.dispatchEvent(new Event("open-register"));
+                }}
+                className="rounded-lg px-3 py-2 text-left text-sm font-medium text-emerald-600 dark:text-emerald-400"
               >
                 Register Team
-              </Link>
+              </button>
             </>
           </div>
         </nav>

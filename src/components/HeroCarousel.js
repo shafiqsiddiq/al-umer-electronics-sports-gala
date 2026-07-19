@@ -166,13 +166,23 @@ export default function HeroCarousel() {
                       isActive ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
                     }`}
                   >
-                    <Link
-                      href={slide.ctaLink}
-                      className="group inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:bg-emerald-400 hover:shadow-emerald-400/35 hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                      <Play size={16} fill="white" className="transition-transform group-hover:scale-110" />
-                      {slide.ctaText}
-                    </Link>
+                    {slide.ctaLink === "/register" ? (
+                      <button
+                        onClick={() => window.dispatchEvent(new Event("open-register"))}
+                        className="group inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:bg-emerald-400 hover:shadow-emerald-400/35 hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        <Play size={16} fill="white" className="transition-transform group-hover:scale-110" />
+                        {slide.ctaText}
+                      </button>
+                    ) : (
+                      <Link
+                        href={slide.ctaLink}
+                        className="group inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:bg-emerald-400 hover:shadow-emerald-400/35 hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        <Play size={16} fill="white" className="transition-transform group-hover:scale-110" />
+                        {slide.ctaText}
+                      </Link>
+                    )}
 
                     <Link
                       href={slide.secondaryCtaLink}

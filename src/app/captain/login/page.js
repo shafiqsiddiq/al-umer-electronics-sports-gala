@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { formatCnic } from "@/lib/cnic";
+
 export default function CaptainLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,7 +33,7 @@ export default function CaptainLoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role: "captain" }),
+        body: JSON.stringify({ whatsapp, password, role: "captain" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
@@ -57,13 +59,16 @@ export default function CaptainLoginPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
         <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
+          <label className="mb-1 block text-sm font-medium">WhatsApp Number (11 digits)</label>
           <input
             required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            type="tel"
+            inputMode="numeric"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value.replace(/\D/g, "").slice(0, 11))}
+            placeholder="03001234567"
+            maxLength={11}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 font-mono dark:border-zinc-600 dark:bg-zinc-800"
           />
         </div>
         <div>
@@ -87,9 +92,12 @@ export default function CaptainLoginPage() {
 
       <p className="mt-4 text-center text-sm text-zinc-500">
         No account?{" "}
-        <Link href="/register" className="text-emerald-600 hover:underline">
+        <button 
+          onClick={() => window.dispatchEvent(new Event("open-register"))}
+          className="text-emerald-600 hover:underline"
+        >
           Register Team
-        </Link>
+        </button>
       </p>
     </div>
   );

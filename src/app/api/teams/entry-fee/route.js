@@ -17,7 +17,7 @@ export async function POST(request) {
     }
 
     const team = await writeClient.fetch(
-      `*[_type == "team" && _id == $teamId][0]{ _id, name }`,
+      `*[_type == "team" && _id == $teamId][0]{ _id, name, entryFeeVerified }`,
       { teamId: session.teamId }
     );
 

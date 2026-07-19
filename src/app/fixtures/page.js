@@ -1,5 +1,6 @@
 import { fetchSanity } from "@/lib/sanity";
 import MatchCard from "@/components/MatchCard";
+import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 
 async function getFixtures() {
   try {
@@ -32,7 +33,7 @@ export default async function FixturesPage() {
 
       {matches.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 p-12 text-center text-zinc-500 dark:border-zinc-700">
-          No fixtures yet. Admin can generate fixtures once 48 teams are registered.
+          No fixtures yet. Admin can generate fixtures once {TOTAL_TEAMS} teams are registered.
         </div>
       ) : (
         Object.entries(grouped).map(([section, sectionMatches]) => (

@@ -10,14 +10,15 @@ export async function POST(request) {
     const captainName = formData.get("captainName");
     const fatherName = formData.get("fatherName");
     const cnic = formData.get("cnic");
-    const email = formData.get("email");
     const whatsapp = formData.get("whatsapp");
     const password = formData.get("password");
     const teamName = formData.get("teamName");
+    const villageOrCity = formData.get("villageOrCity");
     const profilePicture = formData.get("profilePicture");
     const cnicImage = formData.get("cnicImage");
+    const entryFeeImage = formData.get("entryFeeImage");
 
-    if (!captainName || !fatherName || !cnic || !email || !whatsapp || !password || !teamName) {
+    if (!captainName || !fatherName || !cnic || !whatsapp || !password || !teamName || !villageOrCity) {
       return NextResponse.json({ error: "All required fields must be filled" }, { status: 400 });
     }
 
@@ -41,13 +42,10 @@ export async function POST(request) {
       return NextResponse.json({ error: "CNIC upload is required" }, { status: 400 });
     }
 
-    const existing = await writeClient.fetch(
-      `*[_type == "captain" && email == $email][0]`,
-      { email }
-    );
-    if (existing) {
-      return NextResponse.json({ error: "Email already registered" }, { status: 400 });
+    if (!entryFeeImage || entryFeeImage.size === 0) {
+      return NextResponse.json({ error: "Entry fee receipt is required" }, { status: 400 });
     }
+
 
     const teamExisting = await writeClient.fetch(
       `*[_type == "team" && name == $teamName][0]`,
@@ -60,11 +58,15 @@ export async function POST(request) {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const profileAsset = await writeClient.assets.upload("image", profilePicture, {
-      filename: `captain-profile-${email.replace(/[^a-z0-9]/gi, "")}.jpg`,
+      filename: `captain-profile-${cnic.replace(/[^a-z0-9]/gi, "")}.jpg`,
     });
 
     const cnicAsset = await writeClient.assets.upload("image", cnicImage, {
-      filename: `captain-cnic-${email.replace(/[^a-z0-9]/gi, "")}.jpg`,
+      filename: `captain-cnic-${cnic.replace(/[^a-z0-9]/gi, "")}.jpg`,
+    });
+
+    const entryFeeAsset = await writeClient.assets.upload("image", entryFeeImage, {
+      filename: `team-entry-fee-${teamName.replace(/[^a-z0-9]/gi, "")}.jpg`,
     });
 
     const team = await writeClient.create({
@@ -78,6 +80,11 @@ export async function POST(request) {
       points: 0,
       runsScored: 0,
       runsConceded: 0,
+      entryFeeVerified: false,
+      entryFeeImage: {
+        _type: "image",
+        asset: { _type: "reference", _ref: entryFeeAsset._id },
+      },
     });
 
     const captain = await writeClient.create({
@@ -85,8 +92,8 @@ export async function POST(request) {
       name: captainName,
       fatherName,
       cnic,
-      email,
       whatsapp,
+      villageOrCity,
       phone: whatsapp,
       passwordHash,
       profilePicture: {
@@ -108,7 +115,7 @@ export async function POST(request) {
       role: "captain",
       captainId: captain._id,
       teamId: team._id,
-      email,
+      cnic,
     });
 
     const response = NextResponse.json({

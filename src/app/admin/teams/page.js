@@ -5,7 +5,7 @@ import Image from "next/image";
 import TeamViewModal from "@/components/TeamViewModal";
 import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS, TOTAL_SQUAD } from "@/lib/tournament-logic";
-import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical } from "lucide-react";
+import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -25,6 +25,7 @@ function TeamActionDropdown({
   handleDelete,
   updateTeam,
   onRejectFee,
+  onChangePassword,
   alignUp = false,
 }) {
   const [open, setOpen] = useState(false);
@@ -86,6 +87,20 @@ function TeamActionDropdown({
             <span>Edit Team</span>
           </button>
 
+          {/* Change Password */}
+          {team.captain && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onChangePassword(team);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/35 transition"
+            >
+              <Key size={14} />
+              <span>Change Password</span>
+            </button>
+          )}
+
           {/* Approve */}
           {team.status === "pending" && (team.playerCount || 0) >= TOTAL_PLAYER_SLOTS && (
             <button
@@ -100,8 +115,8 @@ function TeamActionDropdown({
             </button>
           )}
 
-          {/* Verify Fee */}
-          {team.entryFeeImageUrl && !team.entryFeeVerified && (
+          {/* Verify Fee / Mark as Paid */}
+          {!team.entryFeeVerified && (
             <>
               <button
                 onClick={() => {
@@ -111,23 +126,25 @@ function TeamActionDropdown({
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-teal-600 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-950/35 transition"
               >
                 <CheckCircle size={14} />
-                <span>Verify Fee</span>
+                <span>{team.entryFeeImageUrl ? "Verify Fee" : "Mark Fee Paid"}</span>
               </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onRejectFee(team);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/35 transition"
-              >
-                <XCircle size={14} />
-                <span>Reject Fee</span>
-              </button>
+              {team.entryFeeImageUrl && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onRejectFee(team);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/35 transition"
+                >
+                  <XCircle size={14} />
+                  <span>Reject Fee</span>
+                </button>
+              )}
             </>
           )}
 
           {/* Activate */}
-          {team.status === "approved" && team.entryFeeImageUrl && team.entryFeeVerified && (
+          {team.status === "approved" && team.entryFeeVerified && (
             <button
               onClick={() => {
                 setOpen(false);
@@ -146,7 +163,7 @@ function TeamActionDropdown({
               Verify entry fee first to activate
             </div>
           )}
-          {team.status === "approved" && !team.entryFeeImageUrl && (
+          {team.status === "approved" && !team.entryFeeImageUrl && !team.entryFeeVerified && (
             <div className="px-3 py-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/10 rounded-lg mx-1 mt-1">
               Entry fee pending
             </div>
@@ -186,6 +203,9 @@ export default function AdminTeamsPage() {
   const [deletingTeamLoading, setDeletingTeamLoading] = useState(false);
   const [rejectTargetTeam, setRejectTargetTeam] = useState(null);
   const [rejectingTeamLoading, setRejectingTeamLoading] = useState(false);
+  const [passwordTargetTeam, setPasswordTargetTeam] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
@@ -278,6 +298,33 @@ export default function AdminTeamsPage() {
     }
   }
 
+  async function executeChangePassword(e) {
+    e.preventDefault();
+    if (!passwordTargetTeam || !newPassword) return;
+    if (newPassword.length < 6) {
+      toast("Password must be at least 6 characters", "error");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await fetch(`/api/admin/teams/${passwordTargetTeam._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "changePassword", newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to change password");
+      
+      toast(`Password for captain of "${passwordTargetTeam.name}" has been updated.`, "success");
+      setPasswordTargetTeam(null);
+      setNewPassword("");
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
   async function updateTeam(id, action) {
     try {
       const res = await fetch(`/api/admin/teams/${id}`, {
@@ -328,7 +375,7 @@ export default function AdminTeamsPage() {
       <h1 className="mb-6 text-2xl font-bold">Team Management</h1>
 
       {/* Desktop view table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+      <div className="hidden md:block rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-visible">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
@@ -404,6 +451,7 @@ export default function AdminTeamsPage() {
                     handleDelete={handleDelete}
                     updateTeam={updateTeam}
                     onRejectFee={handleRejectFeeConfirm}
+                    onChangePassword={(t) => setPasswordTargetTeam(t)}
                     alignUp={idx >= teams.length - 2 && teams.length > 2}
                   />
                 </td>
@@ -454,6 +502,7 @@ export default function AdminTeamsPage() {
                   handleDelete={handleDelete}
                   updateTeam={updateTeam}
                   onRejectFee={handleRejectFeeConfirm}
+                  onChangePassword={(t) => setPasswordTargetTeam(t)}
                   alignUp={idx >= teams.length - 2 && teams.length > 2}
                 />
               </div>
@@ -554,6 +603,60 @@ export default function AdminTeamsPage() {
         loading={rejectingTeamLoading}
         danger={true}
       />
+
+      {/* Change Password Modal */}
+      {passwordTargetTeam && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm p-4 transition-all"
+          onClick={() => {
+            setPasswordTargetTeam(null);
+            setNewPassword("");
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
+              Change Captain Password
+            </h3>
+            <p className="text-sm text-zinc-500 mb-4">
+              Enter a new password for the captain of <span className="font-semibold text-zinc-700 dark:text-zinc-300">{passwordTargetTeam.name}</span>.
+            </p>
+            <form onSubmit={executeChangePassword}>
+              <input
+                type="password"
+                placeholder="New Password (min 6 chars)"
+                className="w-full rounded-xl border border-zinc-200 bg-transparent px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 mb-4"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              <div className="flex gap-3 justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordTargetTeam(null);
+                    setNewPassword("");
+                  }}
+                  className="rounded-xl px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 transition"
+                  disabled={savingPassword}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPassword || !newPassword || newPassword.length < 6}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition"
+                >
+                  {savingPassword ? "Saving..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Entry Fee Receipt Full-Size Lightbox Modal */}
       {previewImageUrl && (

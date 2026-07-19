@@ -73,6 +73,11 @@ export default function Footer() {
                   Stats & Rankings
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
+                  Terms & Conditions
+                </Link>
+              </li>
             </ul>
           </div>
 

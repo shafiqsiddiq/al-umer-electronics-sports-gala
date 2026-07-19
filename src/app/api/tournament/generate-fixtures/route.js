@@ -5,6 +5,7 @@ import {
   assignTeamsToSections,
   buildSectionFixtures,
   TOTAL_TEAMS,
+  SECTIONS,
 } from "@/lib/tournament-logic";
 
 export async function POST() {
@@ -14,6 +15,14 @@ export async function POST() {
   }
 
   try {
+    const existingMatchesCount = await writeClient.fetch(`count(*[_type == "match"])`);
+    if (existingMatchesCount > 0) {
+      return NextResponse.json(
+        { error: "Fixtures have already been generated. Please delete existing matches first if you want to regenerate." },
+        { status: 400 }
+      );
+    }
+
     const teams = await writeClient.fetch(
       `*[_type == "team" && status in ["approved", "active"] && defined(entryFeeImage.asset)] | order(_createdAt asc) {
         _id, name
@@ -31,7 +40,7 @@ export async function POST() {
     const assignments = assignTeamsToSections(selectedTeams);
     let matchesCreated = 0;
 
-    for (const section of ["A", "B", "C"]) {
+    for (const section of SECTIONS) {
       const sectionTeams = assignments[section];
 
       for (const team of sectionTeams) {

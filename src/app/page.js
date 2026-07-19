@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import StorefrontCarousel from "@/components/StorefrontCarousel";
+import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 import {
   Phone,
   MapPin,
@@ -945,8 +946,8 @@ export default function StorefrontHomePage() {
               </span>
             </h2>
 
-            <p className="mt-4 text-sm md:text-base text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              We are proud to sponsor the biggest local cricket tournament of the year, featuring 48 top-tier teams competing for the ultimate championship title. Track live scores, fixtures, stats, and redemption brackets directly on our portal.
+            <p className="mt-4 text-base text-zinc-600 dark:text-zinc-300 leading-relaxed">
+              We are proud to sponsor the biggest local cricket tournament of the year, featuring {TOTAL_TEAMS} top-tier teams competing for the ultimate championship title. Track live scores, fixtures, stats, and redemption brackets directly on our portal.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
@@ -980,7 +981,7 @@ export default function StorefrontHomePage() {
               <div className="space-y-4">
                 <div>
                   <h4 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Total Pool</h4>
-                  <p className="text-xl font-extrabold text-zinc-900 dark:text-white">48 Local Teams</p>
+                  <p className="text-xl font-extrabold text-zinc-900 dark:text-white">{TOTAL_TEAMS} Local Teams</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-white/40 dark:bg-zinc-900/40 rounded-xl p-3 border border-zinc-150 dark:border-zinc-850">

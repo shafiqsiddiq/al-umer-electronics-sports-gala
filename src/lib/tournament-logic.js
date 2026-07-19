@@ -11,19 +11,17 @@
 export const SECTIONS = ["A", "B", "C"];
 export const TEAMS_PER_SECTION = 16;
 export const TOTAL_TEAMS = 48;
-export const MAIN_QUALIFIERS_PER_SECTION = 2;
-export const LOSER_QUALIFIERS = 2;
-export const FINAL_EIGHT = 8;
-export const MAIN_PLAYERS = 7;
-export const RESERVED_PLAYERS = 2;
-/** Captain counts as 1 of the 7 main players */
-export const ADDITIONAL_MAIN_PLAYERS = MAIN_PLAYERS - 1;
-/** Player documents the captain still needs to add */
-export const TOTAL_PLAYER_SLOTS = ADDITIONAL_MAIN_PLAYERS + RESERVED_PLAYERS;
-/** Full squad size including captain */
-export const TOTAL_SQUAD = MAIN_PLAYERS + RESERVED_PLAYERS;
-/** @deprecated use TOTAL_PLAYER_SLOTS for document limits */
-export const TOTAL_PLAYERS = TOTAL_PLAYER_SLOTS;
+export const MAIN_QUALIFIERS_PER_SECTION = 2; // 2 winners from round 3
+export const LOSER_QUALIFIERS = 2; 
+export const FINAL_EIGHT = 8; // Quarter finals
+
+// Squads have been removed; captain registers the team alone
+export const MAIN_PLAYERS = 0;
+export const RESERVED_PLAYERS = 0;
+export const ADDITIONAL_MAIN_PLAYERS = 0;
+export const TOTAL_PLAYER_SLOTS = 0;
+export const TOTAL_SQUAD = 0;
+export const TOTAL_PLAYERS = 0;
 
 export function getSquadCounts(players = []) {
   const addedMain = players.filter((p) => p.role === "main").length;
@@ -74,6 +72,7 @@ export function buildSectionFixtures(sectionTeams, section) {
   const matches = [];
   let round1Pairings = generateKnockoutPairings(sectionTeams);
 
+  // Round 1
   round1Pairings.forEach((pair, idx) => {
     matches.push({
       section,
@@ -83,34 +82,28 @@ export function buildSectionFixtures(sectionTeams, section) {
       team1Id: pair.team1._id,
       team2Id: pair.team2._id,
       sendLoserToBracket: true,
+      qualifies: round1Pairings.length === MAIN_QUALIFIERS_PER_SECTION,
     });
   });
 
-  const r2Count = round1Pairings.length / 2;
-  for (let i = 0; i < r2Count; i++) {
-    matches.push({
-      section,
-      bracketType: "main",
-      round: 2,
-      matchNumber: i + 1,
-      team1Id: null,
-      team2Id: null,
-      placeholder: true,
-    });
-  }
+  let currentRoundMatches = round1Pairings.length;
+  let currentRound = 1;
 
-  const r3Count = r2Count / 2;
-  for (let i = 0; i < r3Count; i++) {
-    matches.push({
-      section,
-      bracketType: "main",
-      round: 3,
-      matchNumber: i + 1,
-      team1Id: null,
-      team2Id: null,
-      placeholder: true,
-      qualifies: true,
-    });
+  while (currentRoundMatches > MAIN_QUALIFIERS_PER_SECTION) {
+    currentRound++;
+    currentRoundMatches = currentRoundMatches / 2;
+    for (let i = 0; i < currentRoundMatches; i++) {
+      matches.push({
+        section,
+        bracketType: "main",
+        round: currentRound,
+        matchNumber: i + 1,
+        team1Id: null,
+        team2Id: null,
+        placeholder: true,
+        qualifies: currentRoundMatches === MAIN_QUALIFIERS_PER_SECTION,
+      });
+    }
   }
 
   return matches;
@@ -149,7 +142,7 @@ export function buildLoserBracketFixtures(loserTeamIds) {
     });
   }
 
-  // Round 3: 3 matches (6 -> 3) - top 2 of 3 advance via admin or play-off
+  // Round 3: 3 matches (6 -> 3)
   for (let i = 0; i < 3; i++) {
     matches.push({
       section: "loser",
@@ -161,29 +154,6 @@ export function buildLoserBracketFixtures(loserTeamIds) {
       placeholder: true,
     });
   }
-
-  // Round 4: 1 match + 1 bye team OR 2 matches for 4 teams
-  // Simplified: Round 4 play-off for 2 qualifiers from remaining 3
-  matches.push({
-    section: "loser",
-    bracketType: "loser",
-    round: 4,
-    matchNumber: 1,
-    team1Id: null,
-    team2Id: null,
-    placeholder: true,
-    qualifies: true,
-  });
-  matches.push({
-    section: "loser",
-    bracketType: "loser",
-    round: 4,
-    matchNumber: 2,
-    team1Id: null,
-    team2Id: null,
-    placeholder: true,
-    qualifies: true,
-  });
 
   return matches;
 }
@@ -250,10 +220,7 @@ export function getNextMainMatchQuery(section, round, matchNumber) {
 export function getLoserNextMatch(round, matchNumber) {
   if (round === 1) return { round: 2, matchNumber: Math.ceil(matchNumber / 2) };
   if (round === 2) return { round: 3, matchNumber: Math.ceil(matchNumber / 2) };
-  if (round === 3) {
-    if (matchNumber <= 2) return { round: 4, matchNumber: 1 };
-    return { round: 4, matchNumber: 2 };
-  }
+  if (round === 3) return null; // Handled by Spinner
   return null;
 }
 

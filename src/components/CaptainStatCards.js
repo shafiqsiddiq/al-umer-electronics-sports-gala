@@ -84,8 +84,18 @@ function EntryFeeStatCard({ verified, uploaded, onUploaded }) {
         <p className="text-xs text-zinc-500">Receipt submitted — awaiting admin verification</p>
       )}
 
-      {!verified && !uploaded && (
+      {!uploaded && (
         <form onSubmit={handleUpload} className="space-y-2">
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-2 text-xs text-emerald-800 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/50 mb-2">
+            <p className="font-semibold mb-1 text-xs">Payment Instructions:</p>
+            <p className="text-[11px] leading-snug">
+              Send fee to <strong>JazzCash</strong> or <strong>EasyPaisa</strong>:
+            </p>
+            <p className="text-[12px] font-bold mt-0.5 tracking-wide">03047058705</p>
+            <p className="text-[11px]">Title: <strong>Muhammad Shafiq</strong></p>
+            <p className="text-[10px] mt-1 opacity-80">Upload receipt screenshot below.</p>
+          </div>
+
           <input
             type="file"
             accept="image/*"

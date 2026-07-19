@@ -5,7 +5,7 @@ import { createToken } from "@/lib/auth";
 
 export async function POST(request) {
   try {
-    const { email, password, role } = await request.json();
+    const { whatsapp, password, role } = await request.json();
 
     if (role === "admin") {
       if (password !== process.env.ADMIN_PASSWORD && password !== "admin123") {
@@ -24,13 +24,13 @@ export async function POST(request) {
       return response;
     }
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+    if (!whatsapp || !password) {
+      return NextResponse.json({ error: "WhatsApp number and password required" }, { status: 400 });
     }
 
     const captain = await writeClient.fetch(
-      `*[_type == "captain" && email == $email][0]`,
-      { email }
+      `*[_type == "captain" && whatsapp == $whatsapp][0]`,
+      { whatsapp }
     );
 
     if (!captain) {
@@ -46,7 +46,7 @@ export async function POST(request) {
       role: "captain",
       captainId: captain._id,
       teamId: captain.team?._ref,
-      email,
+      whatsapp,
     });
 
     const response = NextResponse.json({ success: true });

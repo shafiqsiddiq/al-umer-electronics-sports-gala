@@ -1,3 +1,4 @@
+// force hot reload
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
@@ -6,6 +7,7 @@ import {
   getLoserNextMatch,
   getFinalNextMatch,
   buildLoserBracketFixtures,
+  TOTAL_TEAMS
 } from "@/lib/tournament-logic";
 
 export async function POST(request, { params }) {
@@ -15,6 +17,7 @@ export async function POST(request, { params }) {
   }
 
   const { id } = await params;
+  console.log("Forcing Turbopack to recompile this file...", Date.now());
 
   try {
     const { team1Score, team2Score, team1Runs, team2Runs, winnerId, status } =
@@ -44,25 +47,22 @@ export async function POST(request, { params }) {
       .set({
         team1Score,
         team2Score,
-        team1Runs: team1Runs || 0,
-        team2Runs: team2Runs || 0,
         winner: { _type: "reference", _ref: winnerId },
         loser: { _type: "reference", _ref: loserId },
         status: status || "completed",
       })
       .commit();
 
-    const winnerRuns = match.team1._id === winnerId ? (team1Runs || 0) : (team2Runs || 0);
-    const loserRuns = match.team1._id === winnerId ? (team2Runs || 0) : (team1Runs || 0);
-
     await writeClient
       .patch(winnerId)
-      .inc({ wins: 1, points: 2, runsScored: winnerRuns })
+      .setIfMissing({ wins: 0, losses: 0, points: 0 })
+      .inc({ wins: 1, points: 2 })
       .commit();
 
     await writeClient
       .patch(loserId)
-      .inc({ losses: 1, runsConceded: loserRuns })
+      .setIfMissing({ wins: 0, losses: 0, points: 0 })
+      .inc({ losses: 1 })
       .commit();
 
     if (status === "completed") {
@@ -83,12 +83,14 @@ async function advanceWinner(match, winnerId) {
     if (match.bracketType === "main" && match.round === 3) {
       await writeClient.patch(winnerId).set({ status: "qualified_main" }).commit();
     }
-    if (match.bracketType === "loser" && match.round >= 4) {
-      const qualifiedCount = await writeClient.fetch(
-        `count(*[_type == "team" && status == "qualified_loser"])`
-      );
-      if (qualifiedCount < 2) {
-        await writeClient.patch(winnerId).set({ status: "qualified_loser" }).commit();
+    if (match.bracketType === "loser") {
+      if ((TOTAL_TEAMS === 12 && match.round >= 2) || (TOTAL_TEAMS !== 12 && match.round >= 4)) {
+        const qualifiedCount = await writeClient.fetch(
+          `count(*[_type == "team" && status == "qualified_loser"])`
+        );
+        if (qualifiedCount < 2) {
+          await writeClient.patch(winnerId).set({ status: "qualified_loser" }).commit();
+        }
       }
     }
     return;
@@ -105,6 +107,13 @@ async function advanceWinner(match, winnerId) {
   );
 
   if (!nextMatch) return;
+
+  if (
+    nextMatch.team1?._ref === winnerId ||
+    nextMatch.team2?._ref === winnerId
+  ) {
+    return;
+  }
 
   const patch = writeClient.patch(nextMatch._id);
   if (!nextMatch.team1) {
@@ -123,13 +132,6 @@ async function handleLoser(match, loserId) {
     await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
   } else if (match.bracketType === "loser") {
     await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
-    const next = getLoserNextMatch(match.round, match.matchNumber);
-    if (next) {
-      const winnerId = (
-        await writeClient.fetch(`*[_type == "match" && _id == $id][0].winner._ref`, { id: match._id })
-      );
-      if (winnerId) await advanceWinner({ ...match, bracketType: "loser" }, winnerId);
-    }
   } else if (match.bracketType === "quarter" || match.bracketType === "semi") {
     await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
   }
@@ -164,7 +166,8 @@ async function maybeGenerateLoserBracket() {
     *[_type == "match" && bracketType == "main" && round == 1 && status == "completed"].loser._ref
   `);
 
-  if (losers.length !== 24) return;
+  const expectedLosers = TOTAL_TEAMS / 2;
+  if (losers.length !== expectedLosers) return;
 
   const fixtures = buildLoserBracketFixtures(losers);
   for (const fixture of fixtures) {

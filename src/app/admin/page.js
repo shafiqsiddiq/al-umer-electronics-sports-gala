@@ -6,6 +6,7 @@ import AdminStatsCards from "@/components/AdminStatsCards";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
+import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -15,6 +16,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [confirmFixtures, setConfirmFixtures] = useState(false);
+  const [confirmLosers, setConfirmLosers] = useState(false);
   const [confirmFinalEight, setConfirmFinalEight] = useState(false);
 
   useEffect(() => {
@@ -68,6 +70,26 @@ export default function AdminDashboard() {
       setGenerating(false);
     }
   }
+
+  const executeGenerateLosers = async () => {
+    try {
+      setGenerating(true);
+      const res = await fetch("/api/tournament/generate-losers", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Failed to generate losers bracket");
+
+      toast("Generated " + data.matchesCreated + " loser bracket matches!", "success");
+      setConfirmLosers(false);
+      await checkAuth();
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   async function executeGenerateFinalEight() {
     setConfirmFinalEight(false);
@@ -128,6 +150,13 @@ export default function AdminDashboard() {
             Generate Section Fixtures
           </button>
           <button
+            onClick={() => setConfirmLosers(true)}
+            disabled={generating}
+            className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+          >
+            Generate Loser Pool
+          </button>
+          <button
             onClick={() => setConfirmFinalEight(true)}
             disabled={generating}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
@@ -146,11 +175,23 @@ export default function AdminDashboard() {
       <ConfirmModal
         isOpen={confirmFixtures}
         title="Generate Fixtures"
-        message="Are you sure you want to generate fixtures for all 48 approved teams? This will clear any existing fixtures."
+        message={`Are you sure you want to generate fixtures for all ${TOTAL_TEAMS} approved teams? This will clear any existing fixtures.`}
         confirmText="Generate Fixtures"
         cancelText="Cancel"
         onConfirm={executeGenerateFixtures}
         onCancel={() => setConfirmFixtures(false)}
+        loading={generating}
+        danger={false}
+      />
+
+      <ConfirmModal
+        isOpen={confirmLosers}
+        title="Generate Loser Pool"
+        message="Are you sure you want to generate the Second Chance (Loser) bracket matches? This requires all Round 1 matches to be completed."
+        confirmText="Generate Losers"
+        cancelText="Cancel"
+        onConfirm={executeGenerateLosers}
+        onCancel={() => setConfirmLosers(false)}
         loading={generating}
         danger={false}
       />

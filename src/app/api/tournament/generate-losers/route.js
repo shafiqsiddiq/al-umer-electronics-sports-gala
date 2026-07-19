@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
-import { buildFinalEightFixtures, FINAL_EIGHT } from "@/lib/tournament-logic";
+import { buildLoserBracketFixtures, TOTAL_TEAMS } from "@/lib/tournament-logic";
 
 export async function POST() {
   const session = await getAdminSession();
@@ -10,32 +10,35 @@ export async function POST() {
   }
 
   try {
-    const qualified = await writeClient.fetch(
-      `*[_type == "team" && status in ["qualified_main", "qualified_loser", "active"]] | order(name asc) {
-        _id, name
-      }`
+    const losers = await writeClient.fetch(
+      `*[_type == "match" && bracketType == "main" && round == 1 && status == "completed"].loser._ref`
     );
 
-    if (qualified.length < FINAL_EIGHT) {
+    const expectedLosers = TOTAL_TEAMS / 2;
+    if (losers.length !== expectedLosers) {
       return NextResponse.json(
-        { error: `Need ${FINAL_EIGHT} qualified teams, have ${qualified.length}` },
+        { error: `Need ${expectedLosers} completed matches from Round 1, currently have ${losers.length}.` },
         { status: 400 }
       );
     }
 
-    const teamIds = qualified.slice(0, FINAL_EIGHT).map((t) => t._id);
-    const fixtures = buildFinalEightFixtures(teamIds);
-    let matchesCreated = 0;
-
-    for (const teamId of teamIds) {
-      await writeClient.patch(teamId).set({ status: "final_eight" }).commit();
+    const existingLosers = await writeClient.fetch(
+      `*[_type == "match" && bracketType == "loser"]._id`
+    );
+    if (existingLosers.length > 0) {
+      for (const id of existingLosers) {
+        await writeClient.delete(id);
+      }
     }
+
+    const fixtures = buildLoserBracketFixtures(losers);
+    let matchesCreated = 0;
 
     for (const fixture of fixtures) {
       await writeClient.create({
         _type: "match",
-        section: "final",
-        bracketType: fixture.bracketType,
+        section: "loser",
+        bracketType: "loser",
         round: fixture.round,
         matchNumber: fixture.matchNumber,
         status: "scheduled",
@@ -45,19 +48,19 @@ export async function POST() {
         team2: fixture.team2Id
           ? { _type: "reference", _ref: fixture.team2Id }
           : undefined,
-        title: `Final ${fixture.bracketType} R${fixture.round}`,
+        title: `Loser Bracket R${fixture.round} M${fixture.matchNumber}`,
       });
       matchesCreated++;
     }
 
     const tournament = await writeClient.fetch(`*[_type == "tournament"][0]`);
     if (tournament) {
-      await writeClient.patch(tournament._id).set({ status: "final_eight" }).commit();
+      await writeClient.patch(tournament._id).set({ status: "loser_bracket" }).commit();
     }
 
     return NextResponse.json({ success: true, matchesCreated });
   } catch (error) {
-    console.error("Generate final eight error:", error);
+    console.error("Generate losers error:", error);
     return NextResponse.json({ error: error.message || "Failed" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import TournamentFlow from "@/components/TournamentFlow";
 import MatchCard from "@/components/MatchCard";
 import HeroCarousel from "@/components/HeroCarousel";
 import { Trophy, Users, Target, Zap } from "lucide-react";
+import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 
 async function getHomeData() {
   try {
@@ -48,8 +49,8 @@ export default async function TournamentPage() {
               icon: Users,
               label: "Registered Teams",
               value: teams,
-              max: 48,
-              description: `${48 - teams} registration slots remaining`,
+              max: TOTAL_TEAMS,
+              description: `${TOTAL_TEAMS - teams} registration slots remaining`,
               hasProgress: true,
             },
             {

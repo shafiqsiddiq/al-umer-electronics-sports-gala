@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
 
@@ -42,7 +43,20 @@ export async function PATCH(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { action, name, section, status } = body;
+  const { action, name, section, status, newPassword } = body;
+
+  if (action === "changePassword") {
+    if (!newPassword || newPassword.length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    }
+    const team = await writeClient.fetch(`*[_type == "team" && _id == $id][0]{ "captainId": captain._ref }`, { id });
+    if (!team?.captainId) {
+      return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await writeClient.patch(team.captainId).set({ passwordHash }).commit();
+    return NextResponse.json({ success: true });
+  }
 
   if (action === "approve") {
     await writeClient.patch(id).set({ status: "approved" }).commit();
@@ -61,13 +75,6 @@ export async function PATCH(request, { params }) {
 
     if (!team) {
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
-    }
-
-    if (!team.hasEntryFee) {
-      return NextResponse.json(
-        { error: "Cannot activate team until entry fee receipt is uploaded" },
-        { status: 400 }
-      );
     }
 
     if (!team.entryFeeVerified) {
@@ -92,10 +99,6 @@ export async function PATCH(request, { params }) {
 
     if (!team) {
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
-    }
-
-    if (!team.hasEntryFee) {
-      return NextResponse.json({ error: "No entry fee receipt uploaded yet" }, { status: 400 });
     }
 
     await writeClient.patch(id).set({ entryFeeVerified: true }).commit();
@@ -147,12 +150,6 @@ export async function PATCH(request, { params }) {
         }`,
         { id }
       );
-      if (!feeCheck?.hasEntryFee) {
-        return NextResponse.json(
-          { error: "Cannot set status to active until entry fee receipt is uploaded" },
-          { status: 400 }
-        );
-      }
       if (!feeCheck?.entryFeeVerified) {
         return NextResponse.json(
           { error: "Cannot set status to active until entry fee is verified by admin" },
@@ -209,11 +206,23 @@ export async function DELETE(_request, { params }) {
   }
 
   try {
+    const transaction = writeClient.transaction();
+
+    // Remove strong references from the team document first to avoid deletion errors
+    transaction.patch(id, (p) => p.unset(["captain", "players"]));
+
+    // Delete players
     for (const playerId of team.playerIds || []) {
-      if (playerId) await writeClient.delete(playerId);
+      if (playerId) transaction.delete(playerId);
     }
-    if (team.captainId) await writeClient.delete(team.captainId);
-    await writeClient.delete(id);
+    
+    // Delete captain
+    if (team.captainId) transaction.delete(team.captainId);
+    
+    // Delete the team itself
+    transaction.delete(id);
+
+    await transaction.commit();
 
     return NextResponse.json({ success: true });
   } catch (error) {
