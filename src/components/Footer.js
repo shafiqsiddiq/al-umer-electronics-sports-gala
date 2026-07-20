@@ -90,7 +90,7 @@ export default function Footer() {
             <ul className="space-y-2.5 text-sm">
               <li>
                 <Link href="/brackets/sections" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
-                  Groups & Sections
+                  Groups
                 </Link>
               </li>
               <li>

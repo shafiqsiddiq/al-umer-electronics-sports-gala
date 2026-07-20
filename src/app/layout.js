@@ -4,6 +4,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import RegisterModal from "@/components/RegisterModal";
+import AuthRedirect from "@/components/AuthRedirect";
 
 export const metadata = {
   title: "Cricket Tournament",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
       <body className="flex min-h-screen flex-col antialiased" suppressHydrationWarning>
         <ThemeProvider>
           <ToastProvider>
+            <AuthRedirect />
             <Navbar />
             <RegisterModal />
             <main className="flex-1">{children}</main>

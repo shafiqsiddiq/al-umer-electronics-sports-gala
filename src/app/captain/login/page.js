@@ -37,7 +37,7 @@ export default function CaptainLoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
-      router.push("/captain/dashboard");
+      router.replace("/captain/dashboard");
       router.refresh();
     } catch (err) {
       setError(err.message);

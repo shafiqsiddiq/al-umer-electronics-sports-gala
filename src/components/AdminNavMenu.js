@@ -24,7 +24,7 @@ export default function AdminNavMenu() {
     setOpen(false);
     await fetch("/api/auth/logout", { method: "POST" });
     window.dispatchEvent(new Event("admin-auth-change"));
-    router.push("/");
+    router.replace("/");
     router.refresh();
   }
 

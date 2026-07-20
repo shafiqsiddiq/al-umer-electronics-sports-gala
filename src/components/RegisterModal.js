@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCnic, validateCnic } from "@/lib/cnic";
+import { compressImage } from "@/lib/compress-image";
 import { User, Phone, MapPin, Users, Shield, Image as ImageIcon, CreditCard, UploadCloud, X } from "lucide-react";
 
 export default function RegisterModal() {
@@ -25,6 +26,7 @@ export default function RegisterModal() {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState("");
 
   useEffect(() => {
     const handleOpen = () => setIsOpen(true);
@@ -112,7 +114,14 @@ export default function RegisterModal() {
     }
 
     setLoading(true);
+    setLoadingStep("Compressing images...");
     try {
+      const [profileOut, cnicOut, entryOut] = await Promise.all([
+        compressImage(profilePicture),
+        compressImage(cnicImage),
+        compressImage(entryFeeImage),
+      ]);
+
       const formData = new FormData();
       formData.append("captainName", form.captainName);
       formData.append("fatherName", form.fatherName);
@@ -121,10 +130,11 @@ export default function RegisterModal() {
       formData.append("villageOrCity", form.villageOrCity);
       formData.append("password", form.password);
       formData.append("teamName", form.teamName);
-      formData.append("profilePicture", profilePicture);
-      formData.append("cnicImage", cnicImage);
-      formData.append("entryFeeImage", entryFeeImage);
+      formData.append("profilePicture", profileOut);
+      formData.append("cnicImage", cnicOut);
+      formData.append("entryFeeImage", entryOut);
 
+      setLoadingStep("Creating your team...");
       const res = await fetch("/api/auth/register", {
         method: "POST",
         body: formData,
@@ -133,12 +143,13 @@ export default function RegisterModal() {
       if (!res.ok) throw new Error(data.error || "Registration failed");
       
       setIsOpen(false);
-      router.push("/captain/dashboard");
+      router.replace("/captain/dashboard");
       router.refresh();
     } catch (err) {
       setApiError(err.message);
     } finally {
       setLoading(false);
+      setLoadingStep("");
     }
   }
 
@@ -446,7 +457,7 @@ export default function RegisterModal() {
                 disabled={loading}
                 className="w-full rounded-xl bg-emerald-600 py-3.5 font-bold text-white shadow-lg shadow-emerald-500/30 transition-all hover:bg-emerald-700 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
               >
-                {loading ? "Creating Account..." : "Register & Create Captain"}
+                {loading ? loadingStep || "Creating Account..." : "Register & Create Captain"}
               </button>
             </div>
             

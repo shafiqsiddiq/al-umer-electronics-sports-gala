@@ -13,7 +13,7 @@ const links = [
   { href: "/tournament", label: "Cricket Tournament" },
   { href: "/fixtures", label: "Fixtures" },
   { href: "/live-scores", label: "Live Scores" },
-  { href: "/brackets/sections", label: "Sections" },
+  { href: "/brackets/sections", label: "Groups" },
   { href: "/brackets/loser-bracket", label: "Second Chance" },
   { href: "/brackets/final-eight", label: "Final 8" },
   { href: "/stats", label: "Stats" },
@@ -47,7 +47,16 @@ export default function Navbar() {
   const isAdmin = user?.role === "admin";
   const isCaptain = user?.role === "captain";
   const isAuthPage = pathname === "/register" || pathname === "/captain/login";
+  const isCaptainArea = pathname.startsWith("/captain") && pathname !== "/captain/login";
+  const isAdminArea = pathname.startsWith("/admin");
   const showProtectedNav = (isCaptain || isAdmin) && !isAuthPage;
+
+  // Never send logged-in captains/admins (or captain/admin panel routes) to the public storefront home
+  const logoHref = isAdmin || isAdminArea
+    ? "/admin"
+    : isCaptain || isCaptainArea
+      ? "/captain/dashboard"
+      : "/";
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90">
@@ -55,7 +64,7 @@ export default function Navbar() {
         {/* Left Side: Logo */}
         <div className="flex flex-1 items-center justify-start">
           <Link
-            href={isAdmin ? "/admin" : showProtectedNav ? "/captain/dashboard" : "/"}
+            href={logoHref}
             className="flex items-center gap-2.5 font-bold text-emerald-600"
           >
             <div className="relative h-9 w-9 rounded-lg bg-white dark:bg-zinc-900 p-1 border border-zinc-200 dark:border-zinc-800 shadow-sm flex-shrink-0">

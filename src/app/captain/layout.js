@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import CaptainSidebar from "@/components/CaptainSidebar";
 
 async function checkCaptainAuth() {
@@ -12,6 +12,7 @@ async function checkCaptainAuth() {
 
 export default function CaptainLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isCaptain, setIsCaptain] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -28,7 +29,23 @@ export default function CaptainLayout({ children }) {
     };
   }, [pathname]);
 
-  // If we are checking auth, render a loading state
+  // Block browser Back from leaving the captain panel to public pages
+  useEffect(() => {
+    if (!isCaptain || pathname === "/captain/login") return;
+
+    const onPopState = () => {
+      requestAnimationFrame(() => {
+        const path = window.location.pathname;
+        if (!path.startsWith("/captain") || path === "/captain/login") {
+          router.replace("/captain/dashboard");
+        }
+      });
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isCaptain, pathname, router]);
+
   if (checking) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -37,7 +54,6 @@ export default function CaptainLayout({ children }) {
     );
   }
 
-  // If not authenticated as captain (like on the /captain/login page), render children directly
   if (!isCaptain) {
     return (
       <div className="flex min-h-[calc(100vh-120px)]">

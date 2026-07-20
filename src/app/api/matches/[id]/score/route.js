@@ -65,7 +65,7 @@ export async function POST(request, { params }) {
       .inc({ losses: 1 })
       .commit();
 
-    if (status === "completed") {
+    if ((status || "completed") === "completed") {
       await advanceWinner(match, winnerId);
       await handleLoser(match, loserId);
     }
@@ -125,15 +125,27 @@ async function advanceWinner(match, winnerId) {
 }
 
 async function handleLoser(match, loserId) {
+  // Only Round 1 main-bracket losers enter the Loser Pool / Second Chance
   if (match.bracketType === "main" && match.round === 1) {
-    await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
+    await writeClient
+      .patch(loserId)
+      .set({ status: "eliminated", loserBracketEligible: true })
+      .commit();
     await maybeGenerateLoserBracket();
-  } else if (match.bracketType === "main" && match.round > 1) {
-    await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
-  } else if (match.bracketType === "loser") {
-    await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
-  } else if (match.bracketType === "quarter" || match.bracketType === "semi") {
-    await writeClient.patch(loserId).set({ status: "eliminated" }).commit();
+    return;
+  }
+
+  // Later main rounds / loser / final stages: out of tournament (not loser pool)
+  if (
+    match.bracketType === "main" ||
+    match.bracketType === "loser" ||
+    match.bracketType === "quarter" ||
+    match.bracketType === "semi"
+  ) {
+    await writeClient
+      .patch(loserId)
+      .set({ status: "eliminated", loserBracketEligible: false })
+      .commit();
   }
 }
 
