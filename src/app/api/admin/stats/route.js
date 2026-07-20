@@ -5,12 +5,13 @@ import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 
 const STATUS_COLORS = {
   pending: "#f59e0b",
-  approved: "#3b82f6",
+  approved: "#0284c7",
   active: "#10b981",
   eliminated: "#ef4444",
-  qualified_main: "#8b5cf6",
-  qualified_loser: "#a855f7",
-  final_eight: "#6366f1",
+  qualified_main: "#0d9488",
+  qualified_loser: "#d97706",
+  final_eight: "#059669",
+  champion: "#ca8a04",
 };
 
 const MATCH_COLORS = {
@@ -21,15 +22,15 @@ const MATCH_COLORS = {
 
 const SECTION_COLORS = {
   A: "#10b981",
-  B: "#3b82f6",
-  C: "#8b5cf6",
+  B: "#0d9488",
+  C: "#0284c7",
   unassigned: "#71717a",
 };
 
 const SECTION_LABELS = {
-  A: "Section A",
-  B: "Section B",
-  C: "Section C",
+  A: "Group A",
+  B: "Group B",
+  C: "Group C",
   unassigned: "Unassigned",
 };
 

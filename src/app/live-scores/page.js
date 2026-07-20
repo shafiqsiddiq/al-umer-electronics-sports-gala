@@ -9,7 +9,7 @@ async function getLiveScores() {
       *[_type == "match" && (status == "live" || status == "completed")] 
       | order(status asc, scheduledAt desc) {
         _id, section, round, status, team1Score, team2Score,
-        team1->{ _id, name }, team2->{ _id, name }, winner->{ _id }, venue, scheduledAt
+        winner->{ _id, name }, venue, scheduledAt
       }
     `);
   } catch {

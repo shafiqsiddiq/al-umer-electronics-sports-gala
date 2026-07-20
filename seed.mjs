@@ -33,23 +33,36 @@ function cnicFor(i) {
 
 async function deleteAll() {
   console.log("Fetching existing teams, matches, tournaments, captains, players...");
-  const docs = await client.fetch(
-    `*[_type in ["team", "match", "tournament", "captain", "player"]]._id`
-  );
 
-  if (docs.length === 0) {
-    console.log("No old documents to delete.");
-    return;
+  // Break circular team <-> captain refs first
+  const teams = await client.fetch(`*[_type == "team"]._id`);
+  const captains = await client.fetch(`*[_type == "captain"]._id`);
+  const BATCH = 50;
+
+  for (let i = 0; i < teams.length; i += BATCH) {
+    const batch = teams.slice(i, i + BATCH);
+    const tx = client.transaction();
+    for (const id of batch) tx.patch(id, (p) => p.unset(["captain", "players"]));
+    await tx.commit();
+  }
+  for (let i = 0; i < captains.length; i += BATCH) {
+    const batch = captains.slice(i, i + BATCH);
+    const tx = client.transaction();
+    for (const id of batch) tx.patch(id, (p) => p.unset(["team"]));
+    await tx.commit();
   }
 
-  console.log(`Found ${docs.length} documents. Deleting in batches...`);
-  const BATCH = 100;
-  for (let i = 0; i < docs.length; i += BATCH) {
-    const batch = docs.slice(i, i + BATCH);
-    const tx = client.transaction();
-    for (const id of batch) tx.delete(id);
-    await tx.commit();
-    console.log(`  Deleted ${Math.min(i + BATCH, docs.length)}/${docs.length}`);
+  // Delete in dependency order
+  for (const type of ["match", "tournament", "player", "captain", "team", "generationLock"]) {
+    const ids = await client.fetch(`*[_type == $type]._id`, { type });
+    if (ids.length === 0) continue;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH);
+      const tx = client.transaction();
+      for (const id of batch) tx.delete(id);
+      await tx.commit();
+    }
+    console.log(`  Deleted ${ids.length} ${type}(s)`);
   }
   console.log("All old documents deleted.");
 }

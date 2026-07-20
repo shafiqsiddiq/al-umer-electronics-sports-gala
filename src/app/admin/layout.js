@@ -41,9 +41,11 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-120px)]">
+    <div className="flex min-h-[calc(100vh-120px)] flex-col md:flex-row">
       <AdminSidebar />
-      <div className="flex-1 p-4 md:p-6 overflow-x-hidden">{children}</div>
+      <div className="flex-1 overflow-x-hidden bg-gradient-to-b from-emerald-50/40 via-transparent to-teal-50/20 p-4 md:p-6 dark:from-emerald-950/20 dark:to-transparent">
+        {children}
+      </div>
     </div>
   );
 }
