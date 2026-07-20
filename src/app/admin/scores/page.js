@@ -165,7 +165,7 @@ export default function AdminScoresPage() {
               Round 1 Loser Pool ({loserPoolTeams.length})
             </h2>
             <p className="text-xs text-amber-700/80 dark:text-amber-300/70">
-              Only teams that lose their Section Round 1 match join this pool for Second Chance.
+              Only teams that lose their Group Round 1 match join this pool for Second Chance.
             </p>
           </div>
           {loserPoolTeams.length === 0 ? (
@@ -203,7 +203,7 @@ export default function AdminScoresPage() {
             <div>
               <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Top 8 Pool</h2>
               <p className="mt-0.5 text-sm text-zinc-500">
-                As each section finishes, its 2 qualifying teams appear here automatically.
+                As each group finishes, its 2 qualifying teams appear here automatically.
               </p>
             </div>
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-600/10 px-3 py-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
@@ -219,7 +219,7 @@ export default function AdminScoresPage() {
                 No teams have qualified yet.
               </p>
               <p className="mt-1 text-sm text-zinc-400">
-                Complete section matches — winners will show up here.
+                Complete groups matches — winners will show up here.
               </p>
             </div>
           ) : (
@@ -327,7 +327,7 @@ function ScoreUpdateForm({ match, updating, onSubmit }) {
             Match {match.matchNumber}
           </span>
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            ({match.section === 'loser' ? 'Loser Pool' : match.section === 'final' ? 'Finals' : `Section ${match.section}`})
+            ({match.section === 'loser' ? 'Loser Pool' : match.section === 'final' ? 'Finals' : `Group ${match.section}`})
           </span>
         </div>
         <div className="flex items-center gap-2">
