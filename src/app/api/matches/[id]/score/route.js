@@ -93,6 +93,23 @@ async function advanceWinner(match, winnerId) {
         }
       }
     }
+    // Grand final winner
+    if (
+      match.section === "final" &&
+      (match.bracketType === "final" || match.round === 3)
+    ) {
+      await writeClient.patch(winnerId).set({ status: "champion" }).commit();
+      const tournament = await writeClient.fetch(`*[_type == "tournament"][0]._id`);
+      if (tournament) {
+        await writeClient
+          .patch(tournament)
+          .set({
+            status: "completed",
+            champion: { _type: "reference", _ref: winnerId },
+          })
+          .commit();
+      }
+    }
     return;
   }
 

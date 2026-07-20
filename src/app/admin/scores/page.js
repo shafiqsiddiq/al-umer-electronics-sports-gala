@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/context/ToastContext";
 import LuckyDrawSpinner from "@/components/LuckyDrawSpinner";
+import ChampionCard from "@/components/ChampionCard";
 import { Trophy, ShieldAlert, Flag, Activity, CheckCircle2, Circle, Medal, Users } from "lucide-react";
 import { FINAL_EIGHT } from "@/lib/tournament-logic";
 
@@ -143,6 +144,30 @@ export default function AdminScoresPage() {
   }
 
   const emptySlots = Math.max(0, (top8.capacity || FINAL_EIGHT) - (top8.teams?.length || 0));
+
+  const grandFinal = matches.find(
+    (m) =>
+      m.section === "final" &&
+      m.round === 3 &&
+      m.status === "completed" &&
+      m.winner
+  );
+  const champion = grandFinal?.winner
+    ? {
+        ...grandFinal.winner,
+        name: grandFinal.winner.name,
+      }
+    : null;
+  const runnerUp =
+    grandFinal && champion
+      ? grandFinal.team1?._id === champion._id
+        ? grandFinal.team2
+        : grandFinal.team1
+      : null;
+  const finalScore =
+    grandFinal?.team1Score || grandFinal?.team2Score
+      ? `${grandFinal.team1Score || "—"} – ${grandFinal.team2Score || "—"}`
+      : null;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -306,6 +331,14 @@ export default function AdminScoresPage() {
         </div>
       ) : (
         <div className="space-y-12">
+          {activeTab === "final" && champion && (
+            <ChampionCard
+              team={champion}
+              runnerUp={runnerUp}
+              score={finalScore}
+            />
+          )}
+
           {roundKeys.length > 0 ? (
             roundKeys.map((roundKey) => (
               <div key={roundKey} className="relative">
