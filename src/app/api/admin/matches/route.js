@@ -20,7 +20,7 @@ export async function GET(request) {
   query += ` | order(section asc, round asc, matchNumber asc) {
     _id, section, round, matchNumber, bracketType, status,
     team1Score, team2Score, venue,
-    team1->{ _id, name }, team2->{ _id, name }, winner->{ _id }
+    team1->{ _id, name }, team2->{ _id, name }, winner->{ _id, name }
   }`;
 
   const matches = await writeClient.fetch(query, { statuses: statusFilter?.split(",") });

@@ -14,10 +14,13 @@ export async function POST() {
       `*[_type == "match" && bracketType == "main" && round == 1 && status == "completed"].loser._ref`
     );
 
+    const uniqueLosers = [...new Set(losers.filter(Boolean))];
     const expectedLosers = TOTAL_TEAMS / 2;
-    if (losers.length !== expectedLosers) {
+    if (uniqueLosers.length !== expectedLosers) {
       return NextResponse.json(
-        { error: `Need ${expectedLosers} completed matches from Round 1, currently have ${losers.length}.` },
+        {
+          error: `Need ${expectedLosers} unique Round 1 losers, currently have ${uniqueLosers.length} (raw ${losers.length}).`,
+        },
         { status: 400 }
       );
     }
@@ -26,36 +29,42 @@ export async function POST() {
       `*[_type == "match" && bracketType == "loser"]._id`
     );
     if (existingLosers.length > 0) {
-      for (const id of existingLosers) {
-        await writeClient.delete(id);
-      }
+      const delTx = writeClient.transaction();
+      for (const id of existingLosers) delTx.delete(id);
+      await delTx.commit();
     }
 
-    const fixtures = buildLoserBracketFixtures(losers);
-    let matchesCreated = 0;
+    const fixtures = buildLoserBracketFixtures(uniqueLosers);
+    const createTx = writeClient.transaction();
 
     for (const fixture of fixtures) {
-      await writeClient.create({
+      createTx.create({
         _type: "match",
         section: "loser",
         bracketType: "loser",
         round: fixture.round,
         matchNumber: fixture.matchNumber,
         status: "scheduled",
-        team1: fixture.team1Id
-          ? { _type: "reference", _ref: fixture.team1Id }
-          : undefined,
-        team2: fixture.team2Id
-          ? { _type: "reference", _ref: fixture.team2Id }
-          : undefined,
+        ...(fixture.placeholder ? { placeholder: true } : {}),
+        ...(fixture.team1Id
+          ? { team1: { _type: "reference", _ref: fixture.team1Id } }
+          : {}),
+        ...(fixture.team2Id
+          ? { team2: { _type: "reference", _ref: fixture.team2Id } }
+          : {}),
         title: `Loser Bracket R${fixture.round} M${fixture.matchNumber}`,
       });
-      matchesCreated++;
     }
+    await createTx.commit();
+    const matchesCreated = fixtures.length;
 
     const tournament = await writeClient.fetch(`*[_type == "tournament"][0]`);
     if (tournament) {
-      await writeClient.patch(tournament._id).set({ status: "loser_bracket" }).commit();
+      await writeClient
+        .patch(tournament._id)
+        .set({ status: "loser_bracket" })
+        .unset(["loserBracketLock"])
+        .commit();
     }
 
     return NextResponse.json({ success: true, matchesCreated });

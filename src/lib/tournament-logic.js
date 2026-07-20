@@ -1,11 +1,15 @@
 /**
  * Tournament structure:
- * 48 teams -> 3 sections (A,B,C) x 16 teams
- * Section R1: 16 -> 8 (8 losers to loser bracket)
- * Section R2: 8 -> 4
- * Section R3: 4 -> 2 qualifiers
- * Loser bracket: 24 teams -> 2 qualifiers
- * Final: 8 teams (quarter -> semi -> final)
+ * 48 teams -> 3 groups (A,B,C) x 16 teams
+ * Group R1: 16 -> 8 (8 losers to loser bracket)
+ * Group R2: 8 -> 4
+ * Group R3: 4 -> 2 qualifiers
+ * Loser bracket: 24 teams
+ *   R1: 12 matches (24 -> 12)
+ *   R2: 6 matches  (12 -> 6)
+ *   R3: 3 matches  (6 -> 3)
+ *   Lucky draw among final 3: 1 bye to Super 8; other 2 play; winner also to Super 8
+ * Final / Super 8: 8 teams (quarter -> semi -> final)
  */
 
 export const SECTIONS = ["A", "B", "C"];
@@ -218,9 +222,11 @@ export function getNextMainMatchQuery(section, round, matchNumber) {
 }
 
 export function getLoserNextMatch(round, matchNumber) {
+  // R1 (12) → R2 (6) → R3 (3). After R3: lucky draw, then R4 playoff for 2nd qualifier.
   if (round === 1) return { round: 2, matchNumber: Math.ceil(matchNumber / 2) };
   if (round === 2) return { round: 3, matchNumber: Math.ceil(matchNumber / 2) };
-  if (round === 3) return null; // Handled by Spinner
+  if (round === 3) return null; // Lucky draw among 3 winners
+  if (round === 4) return null; // Winner qualifies to Super 8
   return null;
 }
 

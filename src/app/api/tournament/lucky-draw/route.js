@@ -8,23 +8,35 @@ export async function GET() {
     const nextRound = triggerRound + 1;
 
     const rMatches = await writeClient.fetch(
-      `*[_type == "match" && bracketType == "loser" && round == ${triggerRound}]{
-        _id, status, winner->{ _id, name }
-      }`
+      `*[_type == "match" && bracketType == "loser" && round == $triggerRound] | order(matchNumber asc) {
+        _id, status, matchNumber,
+        winner->{ _id, name },
+        team1->{ _id, name },
+        team2->{ _id, name }
+      }`,
+      { triggerRound }
     );
 
     const nextMatchesCount = await writeClient.fetch(
-      `count(*[_type == "match" && bracketType == "loser" && round == ${nextRound} && !defined(placeholder)])`
+      `count(*[_type == "match" && bracketType == "loser" && round == $nextRound])`,
+      { nextRound }
     );
 
     const isRCompleted =
-      rMatches.length === 3 && rMatches.every((m) => m.status === "completed" && m.winner);
+      rMatches.length === 3 &&
+      rMatches.every((m) => m.status === "completed" && m.winner?._id);
 
-    const needsSpinner = isRCompleted && nextMatchesCount === 0;
+    const teams = isRCompleted ? rMatches.map((m) => m.winner).filter(Boolean) : [];
+    const needsSpinner = isRCompleted && nextMatchesCount === 0 && teams.length === 3;
+    const spinDone = isRCompleted && nextMatchesCount > 0;
 
-    const teams = isRCompleted ? rMatches.map((m) => m.winner) : [];
-
-    return NextResponse.json({ needsSpinner, teams });
+    return NextResponse.json({
+      needsSpinner,
+      spinDone,
+      teams,
+      finalThreeReady: isRCompleted,
+      round: triggerRound,
+    });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -40,10 +52,17 @@ export async function POST(request) {
 
     const nextRound = TOTAL_TEAMS === 48 ? 4 : 2;
 
-    // 1. Mark the winner as qualified
+    // Don't create duplicate playoff if already spun
+    const existing = await writeClient.fetch(
+      `count(*[_type == "match" && bracketType == "loser" && round == $nextRound])`,
+      { nextRound }
+    );
+    if (existing > 0) {
+      return NextResponse.json({ error: "Lucky draw already completed" }, { status: 400 });
+    }
+
     await writeClient.patch(winnerId).set({ status: "qualified_loser" }).commit();
 
-    // 2. The other 2 teams play in the next Round Match 1
     const otherTeams = allTeamIds.filter((id) => id !== winnerId);
 
     await writeClient.create({
@@ -55,6 +74,7 @@ export async function POST(request) {
       status: "scheduled",
       team1: { _type: "reference", _ref: otherTeams[0] },
       team2: { _type: "reference", _ref: otherTeams[1] },
+      title: `Loser Bracket R${nextRound} M1 — Super 8 Playoff`,
     });
 
     return NextResponse.json({ success: true });

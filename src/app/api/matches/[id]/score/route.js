@@ -96,8 +96,11 @@ async function advanceWinner(match, winnerId) {
     return;
   }
 
+  // Prefer the oldest placeholder / empty slot if duplicates ever exist
   const nextMatch = await writeClient.fetch(
-    `*[_type == "match" && section == $section && bracketType == $bracketType && round == $round && matchNumber == $matchNumber][0]`,
+    `*[_type == "match" && section == $section && bracketType == $bracketType && round == $round && matchNumber == $matchNumber] | order(_createdAt asc)[0]{
+      _id, team1, team2
+    }`,
     {
       section: match.section,
       bracketType: next.bracketType || match.bracketType,
@@ -166,7 +169,6 @@ async function maybeGenerateLoserBracket() {
   const r1Complete = await writeClient.fetch(`
     count(*[_type == "match" && bracketType == "main" && round == 1 && status != "completed"])
   `);
-
   if (r1Complete > 0) return;
 
   const existingLoser = await writeClient.fetch(
@@ -174,34 +176,66 @@ async function maybeGenerateLoserBracket() {
   );
   if (existingLoser > 0) return;
 
-  const losers = await writeClient.fetch(`
-    *[_type == "match" && bracketType == "main" && round == 1 && status == "completed"].loser._ref
-  `);
-
-  const expectedLosers = TOTAL_TEAMS / 2;
-  if (losers.length !== expectedLosers) return;
-
-  const fixtures = buildLoserBracketFixtures(losers);
-  for (const fixture of fixtures) {
+  // Atomic lock: only one concurrent request can create this document
+  const lockId = "lock.loserBracketGeneration";
+  try {
     await writeClient.create({
-      _type: "match",
-      section: "loser",
-      bracketType: "loser",
-      round: fixture.round,
-      matchNumber: fixture.matchNumber,
-      status: "scheduled",
-      team1: fixture.team1Id
-        ? { _type: "reference", _ref: fixture.team1Id }
-        : undefined,
-      team2: fixture.team2Id
-        ? { _type: "reference", _ref: fixture.team2Id }
-        : undefined,
-      title: `Loser Bracket R${fixture.round} M${fixture.matchNumber}`,
+      _id: lockId,
+      _type: "generationLock",
+      createdAt: new Date().toISOString(),
     });
+  } catch {
+    return;
   }
 
-  const tournament = await writeClient.fetch(`*[_type == "tournament"][0]`);
-  if (tournament) {
-    await writeClient.patch(tournament._id).set({ status: "loser_bracket" }).commit();
+  try {
+    const stillEmpty = await writeClient.fetch(
+      `count(*[_type == "match" && bracketType == "loser"])`
+    );
+    if (stillEmpty > 0) return;
+
+    const losers = await writeClient.fetch(`
+      *[_type == "match" && bracketType == "main" && round == 1 && status == "completed"].loser._ref
+    `);
+    const uniqueLosers = [...new Set(losers.filter(Boolean))];
+    const expectedLosers = TOTAL_TEAMS / 2;
+    if (uniqueLosers.length !== expectedLosers) return;
+
+    const fixtures = buildLoserBracketFixtures(uniqueLosers);
+    const tx = writeClient.transaction();
+    for (const fixture of fixtures) {
+      tx.create({
+        _type: "match",
+        section: "loser",
+        bracketType: "loser",
+        round: fixture.round,
+        matchNumber: fixture.matchNumber,
+        status: "scheduled",
+        ...(fixture.placeholder ? { placeholder: true } : {}),
+        ...(fixture.team1Id
+          ? { team1: { _type: "reference", _ref: fixture.team1Id } }
+          : {}),
+        ...(fixture.team2Id
+          ? { team2: { _type: "reference", _ref: fixture.team2Id } }
+          : {}),
+        title: `Loser Bracket R${fixture.round} M${fixture.matchNumber}`,
+      });
+    }
+    await tx.commit();
+
+    const tournament = await writeClient.fetch(`*[_type == "tournament"][0]._id`);
+    if (tournament) {
+      await writeClient
+        .patch(tournament)
+        .set({ status: "loser_bracket" })
+        .unset(["loserBracketLock"])
+        .commit();
+    }
+  } finally {
+    try {
+      await writeClient.delete(lockId);
+    } catch {
+      /* ignore */
+    }
   }
 }
