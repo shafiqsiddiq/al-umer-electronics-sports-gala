@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import CaptainProfileForm from "@/components/CaptainProfileForm";
 import TeamProfileForm from "@/components/TeamProfileForm";
 import { useToast } from "@/context/ToastContext";
+import { Settings, User, Users } from "lucide-react";
 
 export default function CaptainSettingsPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function CaptainSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingCaptain, setSavingCaptain] = useState(false);
   const [savingTeam, setSavingTeam] = useState(false);
+  const [tab, setTab] = useState("profile");
 
   useEffect(() => {
     fetchTeam();
@@ -41,16 +43,22 @@ export default function CaptainSettingsPage() {
       formData.append("name", data.name);
       formData.append("fatherName", data.fatherName);
       formData.append("cnic", data.cnic);
-      formData.append("email", data.email);
+      formData.append("email", data.email || "");
       formData.append("whatsapp", data.whatsapp);
       if (data.profilePicture) formData.append("profilePicture", data.profilePicture);
       if (data.cnicImage) formData.append("cnicImage", data.cnicImage);
 
-      const res = await fetch("/api/captain/profile", { method: "PATCH", body: formData });
+      const res = await fetch("/api/captain/profile", {
+        method: "PATCH",
+        body: formData,
+      });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Failed to update profile");
 
-      setTeam((prev) => ({ ...prev, captain: { ...prev.captain, ...result.captain } }));
+      setTeam((prev) => ({
+        ...prev,
+        captain: { ...prev.captain, ...result.captain },
+      }));
       toast("Profile updated successfully", "success");
       window.dispatchEvent(new Event("profile-update"));
     } catch (err) {
@@ -73,6 +81,7 @@ export default function CaptainSettingsPage() {
 
       setTeam(result.team);
       toast("Team updated successfully", "success");
+      window.dispatchEvent(new Event("profile-update"));
     } catch (err) {
       toast(err.message, "error");
     } finally {
@@ -89,21 +98,65 @@ export default function CaptainSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-2 text-2xl font-bold">Settings</h1>
-      <p className="mb-8 text-zinc-500">Manage your captain profile and team details.</p>
+    <div className="relative w-full space-y-4">
+      <div className="relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 px-4 py-3 text-white shadow-md dark:border-emerald-800">
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+            <Settings size={18} />
+          </span>
+          <div>
+            <h1 className="text-xl font-black tracking-tight">Settings</h1>
+            <p className="text-xs text-emerald-50/90">
+              Update captain profile and team details
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <div className="space-y-8">
-        <CaptainProfileForm
-          captain={team?.captain}
-          onSubmit={handleEditCaptain}
-          loading={savingCaptain}
-        />
-        <TeamProfileForm
-          team={team}
-          onSubmit={handleEditTeam}
-          loading={savingTeam}
-        />
+      <div className="flex flex-wrap gap-2">
+        {[
+          { id: "profile", label: "Captain Profile", icon: User },
+          { id: "team", label: "Team Details", icon: Users },
+        ].map(({ id, label, icon: Icon }) => {
+          const active = tab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${
+                active
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25"
+                  : "border border-zinc-200 bg-white text-zinc-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+              }`}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        {tab === "profile" ? (
+          <div className="p-4 sm:p-5">
+            <CaptainProfileForm
+              captain={team?.captain}
+              onSubmit={handleEditCaptain}
+              loading={savingCaptain}
+              embedded
+            />
+          </div>
+        ) : (
+          <div className="p-4 sm:p-5">
+            <TeamProfileForm
+              team={team}
+              onSubmit={handleEditTeam}
+              loading={savingTeam}
+              embedded
+            />
+          </div>
+        )}
       </div>
     </div>
   );

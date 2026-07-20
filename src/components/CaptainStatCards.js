@@ -93,7 +93,18 @@ function EntryFeeStatCard({ verified, uploaded, onUploaded }) {
             </p>
             <p className="text-[12px] font-bold mt-0.5 tracking-wide">03047058705</p>
             <p className="text-[11px]">Title: <strong>Muhammad Shafiq</strong></p>
-            <p className="text-[10px] mt-1 opacity-80">Upload receipt screenshot below.</p>
+            <p className="text-[11px] mt-1">
+              Share receipt on WhatsApp:{" "}
+              <a
+                href="https://wa.me/923044897377"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold underline"
+              >
+                03044897377
+              </a>
+            </p>
+            <p className="text-[10px] mt-1 opacity-80">Upload receipt screenshot below (optional).</p>
           </div>
 
           <input

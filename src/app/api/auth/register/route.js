@@ -45,9 +45,12 @@ export async function POST(request) {
     if (!cnicImage || cnicImage.size === 0) {
       return NextResponse.json({ error: "CNIC upload is required" }, { status: 400 });
     }
-    if (!entryFeeImage || entryFeeImage.size === 0) {
-      return NextResponse.json({ error: "Entry fee receipt is required" }, { status: 400 });
-    }
+
+    const hasEntryFee =
+      entryFeeImage &&
+      typeof entryFeeImage === "object" &&
+      typeof entryFeeImage.size === "number" &&
+      entryFeeImage.size > 0;
 
     // Run uniqueness checks in parallel
     const [existingCnic, teamExisting] = await Promise.all([
@@ -65,12 +68,14 @@ export async function POST(request) {
     const teamId = `team.${crypto.randomUUID()}`;
     const captainId = `captain.${crypto.randomUUID()}`;
 
-    // Hash password + upload all images in parallel (biggest speed win)
+    // Hash password + upload required images in parallel; entry fee is optional
     const [passwordHash, profileAsset, cnicAsset, entryFeeAsset] = await Promise.all([
       bcrypt.hash(password, 8),
       uploadImage(profilePicture, safeFilename("captain-profile", cnic)),
       uploadImage(cnicImage, safeFilename("captain-cnic", cnic)),
-      uploadImage(entryFeeImage, safeFilename("team-entry-fee", teamName)),
+      hasEntryFee
+        ? uploadImage(entryFeeImage, safeFilename("team-entry-fee", teamName))
+        : Promise.resolve(null),
     ]);
 
     // Create team + captain + link in a single Sanity transaction
@@ -89,10 +94,14 @@ export async function POST(request) {
         runsScored: 0,
         runsConceded: 0,
         entryFeeVerified: false,
-        entryFeeImage: {
-          _type: "image",
-          asset: { _type: "reference", _ref: entryFeeAsset._id },
-        },
+        ...(entryFeeAsset
+          ? {
+              entryFeeImage: {
+                _type: "image",
+                asset: { _type: "reference", _ref: entryFeeAsset._id },
+              },
+            }
+          : {}),
         captain: { _type: "reference", _ref: captainId },
       })
       .create({

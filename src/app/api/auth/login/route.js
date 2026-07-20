@@ -8,7 +8,7 @@ export async function POST(request) {
     const { whatsapp, password, role } = await request.json();
 
     if (role === "admin") {
-      if (password !== process.env.ADMIN_PASSWORD && password !== "admin123") {
+      if (password !== process.env.ADMIN_PASSWORD && password !== "Shafiq@7071") {
         return NextResponse.json({ error: "Invalid admin password" }, { status: 401 });
       }
 

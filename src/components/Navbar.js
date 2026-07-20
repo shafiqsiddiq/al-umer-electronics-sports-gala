@@ -10,6 +10,7 @@ import AdminNavMenu from "./AdminNavMenu";
 
 const links = [
   { href: "/", label: "Home" },
+  { href: "/guide", label: "Guide" },
   { href: "/tournament", label: "Cricket Tournament" },
   { href: "/fixtures", label: "Fixtures" },
   { href: "/live-scores", label: "Live Scores" },
@@ -24,6 +25,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   useEffect(() => {
     function loadUser() {
@@ -44,12 +46,32 @@ export default function Navbar() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    const onOpen = () => setRegisterOpen(true);
+    const onClose = () => setRegisterOpen(false);
+    window.addEventListener("open-register", onOpen);
+    window.addEventListener("close-register", onClose);
+    return () => {
+      window.removeEventListener("open-register", onOpen);
+      window.removeEventListener("close-register", onClose);
+    };
+  }, []);
+
+  // Close register selected state when navigating away
+  useEffect(() => {
+    setRegisterOpen(false);
+  }, [pathname]);
+
   const isAdmin = user?.role === "admin";
   const isCaptain = user?.role === "captain";
   const isAuthPage = pathname === "/register" || pathname === "/captain/login";
   const isCaptainArea = pathname.startsWith("/captain") && pathname !== "/captain/login";
   const isAdminArea = pathname.startsWith("/admin");
   const showProtectedNav = (isCaptain || isAdmin) && !isAuthPage;
+
+  const isAdminSelected = isAdminArea;
+  const isCaptainLoginSelected = pathname === "/captain/login" && !registerOpen;
+  const isRegisterSelected = registerOpen;
 
   // Never send logged-in captains/admins (or captain/admin panel routes) to the public storefront home
   const logoHref = isAdmin || isAdminArea
@@ -75,12 +97,12 @@ export default function Navbar() {
                 className="object-contain p-0.5 rounded"
               />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-extrabold text-zinc-900 dark:text-white leading-tight tracking-wider uppercase">
-                Al-Umer
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-extrabold leading-tight tracking-wide text-zinc-900 dark:text-white">
+                AL Umer Electronics
               </span>
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 -mt-0.5">
-                {isAdmin ? "Admin Panel" : showProtectedNav && user?.teamName ? user.teamName : "Electronics"}
+              <span className="truncate text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                Sports Gala Season 3
               </span>
             </div>
           </Link>
@@ -117,19 +139,32 @@ export default function Navbar() {
             <>
               <Link
                 href="/admin"
-                className="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800 sm:inline-block"
+                className={`hidden rounded-lg px-3 py-2 text-sm font-medium transition sm:inline-block ${
+                  isAdminSelected
+                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
+                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                }`}
               >
                 Admin
               </Link>
               <Link
                 href="/captain/login"
-                className="hidden rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 sm:inline-block"
+                className={`hidden rounded-lg px-3 py-2 text-sm font-medium transition sm:inline-block ${
+                  isCaptainLoginSelected
+                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
+                    : "border border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                }`}
               >
                 Captain Login
               </Link>
               <button
+                type="button"
                 onClick={() => window.dispatchEvent(new Event("open-register"))}
-                className="hidden rounded-lg border border-emerald-600 px-3 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950 sm:inline-block"
+                className={`hidden rounded-lg px-3 py-2 text-sm font-medium transition sm:inline-block ${
+                  isRegisterSelected
+                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
+                    : "border border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                }`}
               >
                 Register
               </button>
@@ -169,23 +204,36 @@ export default function Navbar() {
               <Link
                 href="/admin"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300"
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  isAdminSelected
+                    ? "bg-emerald-600 text-white"
+                    : "text-zinc-600 dark:text-zinc-300"
+                }`}
               >
                 Admin
               </Link>
               <Link
                 href="/captain/login"
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
+                className={`rounded-lg px-3 py-2 text-sm font-medium ${
+                  isCaptainLoginSelected
+                    ? "bg-emerald-600 text-white"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}
               >
                 Captain Login
               </Link>
               <button
+                type="button"
                 onClick={() => {
                   setOpen(false);
                   window.dispatchEvent(new Event("open-register"));
                 }}
-                className="rounded-lg px-3 py-2 text-left text-sm font-medium text-emerald-600 dark:text-emerald-400"
+                className={`rounded-lg px-3 py-2 text-left text-sm font-medium ${
+                  isRegisterSelected
+                    ? "bg-emerald-600 text-white"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}
               >
                 Register Team
               </button>

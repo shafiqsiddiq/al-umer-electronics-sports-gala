@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatCnic, validateCnic } from "@/lib/cnic";
 import { compressImage } from "@/lib/compress-image";
-import { User, Phone, MapPin, Users, Shield, Image as ImageIcon, CreditCard, UploadCloud, X } from "lucide-react";
+import { User, Phone, MapPin, Users, Shield, Image as ImageIcon, CreditCard, UploadCloud, X, Eye, EyeOff } from "lucide-react";
 
 export default function RegisterModal() {
   const router = useRouter();
@@ -27,6 +27,8 @@ export default function RegisterModal() {
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const handleOpen = () => setIsOpen(true);
@@ -40,6 +42,11 @@ export default function RegisterModal() {
       window.removeEventListener("close-register", handleClose);
     };
   }, []);
+
+  function closeModal() {
+    setIsOpen(false);
+    window.dispatchEvent(new Event("close-register"));
+  }
 
   if (!isOpen) return null;
 
@@ -89,9 +96,7 @@ export default function RegisterModal() {
     } else if (cnicImage.size > 5 * 1024 * 1024) {
       newErrors.cnicImage = "Image size must be less than 5MB";
     }
-    if (!entryFeeImage) {
-      newErrors.entryFeeImage = "Entry fee receipt is required";
-    } else if (entryFeeImage.size > 5 * 1024 * 1024) {
+    if (entryFeeImage && entryFeeImage.size > 5 * 1024 * 1024) {
       newErrors.entryFeeImage = "Image size must be less than 5MB";
     }
     if (!form.password || form.password.length < 6) {
@@ -119,7 +124,7 @@ export default function RegisterModal() {
       const [profileOut, cnicOut, entryOut] = await Promise.all([
         compressImage(profilePicture),
         compressImage(cnicImage),
-        compressImage(entryFeeImage),
+        entryFeeImage ? compressImage(entryFeeImage) : Promise.resolve(null),
       ]);
 
       const formData = new FormData();
@@ -132,7 +137,9 @@ export default function RegisterModal() {
       formData.append("teamName", form.teamName);
       formData.append("profilePicture", profileOut);
       formData.append("cnicImage", cnicOut);
-      formData.append("entryFeeImage", entryOut);
+      if (entryOut) {
+        formData.append("entryFeeImage", entryOut);
+      }
 
       setLoadingStep("Creating your team...");
       const res = await fetch("/api/auth/register", {
@@ -142,7 +149,7 @@ export default function RegisterModal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
       
-      setIsOpen(false);
+      closeModal();
       router.replace("/captain/dashboard");
       router.refresh();
     } catch (err) {
@@ -162,7 +169,7 @@ export default function RegisterModal() {
       <div className="w-full max-w-3xl bg-white dark:bg-zinc-950 rounded-2xl shadow-2xl relative my-8 animate-in fade-in zoom-in-95 duration-200">
         
         <button 
-          onClick={() => setIsOpen(false)}
+          onClick={closeModal}
           className="absolute top-4 right-4 p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 transition-colors z-10"
         >
           <X className="w-5 h-5" />
@@ -374,19 +381,31 @@ export default function RegisterModal() {
               </h2>
               <div className="mb-4 rounded-lg bg-indigo-50 p-4 border border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-800">
                 <p className="text-sm text-indigo-800 dark:text-indigo-300 mb-2">
-                  Please submit your entry fee to the following account and upload the screenshot/receipt below.
+                  Please submit your entry fee to the following account. You can upload a screenshot below or share the receipt on WhatsApp.
                 </p>
                 <ul className="text-sm font-medium text-indigo-900 dark:text-indigo-200 space-y-1">
                   <li>Bank: <strong>Jazz Cash / Easy Paisa</strong></li>
                   <li>Account Title: <strong>Muhammad Shafiq</strong></li>
                   <li>Account Number: <strong>03047058705</strong></li>
                   <li>Amount: <strong>Rs. 5,000/-</strong></li>
+                  <li>
+                    Share receipt on WhatsApp:{" "}
+                    <a
+                      href="https://wa.me/923044897377"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold underline decoration-indigo-400 underline-offset-2 hover:text-indigo-700 dark:hover:text-indigo-100"
+                    >
+                      03044897377
+                    </a>
+                  </li>
                 </ul>
               </div>
 
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Entry Fee Receipt <span className="text-red-500">*</span>
+                  Entry Fee Receipt{" "}
+                  <span className="font-normal text-zinc-400">(optional)</span>
                 </label>
                 <div className="flex items-center gap-4">
                   <label className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-zinc-300 p-4 hover:border-indigo-500 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:border-indigo-500 dark:hover:bg-zinc-800">
@@ -425,12 +444,20 @@ export default function RegisterModal() {
                   <div className="relative">
                     <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       value={form.password}
                       onChange={(e) => handleChange("password", e.target.value)}
-                      className={`${inputClass} ${errors.password ? errorInputClass : ""}`}
+                      className={`${inputClass} pr-11 ${errors.password ? errorInputClass : ""}`}
                       placeholder="••••••••"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                   {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password}</p>}
                 </div>
@@ -439,12 +466,20 @@ export default function RegisterModal() {
                   <div className="relative">
                     <Shield className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-400" />
                     <input
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       value={form.confirmPassword}
                       onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                      className={`${inputClass} ${errors.confirmPassword ? errorInputClass : ""}`}
+                      className={`${inputClass} pr-11 ${errors.confirmPassword ? errorInputClass : ""}`}
                       placeholder="••••••••"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
                   {errors.confirmPassword && <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>}
                 </div>
@@ -465,7 +500,7 @@ export default function RegisterModal() {
               Already registered?{" "}
               <Link 
                 href="/captain/login" 
-                onClick={() => setIsOpen(false)}
+                onClick={closeModal}
                 className="font-semibold text-emerald-600 hover:text-emerald-500 hover:underline"
               >
                 Captain Login

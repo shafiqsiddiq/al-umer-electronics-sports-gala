@@ -36,7 +36,9 @@ export default function LuckyDrawSpinner({
     }, 90);
   };
 
-  const displayTeams = teams?.length ? teams : [{ _id: "a", name: "—" }, { _id: "b", name: "—" }, { _id: "c", name: "—" }];
+  if (!teams?.length) return null;
+
+  const displayTeams = teams;
 
   return (
     <div className="overflow-hidden rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-lg dark:border-amber-700/60 dark:from-amber-950/40 dark:via-zinc-950 dark:to-orange-950/30">

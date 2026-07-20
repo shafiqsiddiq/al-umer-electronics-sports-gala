@@ -9,8 +9,6 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 import {
   Trophy,
-  Shield,
-  Lock,
   Loader2,
   Swords,
   ShieldAlert,
@@ -23,47 +21,27 @@ import {
 export default function AdminDashboard() {
   const { toast } = useToast();
   const [stats, setStats] = useState(null);
-  const [password, setPassword] = useState("");
-  const [authed, setAuthed] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [confirmFixtures, setConfirmFixtures] = useState(false);
   const [confirmLosers, setConfirmLosers] = useState(false);
   const [confirmFinalEight, setConfirmFinalEight] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    loadStats();
   }, []);
 
-  async function checkAuth() {
-    const res = await fetch("/api/admin/stats");
-    if (res.ok) {
+  async function loadStats() {
+    setLoadingStats(true);
+    try {
+      const res = await fetch("/api/admin/stats");
+      if (!res.ok) throw new Error("Failed to load dashboard stats");
       const data = await res.json();
       setStats(data);
-      setAuthed(true);
-      return true;
-    }
-    return false;
-  }
-
-  async function handleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, role: "admin" }),
-      });
-      if (!res.ok) throw new Error("Invalid password");
-      const loaded = await checkAuth();
-      if (!loaded) throw new Error("Logged in but failed to load dashboard stats");
-      window.dispatchEvent(new Event("admin-auth-change"));
-      toast("Logged in successfully as Admin.", "success");
     } catch (err) {
       toast(err.message, "error");
     } finally {
-      setLoading(false);
+      setLoadingStats(false);
     }
   }
 
@@ -75,7 +53,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate fixtures");
       toast(`Fixtures generated! ${data.matchesCreated} matches created.`, "success");
-      await checkAuth();
+      await loadStats();
     } catch (err) {
       toast(err.message, "error");
     } finally {
@@ -95,7 +73,7 @@ export default function AdminDashboard() {
 
       toast("Generated " + data.matchesCreated + " loser bracket matches!", "success");
       setConfirmLosers(false);
-      await checkAuth();
+      await loadStats();
     } catch (err) {
       toast(err.message, "error");
     } finally {
@@ -111,7 +89,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate Final 8");
       toast(`Final 8 generated! ${data.matchesCreated} matches created.`, "success");
-      await checkAuth();
+      await loadStats();
     } catch (err) {
       toast(err.message, "error");
     } finally {
@@ -119,44 +97,10 @@ export default function AdminDashboard() {
     }
   }
 
-  if (!authed) {
+  if (loadingStats && !stats) {
     return (
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-emerald-200/80 bg-white p-8 shadow-xl shadow-emerald-500/10 dark:border-emerald-900/50 dark:bg-zinc-950">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-400/20 blur-3xl" />
-        <div className="relative mb-6 flex flex-col items-center text-center">
-          <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30">
-            <Shield size={26} />
-          </span>
-          <h1 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white">
-            Admin Access
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Al-Umer Electronics Sports Gala control room
-          </p>
-        </div>
-        <form onSubmit={handleLogin} className="relative space-y-4">
-          <div className="relative">
-            <Lock
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-            />
-            <input
-              type="password"
-              placeholder="Admin Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-3 pl-10 pr-3 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition hover:from-emerald-400 hover:to-teal-500 disabled:opacity-60"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-            {loading ? "Signing in…" : "Enter Dashboard"}
-          </button>
-        </form>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
       </div>
     );
   }
@@ -205,7 +149,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="relative">
-      {/* Hero */}
       <div className="relative mb-8 overflow-hidden rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 p-6 text-white shadow-xl shadow-emerald-600/20 sm:p-8 dark:border-emerald-800">
         <div className="pointer-events-none absolute -right-8 -top-8 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />

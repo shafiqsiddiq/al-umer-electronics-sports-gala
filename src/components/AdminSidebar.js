@@ -30,7 +30,7 @@ export default function AdminSidebar() {
         </span>
         <div>
           <p className="text-sm font-black tracking-tight text-zinc-900 dark:text-white">
-            AL-UMER
+            Usman Umer
           </p>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
             Admin Panel

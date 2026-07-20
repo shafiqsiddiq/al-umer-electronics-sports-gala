@@ -25,20 +25,23 @@ export async function PATCH(request) {
     const profilePicture = formData.get("profilePicture");
     const cnicImage = formData.get("cnicImage");
 
-    if (!name || !fatherName || !cnic || !email || !whatsapp) {
-      return NextResponse.json({ error: "Name, father name, CNIC, email and WhatsApp are required" }, { status: 400 });
+    if (!name || !fatherName || !cnic || !whatsapp) {
+      return NextResponse.json({ error: "Name, father name, CNIC and WhatsApp are required" }, { status: 400 });
     }
 
     if (!validateCnic(cnic)) {
       return NextResponse.json({ error: "Invalid CNIC format. Use 35201-8511102-5" }, { status: 400 });
     }
 
-    const duplicateEmail = await writeClient.fetch(
-      `*[_type == "captain" && email == $email && _id != $captainId][0]`,
-      { email, captainId: session.captainId }
-    );
-    if (duplicateEmail) {
-      return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+    const emailValue = typeof email === "string" ? email.trim() : "";
+    if (emailValue) {
+      const duplicateEmail = await writeClient.fetch(
+        `*[_type == "captain" && email == $email && _id != $captainId][0]`,
+        { email: emailValue, captainId: session.captainId }
+      );
+      if (duplicateEmail) {
+        return NextResponse.json({ error: "Email already in use" }, { status: 400 });
+      }
     }
 
     const duplicateCnic = await writeClient.fetch(
@@ -53,14 +56,16 @@ export async function PATCH(request) {
       name,
       fatherName,
       cnic,
-      email,
+      email: emailValue,
       whatsapp,
       phone: whatsapp,
     });
 
+    const fileSlug = (emailValue || whatsapp || "captain").replace(/[^a-z0-9]/gi, "");
+
     if (profilePicture && profilePicture.size > 0) {
       const asset = await writeClient.assets.upload("image", profilePicture, {
-        filename: `captain-profile-${email.replace(/[^a-z0-9]/gi, "")}.jpg`,
+        filename: `captain-profile-${fileSlug}.jpg`,
       });
       patch.set({
         profilePicture: {
@@ -72,7 +77,7 @@ export async function PATCH(request) {
 
     if (cnicImage && cnicImage.size > 0) {
       const asset = await writeClient.assets.upload("image", cnicImage, {
-        filename: `captain-cnic-${email.replace(/[^a-z0-9]/gi, "")}.jpg`,
+        filename: `captain-cnic-${fileSlug}.jpg`,
       });
       patch.set({
         cnicImage: {
