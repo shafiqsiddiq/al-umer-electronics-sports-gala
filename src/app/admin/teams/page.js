@@ -5,7 +5,7 @@ import Image from "next/image";
 import TeamViewModal from "@/components/TeamViewModal";
 import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS, TOTAL_SQUAD } from "@/lib/tournament-logic";
-import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -27,6 +27,7 @@ function TeamActionDropdown({
   onRejectFee,
   onChangePassword,
   alignUp = false,
+  light = false,
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -49,7 +50,11 @@ function TeamActionDropdown({
     <div className="relative inline-block text-left" ref={ref}>
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-150 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition"
+        className={`rounded-lg p-1.5 transition ${
+          light
+            ? "text-white/90 hover:bg-white/20 hover:text-white"
+            : "text-zinc-500 hover:bg-zinc-150 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        }`}
         title="Actions"
       >
         <MoreVertical size={18} />
@@ -430,7 +435,7 @@ export default function AdminTeamsPage() {
   }
 
   const selectClass =
-    "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200";
+    "w-full min-w-0 appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-9 text-sm font-medium text-zinc-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 lg:w-auto";
 
   const paginationBar =
     filteredTeams.length > 0 ? (
@@ -514,51 +519,84 @@ export default function AdminTeamsPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={selectClass}
-          >
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="active">Active</option>
-            <option value="eliminated">Eliminated</option>
-            <option value="qualified_main">Qualified Main</option>
-            <option value="qualified_loser">Qualified Loser</option>
-            <option value="final_eight">Final Eight</option>
-          </select>
+        <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-center">
+          <div className="w-full lg:w-auto">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400 lg:hidden">
+              Status
+            </p>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className={selectClass}
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="active">Active</option>
+                <option value="eliminated">Eliminated</option>
+                <option value="qualified_main">Qualified Main</option>
+                <option value="qualified_loser">Qualified Loser</option>
+                <option value="final_eight">Final Eight</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600"
+              />
+            </div>
+          </div>
 
-          <select
-            value={feeFilter}
-            onChange={(e) => setFeeFilter(e.target.value)}
-            className={selectClass}
-          >
-            <option value="all">All Fees</option>
-            <option value="verified">Verified</option>
-            <option value="pending">Pending</option>
-            <option value="rejected">Rejected</option>
-            <option value="not_uploaded">Not Uploaded</option>
-          </select>
+          <div className="w-full lg:w-auto">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400 lg:hidden">
+              Entry Fee
+            </p>
+            <div className="relative">
+              <select
+                value={feeFilter}
+                onChange={(e) => setFeeFilter(e.target.value)}
+                className={selectClass}
+              >
+                <option value="all">All Fees</option>
+                <option value="verified">Verified</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+                <option value="not_uploaded">Not Uploaded</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600"
+              />
+            </div>
+          </div>
 
-          <select
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-            className={selectClass}
-          >
-            <option value="all">All Sections</option>
-            <option value="A">Group A</option>
-            <option value="B">Group B</option>
-            <option value="C">Group C</option>
-            <option value="unassigned">Unassigned</option>
-          </select>
+          <div className="w-full lg:w-auto">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400 lg:hidden">
+              Section
+            </p>
+            <div className="relative">
+              <select
+                value={sectionFilter}
+                onChange={(e) => setSectionFilter(e.target.value)}
+                className={selectClass}
+              >
+                <option value="all">All Sections</option>
+                <option value="A">Group A</option>
+                <option value="B">Group B</option>
+                <option value="C">Group C</option>
+                <option value="unassigned">Unassigned</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600"
+              />
+            </div>
+          </div>
 
           {hasActiveFilters && (
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 lg:w-auto"
             >
               <X size={13} />
               Clear Filters
@@ -720,10 +758,10 @@ export default function AdminTeamsPage() {
         {paginatedTeams.map((team, idx) => (
           <div
             key={team._id}
-            className="flex flex-col p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-md transition"
+            className="flex flex-col overflow-hidden bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-md transition"
           >
             {/* Header: Avatar, Team Name & Actions */}
-            <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-3">
+            <div className="flex items-start justify-between bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-4 py-3 text-white">
               <div className="flex items-center gap-3 min-w-0">
                 {team.captain?.profilePictureUrl ? (
                   <Image
@@ -731,18 +769,18 @@ export default function AdminTeamsPage() {
                     alt={team.captain.name || team.name}
                     width={44}
                     height={44}
-                    className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-zinc-100 dark:ring-zinc-800"
+                    className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white/40"
                   />
                 ) : (
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 text-base font-bold">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20 text-base font-bold text-white">
                     {team.name.charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div className="min-w-0">
-                  <h3 className="font-extrabold text-zinc-900 dark:text-white text-base leading-tight break-words pr-2">
+                  <h3 className="font-extrabold text-white text-base leading-tight break-words pr-2">
                     {team.name}
                   </h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Team Overview</p>
+                  <p className="text-xs text-emerald-50/90 mt-0.5">Team Overview</p>
                 </div>
               </div>
 
@@ -758,12 +796,13 @@ export default function AdminTeamsPage() {
                   onRejectFee={handleRejectFeeConfirm}
                   onChangePassword={(t) => setPasswordTargetTeam(t)}
                   alignUp={idx >= paginatedTeams.length - 2 && paginatedTeams.length > 2}
+                  light
                 />
               </div>
             </div>
 
             {/* Details: Each on its own full line/row */}
-            <div className="flex flex-col gap-2.5 text-sm">
+            <div className="flex flex-col gap-2.5 text-sm p-4">
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
                 <span className="text-zinc-400 dark:text-zinc-500 font-medium">Captain</span>
                 <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-right break-words max-w-[70%]">
