@@ -9,9 +9,12 @@ import {
   Mail,
   Trophy,
   Receipt,
-  Users,
   ExternalLink,
   Shield,
+  MapPin,
+  CheckCircle2,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { getSquadCounts } from "@/lib/tournament-logic";
 
@@ -107,9 +110,36 @@ function sectionLabel(section) {
 }
 
 function feeLabel(team) {
-  if (!team.entryFeeImageUrl) return { text: "Not uploaded", className: "text-zinc-500" };
-  if (team.entryFeeVerified) return { text: "Verified", className: "text-emerald-600" };
-  return { text: "Pending", className: "text-amber-600" };
+  if (team.entryFeeVerified) {
+    return {
+      text: "Verified",
+      className: "text-emerald-600",
+      icon: CheckCircle2,
+      badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    };
+  }
+  if (team.entryFeeRejected) {
+    return {
+      text: "Rejected",
+      className: "text-red-600",
+      icon: XCircle,
+      badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    };
+  }
+  if (team.entryFeeImageUrl) {
+    return {
+      text: "Pending",
+      className: "text-amber-600",
+      icon: Clock,
+      badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    };
+  }
+  return {
+    text: "Not uploaded",
+    className: "text-zinc-500",
+    icon: Receipt,
+    badge: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+  };
 }
 
 export default function TeamViewModal({ team, onClose }) {
@@ -119,29 +149,8 @@ export default function TeamViewModal({ team, onClose }) {
 
   const squad = getSquadCounts(team.players || []);
   const fee = feeLabel(team);
+  const FeeIcon = fee.icon;
   const whatsapp = team.captain?.whatsapp || team.captain?.phone;
-  const members = [
-    team.captain
-      ? {
-          id: "captain",
-          name: team.captain.name,
-          fatherName: team.captain.fatherName,
-          cnic: team.captain.cnic,
-          photo: team.captain.profilePictureUrl,
-          role: "Captain",
-          isCaptain: true,
-        }
-      : null,
-    ...(team.players || []).map((p) => ({
-      id: p._id,
-      name: p.name,
-      fatherName: p.fatherName,
-      cnic: p.cnic,
-      photo: p.profilePictureUrl,
-      role: p.role === "main" ? "Main" : "Reserved",
-      isCaptain: false,
-    })),
-  ].filter(Boolean);
 
   return (
     <div
@@ -149,12 +158,13 @@ export default function TeamViewModal({ team, onClose }) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-950"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-950"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="relative shrink-0 overflow-hidden border-b border-emerald-800/20 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 px-4 py-4 text-white sm:px-5">
           <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/10" />
+          <div className="absolute -bottom-6 -left-4 h-20 w-20 rounded-full bg-white/5" />
           <div className="relative flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <Avatar
@@ -177,8 +187,8 @@ export default function TeamViewModal({ team, onClose }) {
                   <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold capitalize">
                     {String(team.status || "active").replace(/_/g, " ")}
                   </span>
-                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold">
-                    {squad.displayTotal} member{squad.displayTotal === 1 ? "" : "s"}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${fee.badge}`}>
+                    Fee: {fee.text}
                   </span>
                 </div>
               </div>
@@ -198,7 +208,7 @@ export default function TeamViewModal({ team, onClose }) {
         <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             {/* Captain */}
-            <section className="rounded-2xl border border-zinc-200/80 p-3.5 dark:border-zinc-800">
+            <section className="rounded-2xl border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/50 p-3.5 dark:border-zinc-800 dark:from-zinc-950 dark:to-zinc-900/40">
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                   <Shield size={14} />
@@ -228,6 +238,11 @@ export default function TeamViewModal({ team, onClose }) {
 
               <div className="space-y-2.5">
                 <InfoRow icon={IdCard} label="CNIC" value={team.captain?.cnic} mono />
+                <InfoRow
+                  icon={MapPin}
+                  label="Village/City"
+                  value={team.captain?.villageOrCity}
+                />
                 <InfoRow icon={Phone} label="WhatsApp" value={whatsapp} />
                 <InfoRow icon={Mail} label="Email" value={team.captain?.email} />
               </div>
@@ -244,7 +259,7 @@ export default function TeamViewModal({ team, onClose }) {
             </section>
 
             {/* Stats */}
-            <section className="rounded-2xl border border-zinc-200/80 p-3.5 dark:border-zinc-800">
+            <section className="rounded-2xl border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/50 p-3.5 dark:border-zinc-800 dark:from-zinc-950 dark:to-zinc-900/40">
               <div className="mb-3 flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300">
                   <Trophy size={14} />
@@ -271,6 +286,31 @@ export default function TeamViewModal({ team, onClose }) {
                 />
               </div>
 
+              <div
+                className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${
+                  team.entryFeeRejected
+                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
+                    : team.entryFeeVerified
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
+                      : team.entryFeeImageUrl
+                        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
+                        : "border-dashed border-zinc-200 text-zinc-400 dark:border-zinc-700"
+                }`}
+              >
+                <FeeIcon size={14} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">
+                    {team.entryFeeRejected
+                      ? "Receipt rejected — captain must re-upload"
+                      : team.entryFeeVerified
+                        ? "Entry fee verified by admin"
+                        : team.entryFeeImageUrl
+                          ? "Receipt uploaded — awaiting verification"
+                          : "No entry fee receipt uploaded"}
+                  </p>
+                </div>
+              </div>
+
               {team.entryFeeImageUrl && (
                 <div className="mt-3">
                   <DocThumb
@@ -280,93 +320,8 @@ export default function TeamViewModal({ team, onClose }) {
                   />
                 </div>
               )}
-
-              {!team.entryFeeImageUrl && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl border border-dashed border-zinc-200 px-3 py-2.5 text-xs text-zinc-400 dark:border-zinc-700">
-                  <Receipt size={14} />
-                  No entry fee receipt uploaded
-                </div>
-              )}
             </section>
           </div>
-
-          {/* Squad */}
-          <section>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                <Users size={14} />
-              </span>
-              <h3 className="text-sm font-black text-zinc-900 dark:text-white">
-                Squad
-              </h3>
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-500 dark:bg-zinc-800">
-                {members.length}
-              </span>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-zinc-800">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="bg-zinc-50 text-[10px] font-bold uppercase tracking-wide text-zinc-400 dark:bg-zinc-900/80">
-                      <th className="px-3 py-2.5">Player</th>
-                      <th className="hidden px-3 py-2.5 sm:table-cell">Father</th>
-                      <th className="px-3 py-2.5">CNIC</th>
-                      <th className="px-3 py-2.5">Role</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.map((m) => (
-                      <tr
-                        key={m.id}
-                        className={`border-t border-zinc-100 dark:border-zinc-800 ${
-                          m.isCaptain
-                            ? "bg-emerald-50/60 dark:bg-emerald-950/20"
-                            : ""
-                        }`}
-                      >
-                        <td className="px-3 py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <Avatar src={m.photo} alt={m.name} size={32} />
-                            <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                              {m.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="hidden px-3 py-2.5 text-zinc-600 dark:text-zinc-300 sm:table-cell">
-                          {m.fatherName || "—"}
-                        </td>
-                        <td className="px-3 py-2.5 font-mono text-xs text-zinc-600 dark:text-zinc-300">
-                          {m.cnic || "—"}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              m.isCaptain
-                                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                            }`}
-                          >
-                            {m.role}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {members.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-3 py-8 text-center text-sm text-zinc-400"
-                        >
-                          No squad members yet
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
         </div>
 
         {/* Footer */}

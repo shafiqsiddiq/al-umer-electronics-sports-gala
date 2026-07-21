@@ -10,11 +10,12 @@ export async function GET() {
 
   const teams = await writeClient.fetch(`
     *[_type == "team"] | order(_createdAt desc) {
-      _id, name, section, status, entryFeeVerified,
+      _id, name, section, status, entryFeeVerified, entryFeeRejected,
       "playerCount": count(players),
       "entryFeeImageUrl": entryFeeImage.asset->url,
       "captain": captain->{
         name,
+        villageOrCity,
         "profilePictureUrl": profilePicture.asset->url
       }
     }

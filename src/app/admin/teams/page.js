@@ -117,30 +117,31 @@ function TeamActionDropdown({
 
           {/* Verify Fee / Mark as Paid */}
           {!team.entryFeeVerified && (
-            <>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  updateTeam(team._id, "verifyEntryFee");
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-teal-600 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-950/35 transition"
-              >
-                <CheckCircle size={14} />
-                <span>{team.entryFeeImageUrl ? "Verify Fee" : "Mark Fee Paid"}</span>
-              </button>
-              {team.entryFeeImageUrl && (
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    onRejectFee(team);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/35 transition"
-                >
-                  <XCircle size={14} />
-                  <span>Reject Fee</span>
-                </button>
-              )}
-            </>
+            <button
+              onClick={() => {
+                setOpen(false);
+                updateTeam(team._id, "verifyEntryFee");
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-teal-600 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-950/35 transition"
+            >
+              <CheckCircle size={14} />
+              <span>{team.entryFeeImageUrl ? "Verify Fee" : "Mark Fee Paid"}</span>
+            </button>
+          )}
+
+          {/* Reject Fee: available for uploaded receipts and also for
+              already-verified fees (undo an accidental verification) */}
+          {(team.entryFeeImageUrl || team.entryFeeVerified) && (
+            <button
+              onClick={() => {
+                setOpen(false);
+                onRejectFee(team);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-orange-600 hover:bg-orange-50 dark:text-orange-400 dark:hover:bg-orange-950/35 transition"
+            >
+              <XCircle size={14} />
+              <span>Reject Fee</span>
+            </button>
           )}
 
           {/* Activate */}
@@ -361,6 +362,7 @@ export default function AdminTeamsPage() {
               status: updatedTeam.status,
               entryFeeImageUrl: updatedTeam.entryFeeImageUrl,
               entryFeeVerified: updatedTeam.entryFeeVerified,
+              entryFeeRejected: updatedTeam.entryFeeRejected,
               playerCount: updatedTeam.players?.length ?? t.playerCount,
             }
           : t
@@ -372,61 +374,106 @@ export default function AdminTeamsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Team Management</h1>
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Team Management</h1>
+          <p className="mt-0.5 text-sm text-zinc-500">
+            {teams.length} team{teams.length === 1 ? "" : "s"} registered
+          </p>
+        </div>
+      </div>
 
       {/* Desktop view table */}
-      <div className="hidden md:block rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-visible">
+      <div className="hidden md:block overflow-visible rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-50 dark:bg-zinc-800">
-            <tr>
-              <th className="px-4 py-3">Team</th>
-              <th className="px-4 py-3">Section</th>
-              <th className="px-4 py-3">Players</th>
-              <th className="px-4 py-3">Entry Fee</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+          <thead>
+            <tr className="border-b border-emerald-700/20 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-[11px] font-bold uppercase tracking-wider text-emerald-50">
+              <th className="rounded-tl-2xl px-5 py-3.5">Team</th>
+              <th className="hidden px-4 py-3.5 lg:table-cell">Village/City</th>
+              <th className="hidden px-4 py-3.5 xl:table-cell">Section</th>
+              <th className="px-4 py-3.5">Players</th>
+              <th className="px-4 py-3.5">Entry Fee</th>
+              <th className="px-4 py-3.5">Status</th>
+              <th className="rounded-tr-2xl px-5 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {teams.map((team, idx) => (
-              <tr key={team._id} className="border-t border-zinc-200 dark:border-zinc-700">
-                <td className="px-4 py-3">
+              <tr
+                key={team._id}
+                className="group border-t border-zinc-100 transition-colors first:border-t-0 hover:bg-emerald-50/40 dark:border-zinc-800/80 dark:hover:bg-emerald-950/10"
+              >
+                <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     {team.captain?.profilePictureUrl ? (
                       <Image
                         src={team.captain.profilePictureUrl}
                         alt={team.captain.name || team.name}
-                        width={36}
-                        height={36}
-                        className="h-9 w-9 shrink-0 rounded-full object-cover"
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-zinc-200 dark:ring-zinc-700"
                       />
                     ) : (
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs text-zinc-500 dark:bg-zinc-700">
-                        N/A
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-sm font-black text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                        {team.name.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <div>
-                      <div className="font-medium">{team.name}</div>
-                      <div className="text-xs text-zinc-500">{team.captain?.name || "No captain"}</div>
+                    <div className="min-w-0">
+                      <div className="truncate font-bold text-zinc-900 dark:text-zinc-100">
+                        {team.name}
+                      </div>
+                      <div className="truncate text-xs text-zinc-500">
+                        {team.captain?.name || "No captain"}
+                      </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3">{team.section}</td>
-                <td className="px-4 py-3">{(team.playerCount || 0) + 1}/{TOTAL_SQUAD}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col gap-1.5 items-start">
-                    {!team.entryFeeImageUrl ? (
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Not uploaded</span>
+                <td className="hidden px-4 py-3.5 lg:table-cell">
+                  <span className="text-sm font-medium capitalize text-zinc-700 dark:text-zinc-300">
+                    {team.captain?.villageOrCity || "—"}
+                  </span>
+                </td>
+                <td className="hidden px-4 py-3.5 xl:table-cell">
+                  <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold capitalize text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                    {!team.section || team.section === "unassigned"
+                      ? "Unassigned"
+                      : `Group ${team.section}`}
+                  </span>
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
+                    {(team.playerCount || 0) + 1}
+                  </span>
+                  <span className="text-xs text-zinc-400"> / {TOTAL_SQUAD}</span>
+                </td>
+                <td className="px-4 py-3.5">
+                  <div className="flex flex-col items-start gap-1.5">
+                    {!team.entryFeeImageUrl && team.entryFeeRejected ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200/60 dark:bg-red-950/20 dark:text-red-400 dark:ring-red-900/40">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                        Rejected
+                      </span>
+                    ) : !team.entryFeeImageUrl ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-50 px-2.5 py-0.5 text-xs font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200/60 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-800">
+                        <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                        Not uploaded
+                      </span>
                     ) : team.entryFeeVerified ? (
-                      <span className="inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-200/30">Verified</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-900/40">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Verified
+                      </span>
                     ) : (
-                      <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200/30">Pending verification</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200/60 dark:bg-amber-950/20 dark:text-amber-400 dark:ring-amber-900/40">
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        Pending
+                      </span>
                     )}
                     {team.entryFeeImageUrl && (
                       <button
                         type="button"
                         onClick={() => setPreviewImageUrl(team.entryFeeImageUrl)}
-                        className="inline-flex items-center gap-0.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-2 py-1 text-xs font-medium text-zinc-600 dark:text-zinc-300 transition"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400"
                       >
                         <Eye size={12} />
                         View Receipt
@@ -434,14 +481,14 @@ export default function AdminTeamsPage() {
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">
                   <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
                     STATUS_STYLES[team.status] || "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                   }`}>
                     {team.status?.replace(/_/g, " ") || "—"}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-5 py-3.5 text-right">
                   <TeamActionDropdown
                     team={team}
                     loadingTeamId={loadingTeamId}
@@ -457,6 +504,13 @@ export default function AdminTeamsPage() {
                 </td>
               </tr>
             ))}
+            {teams.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center text-sm text-zinc-400">
+                  No teams registered yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -518,6 +572,13 @@ export default function AdminTeamsPage() {
               </div>
 
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
+                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Village/City</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize text-right break-words max-w-[70%]">
+                  {team.captain?.villageOrCity || "—"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
                 <span className="text-zinc-400 dark:text-zinc-500 font-medium">Section</span>
                 <span className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize text-right break-words max-w-[70%]">
                   {team.section || "Unassigned"}
@@ -534,7 +595,11 @@ export default function AdminTeamsPage() {
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
                 <span className="text-zinc-400 dark:text-zinc-500 font-medium">Entry Fee</span>
                 <div className="flex flex-col items-end gap-1">
-                  {!team.entryFeeImageUrl ? (
+                  {!team.entryFeeImageUrl && team.entryFeeRejected ? (
+                    <span className="inline-flex rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200/30">
+                      Rejected
+                    </span>
+                  ) : !team.entryFeeImageUrl ? (
                     <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Not uploaded</span>
                   ) : team.entryFeeVerified ? (
                     <span className="inline-flex rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-200/30">

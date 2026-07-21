@@ -37,6 +37,7 @@ export async function POST(request) {
           asset: { _type: "reference", _ref: asset._id },
         },
         entryFeeVerified: false,
+        entryFeeRejected: false,
       })
       .commit();
 

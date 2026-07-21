@@ -4,11 +4,11 @@ import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
 
 const TEAM_QUERY = `*[_type == "team" && _id == $id][0]{
-  _id, name, section, status, wins, losses, points, entryFeeVerified,
+  _id, name, section, status, wins, losses, points, entryFeeVerified, entryFeeRejected,
   "entryFeeImageUrl": entryFeeImage.asset->url,
   "playerCount": count(players),
   "captain": captain->{
-    _id, name, fatherName, cnic, email, whatsapp, phone,
+    _id, name, fatherName, cnic, email, whatsapp, phone, villageOrCity,
     "profilePictureUrl": profilePicture.asset->url,
     "cnicImageUrl": cnicImage.asset->url
   },
@@ -101,7 +101,10 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    await writeClient.patch(id).set({ entryFeeVerified: true }).commit();
+    await writeClient
+      .patch(id)
+      .set({ entryFeeVerified: true, entryFeeRejected: false })
+      .commit();
     return NextResponse.json({ success: true });
   }
 
@@ -109,6 +112,7 @@ export async function PATCH(request, { params }) {
     const team = await writeClient.fetch(
       `*[_type == "team" && _id == $id][0]{
         _id,
+        entryFeeVerified,
         "hasEntryFee": defined(entryFeeImage.asset)
       }`,
       { id }
@@ -118,11 +122,16 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    if (!team.hasEntryFee) {
+    // Allow rejecting a verified fee too, so an accidental verification can be undone
+    if (!team.hasEntryFee && !team.entryFeeVerified) {
       return NextResponse.json({ error: "No entry fee receipt to reject" }, { status: 400 });
     }
 
-    await writeClient.patch(id).unset(["entryFeeImage"]).set({ entryFeeVerified: false }).commit();
+    await writeClient
+      .patch(id)
+      .unset(["entryFeeImage"])
+      .set({ entryFeeVerified: false, entryFeeRejected: true })
+      .commit();
     return NextResponse.json({ success: true });
   }
 

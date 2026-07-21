@@ -15,6 +15,7 @@ import {
   Shield,
   ExternalLink,
   Receipt,
+  XCircle,
 } from "lucide-react";
 
 const STATUS_STYLES = {
@@ -184,6 +185,10 @@ export default function CaptainDashboard() {
                   <>
                     <CheckCircle2 size={12} /> Verified
                   </>
+                ) : team.entryFeeRejected ? (
+                  <>
+                    <XCircle size={12} /> Rejected
+                  </>
                 ) : (
                   <>
                     <Clock size={12} /> Pending
@@ -271,6 +276,16 @@ export default function CaptainDashboard() {
                 <CheckCircle2 size={12} />
                 Verified by admin
               </p>
+            ) : team.entryFeeRejected ? (
+              <div className="shrink-0 space-y-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+                <p className="flex items-center gap-1 text-[11px] font-bold text-red-700 dark:text-red-300">
+                  <XCircle size={12} />
+                  Receipt rejected by admin
+                </p>
+                <p className="text-[10px] text-red-600/90 dark:text-red-300/80">
+                  Please upload a clear, valid payment receipt to continue.
+                </p>
+              </div>
             ) : team.entryFeeImageUrl ? (
               <p className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                 <Clock size={12} />
@@ -292,9 +307,11 @@ export default function CaptainDashboard() {
                   <span className="truncate">
                     {feeFile
                       ? feeFile.name
-                      : team.entryFeeImageUrl
-                        ? "Replace"
-                        : "Choose file"}
+                      : team.entryFeeRejected
+                        ? "Re-upload receipt"
+                        : team.entryFeeImageUrl
+                          ? "Replace"
+                          : "Choose file"}
                   </span>
                   <input
                     type="file"

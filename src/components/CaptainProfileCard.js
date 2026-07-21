@@ -11,6 +11,9 @@ import {
   Trophy,
   Pencil,
   Shield,
+  MapPin,
+  Activity,
+  CreditCard,
 } from "lucide-react";
 
 const STATUS_STYLES = {
@@ -30,9 +33,11 @@ const STATUS_STYLES = {
     "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
 };
 
-function InfoCell({ icon: Icon, label, value, mono = false }) {
+function InfoCell({ icon: Icon, label, value, mono = false, className = "" }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-zinc-50/90 px-2.5 py-1.5 dark:bg-zinc-900/70">
+    <div
+      className={`flex min-w-0 items-center gap-2 rounded-lg bg-zinc-50/90 px-2.5 py-1.5 dark:bg-zinc-900/70 ${className}`}
+    >
       <Icon size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
       <div className="min-w-0">
         <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-400">
@@ -46,6 +51,24 @@ function InfoCell({ icon: Icon, label, value, mono = false }) {
         >
           {value || "—"}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function BadgeCell({ icon: Icon, label, badgeText, badgeStyle }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-zinc-50/90 px-2.5 py-1.5 dark:bg-zinc-900/70">
+      <Icon size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+      <div className="min-w-0">
+        <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-400">
+          {label}
+        </p>
+        <span
+          className={`mt-0.5 inline-flex rounded-full px-2 py-px text-[10px] font-bold capitalize ${badgeStyle}`}
+        >
+          {badgeText}
+        </span>
       </div>
     </div>
   );
@@ -101,40 +124,55 @@ export default function CaptainProfileCard({
 
       <div className="space-y-2 p-3">
         <div className="grid grid-cols-2 gap-1.5">
-          <InfoCell icon={User} label="Father" value={captain?.fatherName} />
+          <InfoCell icon={Shield} label="Captain Name" value={captain?.name} />
+          <InfoCell icon={User} label="Father Name" value={captain?.fatherName} />
           <InfoCell icon={IdCard} label="CNIC" value={captain?.cnic} mono />
-          <InfoCell icon={Mail} label="Email" value={captain?.email} />
           <InfoCell
             icon={Phone}
             label="WhatsApp"
             value={captain?.whatsapp || captain?.phone}
           />
+          <InfoCell
+            icon={Mail}
+            label="Email"
+            value={captain?.email}
+            className="col-span-2"
+          />
+          <InfoCell
+            icon={MapPin}
+            label="Village/City"
+            value={captain?.villageOrCity}
+          />
           <InfoCell icon={Users} label="Team" value={team?.name} />
           <InfoCell icon={Flag} label="Group" value={sectionLabel} />
-          <div className="flex items-center justify-between rounded-lg bg-zinc-50/90 px-2.5 py-1.5 dark:bg-zinc-900/70">
-            <span className="text-[9px] font-bold uppercase text-zinc-400">Status</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${statusStyle}`}
-            >
-              {team?.status?.replace(/_/g, " ") || "—"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-lg bg-zinc-50/90 px-2.5 py-1.5 dark:bg-zinc-900/70">
-            <span className="text-[9px] font-bold uppercase text-zinc-400">Fee</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                team?.entryFeeVerified
-                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-              }`}
-            >
-              {team?.entryFeeVerified ? "Verified" : "Pending"}
-            </span>
-          </div>
           <InfoCell
             icon={Trophy}
             label="Record"
             value={`${team?.wins ?? 0}W · ${team?.losses ?? 0}L · ${team?.points ?? 0} pts`}
+          />
+          <BadgeCell
+            icon={Activity}
+            label="Status"
+            badgeText={team?.status?.replace(/_/g, " ") || "—"}
+            badgeStyle={statusStyle}
+          />
+          <BadgeCell
+            icon={CreditCard}
+            label="Fee"
+            badgeText={
+              team?.entryFeeVerified
+                ? "Verified"
+                : team?.entryFeeRejected
+                  ? "Rejected"
+                  : "Pending"
+            }
+            badgeStyle={
+              team?.entryFeeVerified
+                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                : team?.entryFeeRejected
+                  ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+            }
           />
         </div>
       </div>
