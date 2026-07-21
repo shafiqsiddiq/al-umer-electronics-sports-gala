@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Phone,
   Lock,
@@ -202,13 +203,12 @@ export default function CaptainLoginPage() {
 
             <p className="relative mt-5 text-center text-sm text-zinc-500">
               No account?{" "}
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new Event("open-register"))}
+              <Link
+                href="/register"
                 className="font-bold text-emerald-600 hover:underline dark:text-emerald-400"
               >
                 Register Team
-              </button>
+              </Link>
             </p>
           </div>
         </div>

@@ -3,7 +3,6 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import RegisterModal from "@/components/RegisterModal";
 import AuthRedirect from "@/components/AuthRedirect";
 
 export const metadata = {
@@ -19,7 +18,6 @@ export default function RootLayout({ children }) {
           <ToastProvider>
             <AuthRedirect />
             <Navbar />
-            <RegisterModal />
             <main className="flex-1">{children}</main>
             <Footer />
           </ToastProvider>

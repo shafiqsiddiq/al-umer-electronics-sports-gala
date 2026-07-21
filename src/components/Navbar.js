@@ -10,7 +10,6 @@ import AdminNavMenu from "./AdminNavMenu";
 
 const links = [
   { href: "/", label: "Home" },
-  { href: "/guide", label: "Guide" },
   { href: "/tournament", label: "Cricket Tournament" },
   { href: "/fixtures", label: "Fixtures" },
   { href: "/live-scores", label: "Live Scores" },
@@ -25,7 +24,6 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [registerOpen, setRegisterOpen] = useState(false);
 
   useEffect(() => {
     function loadUser() {
@@ -46,22 +44,6 @@ export default function Navbar() {
     };
   }, [pathname]);
 
-  useEffect(() => {
-    const onOpen = () => setRegisterOpen(true);
-    const onClose = () => setRegisterOpen(false);
-    window.addEventListener("open-register", onOpen);
-    window.addEventListener("close-register", onClose);
-    return () => {
-      window.removeEventListener("open-register", onOpen);
-      window.removeEventListener("close-register", onClose);
-    };
-  }, []);
-
-  // Close register selected state when navigating away
-  useEffect(() => {
-    setRegisterOpen(false);
-  }, [pathname]);
-
   const isAdmin = user?.role === "admin";
   const isCaptain = user?.role === "captain";
   const isAuthPage = pathname === "/register" || pathname === "/captain/login";
@@ -70,8 +52,8 @@ export default function Navbar() {
   const showProtectedNav = (isCaptain || isAdmin) && !isAuthPage;
 
   const isAdminSelected = isAdminArea;
-  const isCaptainLoginSelected = pathname === "/captain/login" && !registerOpen;
-  const isRegisterSelected = registerOpen;
+  const isCaptainLoginSelected = pathname === "/captain/login";
+  const isRegisterSelected = pathname === "/register";
 
   // Never send logged-in captains/admins (or captain/admin panel routes) to the public storefront home
   const logoHref = isAdmin || isAdminArea
@@ -157,9 +139,8 @@ export default function Navbar() {
               >
                 Captain Login
               </Link>
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new Event("open-register"))}
+              <Link
+                href="/register"
                 className={`hidden rounded-lg px-3 py-2 text-sm font-medium transition sm:inline-block ${
                   isRegisterSelected
                     ? "bg-emerald-600 text-white shadow-sm shadow-emerald-500/25"
@@ -167,7 +148,7 @@ export default function Navbar() {
                 }`}
               >
                 Register
-              </button>
+              </Link>
             </>
           ) : null}
 
@@ -223,12 +204,9 @@ export default function Navbar() {
               >
                 Captain Login
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  window.dispatchEvent(new Event("open-register"));
-                }}
+              <Link
+                href="/register"
+                onClick={() => setOpen(false)}
                 className={`rounded-lg px-3 py-2 text-left text-sm font-medium ${
                   isRegisterSelected
                     ? "bg-emerald-600 text-white"
@@ -236,7 +214,7 @@ export default function Navbar() {
                 }`}
               >
                 Register Team
-              </button>
+              </Link>
             </>
           </div>
         </nav>

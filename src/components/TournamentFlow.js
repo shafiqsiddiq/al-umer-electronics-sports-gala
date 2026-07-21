@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Users, Shield, Zap, Trophy, ArrowDown, ChevronRight } from "lucide-react";
 export default function TournamentFlow() {
   const stages = [
@@ -141,12 +142,12 @@ export default function TournamentFlow() {
               <p className="text-sm text-emerald-100">Secure your team's spot and compete with the best cricket talent.</p>
             </div>
           </div>
-          <button
-            onClick={() => window.dispatchEvent(new Event("open-register"))}
+          <Link
+            href="/register"
             className="w-full md:w-auto text-center rounded-xl bg-white px-6 py-3 font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:bg-emerald-50 hover:shadow-md hover:scale-102 active:scale-100"
           >
             Register Your Team
-          </button>
+          </Link>
         </div>
       </div>
     </div>

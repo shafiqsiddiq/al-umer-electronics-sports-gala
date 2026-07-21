@@ -29,7 +29,7 @@ const REGISTER_STEPS = [
   {
     title: "Open Register",
     detail:
-      "Top menu se Register button click karein, ya is page pe “Register Team” button dabayein.",
+      "Top menu se Register click karein, ya /register page open karein.",
     icon: MousePointerClick,
   },
   {
@@ -110,14 +110,13 @@ export default function GuidePage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new Event("open-register"))}
+              <Link
+                href="/register"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 shadow-sm"
               >
                 Register Team
                 <ArrowRight size={15} />
-              </button>
+              </Link>
               <Link
                 href="/captain/login"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-bold text-white backdrop-blur hover:bg-white/20"
@@ -364,14 +363,13 @@ export default function GuidePage() {
             Ready ho? Ab register ya login karein.
           </p>
           <div className="flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new Event("open-register"))}
+            <Link
+              href="/register"
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-emerald-500/25"
             >
               <Upload size={15} />
               Register Team
-            </button>
+            </Link>
             <Link
               href="/captain/login"
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-600 px-5 py-2.5 text-sm font-bold text-emerald-700 hover:bg-white dark:text-emerald-300"
