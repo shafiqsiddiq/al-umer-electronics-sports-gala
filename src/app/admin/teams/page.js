@@ -5,7 +5,7 @@ import Image from "next/image";
 import TeamViewModal from "@/components/TeamViewModal";
 import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS, TOTAL_SQUAD } from "@/lib/tournament-logic";
-import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key } from "lucide-react";
+import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -214,6 +214,20 @@ export default function AdminTeamsPage() {
 
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
+  // Search & filters
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [feeFilter, setFeeFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState("all");
+
+  // Pagination
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, feeFilter, sectionFilter]);
+
   useEffect(() => {
     fetchTeams();
   }, []);
@@ -374,16 +388,182 @@ export default function AdminTeamsPage() {
     );
   }
 
+  function feeStatusOf(team) {
+    if (team.entryFeeVerified) return "verified";
+    if (team.entryFeeRejected && !team.entryFeeImageUrl) return "rejected";
+    if (team.entryFeeImageUrl) return "pending";
+    return "not_uploaded";
+  }
+
+  const query = search.trim().toLowerCase();
+  const filteredTeams = teams.filter((team) => {
+    if (
+      query &&
+      ![team.name, team.captain?.name, team.captain?.villageOrCity].some((v) =>
+        v?.toLowerCase().includes(query)
+      )
+    ) {
+      return false;
+    }
+    if (statusFilter !== "all" && team.status !== statusFilter) return false;
+    if (feeFilter !== "all" && feeStatusOf(team) !== feeFilter) return false;
+    if (sectionFilter !== "all" && (team.section || "unassigned") !== sectionFilter)
+      return false;
+    return true;
+  });
+
+  const hasActiveFilters =
+    query || statusFilter !== "all" || feeFilter !== "all" || sectionFilter !== "all";
+
+  const totalPages = Math.max(1, Math.ceil(filteredTeams.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedTeams = filteredTeams.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setFeeFilter("all");
+    setSectionFilter("all");
+  }
+
+  const selectClass =
+    "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200";
+
+  const paginationBar =
+    filteredTeams.length > 0 ? (
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <p className="rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/40">
+          Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+          {Math.min(currentPage * PAGE_SIZE, filteredTeams.length)} of{" "}
+          {filteredTeams.length} team{filteredTeams.length === 1 ? "" : "s"}
+        </p>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+              aria-label="Previous page"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPage(p)}
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${
+                  p === currentPage
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30"
+                    : "border border-emerald-200 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => setPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+              aria-label="Next page"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+    ) : null;
+
   if (loading) return <p>Loading...</p>;
 
   return (
     <div>
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Team Management</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {teams.length} team{teams.length === 1 ? "" : "s"} registered
-          </p>
+      <h1 className="mb-4 text-2xl font-bold tracking-tight">Team Management</h1>
+
+      {/* Search & filters */}
+      <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full lg:w-72">
+          <Search
+            size={15}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search teams..."
+            className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-9 text-sm text-zinc-800 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="active">Active</option>
+            <option value="eliminated">Eliminated</option>
+            <option value="qualified_main">Qualified Main</option>
+            <option value="qualified_loser">Qualified Loser</option>
+            <option value="final_eight">Final Eight</option>
+          </select>
+
+          <select
+            value={feeFilter}
+            onChange={(e) => setFeeFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="all">All Fees</option>
+            <option value="verified">Verified</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+            <option value="not_uploaded">Not Uploaded</option>
+          </select>
+
+          <select
+            value={sectionFilter}
+            onChange={(e) => setSectionFilter(e.target.value)}
+            className={selectClass}
+          >
+            <option value="all">All Sections</option>
+            <option value="A">Group A</option>
+            <option value="B">Group B</option>
+            <option value="C">Group C</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
+            >
+              <X size={13} />
+              Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -402,7 +582,7 @@ export default function AdminTeamsPage() {
             </tr>
           </thead>
           <tbody>
-            {teams.map((team, idx) => (
+            {paginatedTeams.map((team, idx) => (
               <tr
                 key={team._id}
                 className="group border-t border-zinc-100 transition-colors first:border-t-0 hover:bg-emerald-50/40 dark:border-zinc-800/80 dark:hover:bg-emerald-950/10"
@@ -503,25 +683,41 @@ export default function AdminTeamsPage() {
                     updateTeam={updateTeam}
                     onRejectFee={handleRejectFeeConfirm}
                     onChangePassword={(t) => setPasswordTargetTeam(t)}
-                    alignUp={idx >= teams.length - 2 && teams.length > 2}
+                    alignUp={idx >= paginatedTeams.length - 2 && paginatedTeams.length > 2}
                   />
                 </td>
               </tr>
             ))}
-            {teams.length === 0 && (
+            {filteredTeams.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-sm text-zinc-400">
-                  No teams registered yet
+                  {hasActiveFilters
+                    ? "No teams match your search or filters"
+                    : "No teams registered yet"}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+
+        {/* Pagination footer inside the table card */}
+        {paginationBar && (
+          <div className="border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
+            {paginationBar}
+          </div>
+        )}
       </div>
 
       {/* Mobile view list (Stacked details card view) */}
       <div className="md:hidden flex flex-col gap-4">
-        {teams.map((team, idx) => (
+        {filteredTeams.length === 0 && (
+          <p className="rounded-xl border border-dashed border-zinc-300 px-4 py-8 text-center text-sm text-zinc-400 dark:border-zinc-700">
+            {hasActiveFilters
+              ? "No teams match your search or filters"
+              : "No teams registered yet"}
+          </p>
+        )}
+        {paginatedTeams.map((team, idx) => (
           <div
             key={team._id}
             className="flex flex-col p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-md transition"
@@ -561,7 +757,7 @@ export default function AdminTeamsPage() {
                   updateTeam={updateTeam}
                   onRejectFee={handleRejectFeeConfirm}
                   onChangePassword={(t) => setPasswordTargetTeam(t)}
-                  alignUp={idx >= teams.length - 2 && teams.length > 2}
+                  alignUp={idx >= paginatedTeams.length - 2 && paginatedTeams.length > 2}
                 />
               </div>
             </div>
@@ -639,6 +835,9 @@ export default function AdminTeamsPage() {
           </div>
         ))}
       </div>
+
+      {/* Pagination (mobile) */}
+      {paginationBar && <div className="mt-4 md:hidden">{paginationBar}</div>}
 
       {viewTeam && <TeamViewModal team={viewTeam} onClose={() => setViewTeam(null)} />}
       {editTeam && (
