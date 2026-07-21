@@ -63,7 +63,7 @@ export default function Footer() {
                   Fixtures
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link href="/live-scores" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
                   Live Scores
                 </Link>
@@ -72,7 +72,7 @@ export default function Footer() {
                 <Link href="/stats" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
                   Stats & Rankings
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link href="/guide" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
                   Registration Guide
@@ -81,6 +81,11 @@ export default function Footer() {
               <li>
                 <Link href="/terms" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
                   Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link href="/banned-players" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
+                  Open Ban List
                 </Link>
               </li>
             </ul>

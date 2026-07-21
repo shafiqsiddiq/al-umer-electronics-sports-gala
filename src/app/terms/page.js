@@ -39,6 +39,7 @@ const BANNED_PLAYERS = [
   "Saqib Lefti Knaker",
   "Farman Jahman",
   "Zahid Bedu",
+  "Baber Padana",
 ];
 
 const CELEBRATION_ICONS = [
