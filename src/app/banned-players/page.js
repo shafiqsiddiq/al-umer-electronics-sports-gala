@@ -30,14 +30,14 @@ export const metadata = {
 
 const BANNED_PLAYERS = [
   { name: "Shebi Hadyarah", image: "/banned-players/shebi-hadyarah.png" },
-  { name: "Ikram Pathanki", image: null },
+  { name: "Ikram Pathanki", image: "/banned-players/ikram-pathanki.png" },
   { name: "Faraz Jutt Mota Singh", image: "/banned-players/faraz-jutt-mota-singh.png" },
   { name: "Faisal Badouki", image: "/banned-players/faisal-badouki.png" },
   { name: "Ameer Hamza Chachuwali", image: "/banned-players/ameer-hamza-chachuwali.png" },
   { name: "Sohail Sikandar", image: "/banned-players/sohail-sikandar.png" },
-  { name: "Zahid Lefti Karbhat", image: null },
+  { name: "Zahid Lefti Karbhat", image: "/banned-players/zahid-lefti-karbhat.png" },
   { name: "Ali Jutt Lidhar", image: "/banned-players/ali-jutt-lidhar.png" },
-  { name: "Rehman Shah Kamahan", image: null },
+  { name: "Rehman Shah Kamahan", image: "/banned-players/rehman-shah-kamahan.png" },
   { name: "Saqib Lefti Knaker", image: "/banned-players/saqib-lefti-knaker.png" },
   { name: "Farman Jahman", image: "/banned-players/farman-jahman.png" },
   { name: "Zahid Bedu", image: "/banned-players/zahid-bedu.png" },
