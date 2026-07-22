@@ -58,7 +58,7 @@ export default function RegisterForm() {
     if (!form.captainName || form.captainName.length < 3) {
       newErrors.captainName = "Captain Name must be at least 3 characters";
     }
-    if (!form.fatherName || form.fatherName.length < 3) {
+    if (form.fatherName && form.fatherName.length < 3) {
       newErrors.fatherName = "Father Name must be at least 3 characters";
     }
     if (!validateCnic(form.cnic)) {
@@ -179,7 +179,7 @@ export default function RegisterForm() {
               )}
             </div>
             <div>
-              <label className={labelClass}>Father Name *</label>
+              <label className={labelClass}>Father Name</label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
                 <input

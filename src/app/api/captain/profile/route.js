@@ -25,8 +25,8 @@ export async function PATCH(request) {
     const profilePicture = formData.get("profilePicture");
     const cnicImage = formData.get("cnicImage");
 
-    if (!name || !fatherName || !cnic || !whatsapp) {
-      return NextResponse.json({ error: "Name, father name, CNIC and WhatsApp are required" }, { status: 400 });
+    if (!name || !cnic || !whatsapp) {
+      return NextResponse.json({ error: "Name, CNIC and WhatsApp are required" }, { status: 400 });
     }
 
     if (!validateCnic(cnic)) {
@@ -54,7 +54,7 @@ export async function PATCH(request) {
 
     const patch = writeClient.patch(session.captainId).set({
       name,
-      fatherName,
+      fatherName: typeof fatherName === "string" ? fatherName.trim() : "",
       cnic,
       email: emailValue,
       whatsapp,

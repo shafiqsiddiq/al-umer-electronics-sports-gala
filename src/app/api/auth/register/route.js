@@ -30,7 +30,7 @@ export async function POST(request) {
     const profilePicture = formData.get("profilePicture");
     const entryFeeImage = formData.get("entryFeeImage");
 
-    if (!captainName || !fatherName || !cnic || !whatsapp || !password || !teamName || !villageOrCity) {
+    if (!captainName || !cnic || !whatsapp || !password || !teamName || !villageOrCity) {
       return NextResponse.json({ error: "All required fields must be filled" }, { status: 400 });
     }
 
@@ -103,7 +103,7 @@ export async function POST(request) {
         _id: captainId,
         _type: "captain",
         name: captainName,
-        fatherName,
+        fatherName: typeof fatherName === "string" ? fatherName.trim() : "",
         cnic,
         whatsapp,
         villageOrCity,
