@@ -45,6 +45,7 @@ export default function CaptainSettingsPage() {
       formData.append("cnic", data.cnic);
       formData.append("email", data.email || "");
       formData.append("whatsapp", data.whatsapp);
+      formData.append("villageOrCity", data.villageOrCity || "");
       if (data.profilePicture) formData.append("profilePicture", data.profilePicture);
       if (data.cnicImage) formData.append("cnicImage", data.cnicImage);
 

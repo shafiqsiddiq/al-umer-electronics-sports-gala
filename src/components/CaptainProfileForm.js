@@ -21,6 +21,7 @@ export default function CaptainProfileForm({
     cnic: "",
     email: "",
     whatsapp: "",
+    villageOrCity: "",
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePreview, setProfilePreview] = useState("");
@@ -35,6 +36,7 @@ export default function CaptainProfileForm({
         cnic: captain.cnic || "",
         email: captain.email || "",
         whatsapp: captain.whatsapp || captain.phone || "",
+        villageOrCity: captain.villageOrCity || "",
       });
       setProfilePicture(null);
       setCnicImage(null);
@@ -65,8 +67,14 @@ export default function CaptainProfileForm({
       return;
     }
 
+    if (!form.villageOrCity.trim() || form.villageOrCity.trim().length < 2) {
+      setError("Village / City name is required");
+      return;
+    }
+
     onSubmit({
       ...form,
+      villageOrCity: form.villageOrCity.trim(),
       profilePicture: profilePicture || undefined,
       cnicImage: cnicImage || undefined,
     });
@@ -175,7 +183,7 @@ export default function CaptainProfileForm({
             placeholder="optional"
           />
         </div>
-        <div className="sm:col-span-2">
+        <div>
           <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
             Phone Number *
           </label>
@@ -193,6 +201,18 @@ export default function CaptainProfileForm({
             placeholder="03001234567"
             maxLength={11}
             className={inputClass}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+            Village / City *
+          </label>
+          <input
+            required
+            value={form.villageOrCity}
+            onChange={(e) => setForm({ ...form, villageOrCity: e.target.value })}
+            className={inputClass}
+            placeholder="e.g., Lahore"
           />
         </div>
       </div>

@@ -50,6 +50,10 @@ async function parsePatchBody(request) {
       status: get("status"),
       newPassword: get("newPassword"),
       whatsapp: get("whatsapp"),
+      villageOrCity:
+        formData.get("villageOrCity") == null
+          ? undefined
+          : String(formData.get("villageOrCity")).trim(),
       entryFeePaid: get("entryFeePaid"),
       entryFeeReceivedBy:
         formData.get("entryFeeReceivedBy") == null
@@ -78,6 +82,7 @@ export async function PATCH(request, { params }) {
     status,
     newPassword,
     whatsapp,
+    villageOrCity,
     entryFeePaid,
     entryFeeReceivedBy,
     profilePicture,
@@ -181,6 +186,7 @@ export async function PATCH(request, { params }) {
     section !== undefined ||
     status !== undefined ||
     whatsapp !== undefined ||
+    villageOrCity !== undefined ||
     entryFeePaid !== undefined ||
     entryFeeReceivedBy !== undefined ||
     hasProfilePicture
@@ -203,9 +209,14 @@ export async function PATCH(request, { params }) {
       }
     }
 
-    if (!team.captainId && (whatsapp !== undefined || hasProfilePicture)) {
+    const needsCaptainUpdate =
+      whatsapp !== undefined || villageOrCity !== undefined || hasProfilePicture;
+
+    if (!team.captainId && needsCaptainUpdate) {
       return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
     }
+
+    const captainUpdates = {};
 
     if (whatsapp !== undefined) {
       const digits = String(whatsapp).replace(/\D/g, "");
@@ -225,25 +236,32 @@ export async function PATCH(request, { params }) {
           { status: 400 }
         );
       }
-      await writeClient
-        .patch(team.captainId)
-        .set({ whatsapp: digits, phone: digits })
-        .commit();
+      captainUpdates.whatsapp = digits;
+      captainUpdates.phone = digits;
+    }
+
+    if (villageOrCity !== undefined) {
+      if (!villageOrCity || villageOrCity.length < 2) {
+        return NextResponse.json(
+          { error: "Village / City name is required" },
+          { status: 400 }
+        );
+      }
+      captainUpdates.villageOrCity = villageOrCity;
     }
 
     if (hasProfilePicture) {
       const asset = await writeClient.assets.upload("image", profilePicture, {
         filename: `captain-profile-${team.captainId}.jpg`,
       });
-      await writeClient
-        .patch(team.captainId)
-        .set({
-          profilePicture: {
-            _type: "image",
-            asset: { _type: "reference", _ref: asset._id },
-          },
-        })
-        .commit();
+      captainUpdates.profilePicture = {
+        _type: "image",
+        asset: { _type: "reference", _ref: asset._id },
+      };
+    }
+
+    if (Object.keys(captainUpdates).length > 0) {
+      await writeClient.patch(team.captainId).set(captainUpdates).commit();
     }
 
     if (entryFeePaid !== undefined) {

@@ -4,7 +4,7 @@ import { writeClient } from "@/lib/sanity";
 import { validateCnic } from "@/lib/cnic";
 
 const CAPTAIN_QUERY = `*[_type == "captain" && _id == $captainId][0]{
-  _id, name, fatherName, cnic, email, phone, whatsapp,
+  _id, name, fatherName, cnic, email, phone, whatsapp, villageOrCity,
   "profilePictureUrl": profilePicture.asset->url,
   "cnicImageUrl": cnicImage.asset->url
 }`;
@@ -22,11 +22,21 @@ export async function PATCH(request) {
     const cnic = formData.get("cnic");
     const email = formData.get("email");
     const whatsapp = formData.get("whatsapp");
+    const villageOrCity = formData.get("villageOrCity");
     const profilePicture = formData.get("profilePicture");
     const cnicImage = formData.get("cnicImage");
 
     if (!name || !cnic || !whatsapp) {
       return NextResponse.json({ error: "Name, CNIC and WhatsApp are required" }, { status: 400 });
+    }
+
+    const villageValue =
+      typeof villageOrCity === "string" ? villageOrCity.trim() : "";
+    if (!villageValue || villageValue.length < 2) {
+      return NextResponse.json(
+        { error: "Village / City name is required" },
+        { status: 400 }
+      );
     }
 
     if (!validateCnic(cnic)) {
@@ -59,6 +69,7 @@ export async function PATCH(request) {
       email: emailValue,
       whatsapp,
       phone: whatsapp,
+      villageOrCity: villageValue,
     });
 
     const fileSlug = (emailValue || whatsapp || "captain").replace(/[^a-z0-9]/gi, "");

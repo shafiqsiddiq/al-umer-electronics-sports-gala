@@ -14,7 +14,6 @@ import {
   Clock,
   Shield,
   ExternalLink,
-  Receipt,
   XCircle,
 } from "lucide-react";
 
@@ -52,10 +51,21 @@ export default function CaptainDashboard() {
   const [savingTeam, setSavingTeam] = useState(false);
   const [uploadingFee, setUploadingFee] = useState(false);
   const [feeFile, setFeeFile] = useState(null);
+  const [feePreview, setFeePreview] = useState("");
 
   useEffect(() => {
     fetchTeam();
   }, []);
+
+  useEffect(() => {
+    if (!feeFile) {
+      setFeePreview("");
+      return;
+    }
+    const url = URL.createObjectURL(feeFile);
+    setFeePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [feeFile]);
 
   async function fetchTeam() {
     try {
@@ -82,6 +92,7 @@ export default function CaptainDashboard() {
       formData.append("cnic", data.cnic);
       formData.append("email", data.email || "");
       formData.append("whatsapp", data.whatsapp);
+      formData.append("villageOrCity", data.villageOrCity || "");
       if (data.profilePicture) formData.append("profilePicture", data.profilePicture);
       if (data.cnicImage) formData.append("cnicImage", data.cnicImage);
 
@@ -268,63 +279,52 @@ export default function CaptainDashboard() {
               </div>
             </div>
 
-            {team.entryFeeImageUrl ? (
-              <div className="mx-auto w-full max-w-[160px] shrink-0 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-                <img
-                  src={team.entryFeeImageUrl}
-                  alt="Entry Fee Receipt"
-                  className="max-h-24 w-full object-contain bg-zinc-50 dark:bg-zinc-900"
-                />
-              </div>
-            ) : (
-              <div className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 bg-zinc-50/80 px-2 py-3 dark:border-zinc-700 dark:bg-zinc-900/40">
-                <Receipt className="text-zinc-300" size={16} />
-                <p className="text-[11px] font-medium text-zinc-500">No receipt yet</p>
-              </div>
-            )}
-
-            {team.entryFeeVerified ? (
-              <p className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <CheckCircle2 size={12} />
-                Verified by admin
-              </p>
-            ) : team.entryFeeRejected ? (
-              <div className="shrink-0 space-y-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 dark:border-red-900/50 dark:bg-red-950/30">
-                <p className="flex items-center gap-1 text-[11px] font-bold text-red-700 dark:text-red-300">
-                  <XCircle size={12} />
-                  Receipt rejected by admin
-                </p>
-                <p className="text-[10px] text-red-600/90 dark:text-red-300/80">
-                  Please upload a clear, valid payment receipt to continue.
-                </p>
-              </div>
-            ) : team.entryFeeImageUrl ? (
-              <p className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                <Clock size={12} />
-                Waiting for verification
-              </p>
-            ) : (
-              <p className="shrink-0 text-[11px] text-zinc-500">
-                Upload optional — or share on WhatsApp.
-              </p>
-            )}
-
-            {!team.entryFeeVerified && (
-              <form
-                onSubmit={handleFeeUpload}
-                className="mt-auto flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-center"
-              >
-                <label className="flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/50 px-2 py-1.5 text-[11px] font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
-                  <UploadCloud size={13} />
-                  <span className="truncate">
-                    {feeFile
-                      ? feeFile.name
-                      : team.entryFeeRejected
-                        ? "Re-upload receipt"
-                        : team.entryFeeImageUrl
-                          ? "Replace"
-                          : "Choose file"}
-                  </span>
+            {!team.entryFeeVerified ? (
+              <form onSubmit={handleFeeUpload} className="flex min-h-0 flex-1 flex-col gap-2">
+                <label
+                  className={`relative flex min-h-[100px] cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border-2 border-dashed px-2 py-3 transition ${
+                    feeFile || team.entryFeeImageUrl
+                      ? "border-emerald-300 bg-emerald-50/40 dark:border-emerald-800 dark:bg-emerald-950/20"
+                      : "border-zinc-300 bg-zinc-50/80 hover:border-emerald-400 hover:bg-emerald-50/50 dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:border-emerald-700"
+                  }`}
+                >
+                  {feeFile && feePreview ? (
+                    <>
+                      <img
+                        src={feePreview}
+                        alt="Selected receipt"
+                        className="max-h-28 w-full object-contain"
+                      />
+                      <span className="max-w-full truncate px-2 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        {feeFile.name}
+                      </span>
+                      <span className="text-[10px] text-zinc-500">
+                        Click to change · then Submit
+                      </span>
+                    </>
+                  ) : team.entryFeeImageUrl ? (
+                    <>
+                      <img
+                        src={team.entryFeeImageUrl}
+                        alt="Entry Fee Receipt"
+                        className="max-h-28 w-full object-contain"
+                      />
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        <UploadCloud size={12} />
+                        Click to replace receipt
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="text-zinc-400" size={22} />
+                      <p className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        Click to upload receipt
+                      </p>
+                      <p className="text-[10px] text-zinc-400">
+                        Payment screenshot (JPG / PNG)
+                      </p>
+                    </>
+                  )}
                   <input
                     type="file"
                     accept="image/*"
@@ -332,14 +332,54 @@ export default function CaptainDashboard() {
                     onChange={(e) => setFeeFile(e.target.files?.[0] || null)}
                   />
                 </label>
-                <button
-                  type="submit"
-                  disabled={uploadingFee || !feeFile}
-                  className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50 sm:shrink-0"
-                >
-                  {uploadingFee ? "…" : "Submit"}
-                </button>
+
+                {team.entryFeeRejected ? (
+                  <div className="shrink-0 space-y-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+                    <p className="flex items-center gap-1 text-[11px] font-bold text-red-700 dark:text-red-300">
+                      <XCircle size={12} />
+                      Receipt rejected by admin
+                    </p>
+                    <p className="text-[10px] text-red-600/90 dark:text-red-300/80">
+                      Please upload a clear, valid payment receipt to continue.
+                    </p>
+                  </div>
+                ) : team.entryFeeImageUrl && !feeFile ? (
+                  <p className="flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    <Clock size={12} />
+                    Waiting for verification
+                  </p>
+                ) : !feeFile ? (
+                  <p className="shrink-0 text-[11px] text-zinc-500">
+                    Upload optional — or share on WhatsApp.
+                  </p>
+                ) : null}
+
+                {feeFile && (
+                  <button
+                    type="submit"
+                    disabled={uploadingFee}
+                    className="mt-auto w-full rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-3 py-2 text-[11px] font-bold text-white disabled:opacity-50"
+                  >
+                    {uploadingFee ? "Uploading…" : "Submit Receipt"}
+                  </button>
+                )}
               </form>
+            ) : (
+              <div className="space-y-2">
+                {team.entryFeeImageUrl && (
+                  <div className="mx-auto w-full max-w-[180px] overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+                    <img
+                      src={team.entryFeeImageUrl}
+                      alt="Entry Fee Receipt"
+                      className="max-h-28 w-full object-contain bg-zinc-50 dark:bg-zinc-900"
+                    />
+                  </div>
+                )}
+                <p className="flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <CheckCircle2 size={12} />
+                  Verified by admin
+                </p>
+              </div>
             )}
           </div>
         </div>
