@@ -387,6 +387,12 @@ export default function AdminTeamsPage() {
               entryFeeVerified: updatedTeam.entryFeeVerified,
               entryFeeRejected: updatedTeam.entryFeeRejected,
               playerCount: updatedTeam.players?.length ?? t.playerCount,
+              captain: updatedTeam.captain
+                ? {
+                    ...t.captain,
+                    ...updatedTeam.captain,
+                  }
+                : t.captain,
             }
           : t
       )
@@ -404,7 +410,7 @@ export default function AdminTeamsPage() {
   const filteredTeams = teams.filter((team) => {
     if (
       query &&
-      ![team.name, team.captain?.name, team.captain?.villageOrCity].some((v) =>
+      ![team.name, team.captain?.name, team.captain?.villageOrCity, team.captain?.whatsapp, team.captain?.phone].some((v) =>
         v?.toLowerCase().includes(query)
       )
     ) {
@@ -571,7 +577,7 @@ export default function AdminTeamsPage() {
 
           <div className="w-full lg:w-auto">
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400 lg:hidden">
-              Section
+              Group
             </p>
             <div className="relative">
               <select
@@ -579,7 +585,7 @@ export default function AdminTeamsPage() {
                 onChange={(e) => setSectionFilter(e.target.value)}
                 className={selectClass}
               >
-                <option value="all">All Sections</option>
+                <option value="all">All Groups</option>
                 <option value="A">Group A</option>
                 <option value="B">Group B</option>
                 <option value="C">Group C</option>
@@ -612,7 +618,8 @@ export default function AdminTeamsPage() {
             <tr className="border-b border-emerald-700/20 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-[11px] font-bold uppercase tracking-wider text-emerald-50">
               <th className="rounded-tl-2xl px-5 py-3.5">Team</th>
               <th className="hidden px-4 py-3.5 lg:table-cell">Village/City</th>
-              <th className="hidden px-4 py-3.5 xl:table-cell">Section</th>
+              <th className="hidden px-4 py-3.5 xl:table-cell">Phone</th>
+              <th className="hidden px-4 py-3.5 xl:table-cell">Group</th>
               <th className="px-4 py-3.5">Players</th>
               <th className="px-4 py-3.5">Entry Fee</th>
               <th className="px-4 py-3.5">Status</th>
@@ -653,6 +660,11 @@ export default function AdminTeamsPage() {
                 <td className="hidden px-4 py-3.5 lg:table-cell">
                   <span className="text-sm font-medium capitalize text-zinc-700 dark:text-zinc-300">
                     {team.captain?.villageOrCity || "—"}
+                  </span>
+                </td>
+                <td className="hidden px-4 py-3.5 xl:table-cell">
+                  <span className="font-mono text-xs font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
+                    {team.captain?.whatsapp || team.captain?.phone || "—"}
                   </span>
                 </td>
                 <td className="hidden px-4 py-3.5 xl:table-cell">
@@ -728,7 +740,7 @@ export default function AdminTeamsPage() {
             ))}
             {filteredTeams.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-sm text-zinc-400">
+                <td colSpan={8} className="px-5 py-12 text-center text-sm text-zinc-400">
                   {hasActiveFilters
                     ? "No teams match your search or filters"
                     : "No teams registered yet"}
@@ -818,9 +830,18 @@ export default function AdminTeamsPage() {
               </div>
 
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
-                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Section</span>
+                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Phone</span>
+                <span className="font-semibold font-mono text-xs text-zinc-800 dark:text-zinc-200 text-right">
+                  {team.captain?.whatsapp || team.captain?.phone || "—"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
+                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Group</span>
                 <span className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize text-right break-words max-w-[70%]">
-                  {team.section || "Unassigned"}
+                  {!team.section || team.section === "unassigned"
+                    ? "Unassigned"
+                    : `Group ${team.section}`}
                 </span>
               </div>
 

@@ -16,6 +16,8 @@ export async function GET() {
       "captain": captain->{
         name,
         villageOrCity,
+        whatsapp,
+        phone,
         "profilePictureUrl": profilePicture.asset->url
       }
     }

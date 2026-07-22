@@ -15,9 +15,9 @@ const STATUS_OPTIONS = [
 
 const SECTION_OPTIONS = [
   { value: "unassigned", label: "Unassigned" },
-  { value: "A", label: "Section A" },
-  { value: "B", label: "Section B" },
-  { value: "C", label: "Section C" },
+  { value: "A", label: "Group A" },
+  { value: "B", label: "Group B" },
+  { value: "C", label: "Group C" },
 ];
 
 export default function TeamEditModal({ team, onClose, onSaved }) {
@@ -146,7 +146,7 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
             <p className="mt-1 text-xs text-zinc-500">11 digits, starting with 03</p>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">Section</label>
+            <label className="mb-1 block text-sm font-medium">Group</label>
             <select
               value={form.section}
               onChange={(e) => setForm({ ...form, section: e.target.value })}
