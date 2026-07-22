@@ -21,7 +21,12 @@ const SECTION_OPTIONS = [
 ];
 
 export default function TeamEditModal({ team, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: "", section: "unassigned", status: "pending" });
+  const [form, setForm] = useState({
+    name: "",
+    section: "unassigned",
+    status: "pending",
+    whatsapp: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,6 +36,7 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
         name: team.name || "",
         section: team.section || "unassigned",
         status: team.status || "pending",
+        whatsapp: team.captain?.whatsapp || team.captain?.phone || "",
       });
       setError("");
     }
@@ -38,9 +44,20 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
 
   if (!team) return null;
 
+  function handleWhatsappChange(e) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+    setForm({ ...form, whatsapp: digits });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    if (!form.whatsapp || form.whatsapp.length !== 11 || !form.whatsapp.startsWith("03")) {
+      setError("Enter a valid 11-digit WhatsApp number (e.g. 03001234567)");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -113,6 +130,20 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">WhatsApp Number</label>
+            <input
+              required
+              type="tel"
+              inputMode="numeric"
+              maxLength={11}
+              placeholder="03001234567"
+              value={form.whatsapp}
+              onChange={handleWhatsappChange}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            />
+            <p className="mt-1 text-xs text-zinc-500">11 digits, starting with 03</p>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Section</label>

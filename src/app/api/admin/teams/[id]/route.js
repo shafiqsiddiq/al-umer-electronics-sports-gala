@@ -43,7 +43,7 @@ export async function PATCH(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { action, name, section, status, newPassword } = body;
+  const { action, name, section, status, newPassword, whatsapp } = body;
 
   if (action === "changePassword") {
     if (!newPassword || newPassword.length < 6) {
@@ -135,8 +135,11 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ success: true });
   }
 
-  if (name !== undefined || section !== undefined || status !== undefined) {
-    const team = await writeClient.fetch(`*[_type == "team" && _id == $id][0]{ _id }`, { id });
+  if (name !== undefined || section !== undefined || status !== undefined || whatsapp !== undefined) {
+    const team = await writeClient.fetch(
+      `*[_type == "team" && _id == $id][0]{ _id, "captainId": captain._ref }`,
+      { id }
+    );
     if (!team) {
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
@@ -149,6 +152,33 @@ export async function PATCH(request, { params }) {
       if (duplicate) {
         return NextResponse.json({ error: "Team name already taken" }, { status: 400 });
       }
+    }
+
+    if (whatsapp !== undefined) {
+      const digits = String(whatsapp).replace(/\D/g, "");
+      if (digits.length !== 11 || !digits.startsWith("03")) {
+        return NextResponse.json(
+          { error: "Enter a valid 11-digit WhatsApp number (e.g. 03001234567)" },
+          { status: 400 }
+        );
+      }
+      if (!team.captainId) {
+        return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
+      }
+      const duplicateWhatsapp = await writeClient.fetch(
+        `*[_type == "captain" && whatsapp == $whatsapp && _id != $captainId][0]`,
+        { whatsapp: digits, captainId: team.captainId }
+      );
+      if (duplicateWhatsapp) {
+        return NextResponse.json(
+          { error: "This WhatsApp number is already used by another captain" },
+          { status: 400 }
+        );
+      }
+      await writeClient
+        .patch(team.captainId)
+        .set({ whatsapp: digits, phone: digits })
+        .commit();
     }
 
     if (status === "active") {
@@ -172,7 +202,9 @@ export async function PATCH(request, { params }) {
     if (section !== undefined) updates.section = section;
     if (status !== undefined) updates.status = status;
 
-    await writeClient.patch(id).set(updates).commit();
+    if (Object.keys(updates).length > 0) {
+      await writeClient.patch(id).set(updates).commit();
+    }
 
     const updated = await writeClient.fetch(TEAM_QUERY, { id });
     return NextResponse.json({ success: true, team: updated });
