@@ -23,6 +23,7 @@ export default function CaptainProfileForm({
     whatsapp: "",
   });
   const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePreview, setProfilePreview] = useState("");
   const [cnicImage, setCnicImage] = useState(null);
   const [error, setError] = useState("");
 
@@ -40,6 +41,16 @@ export default function CaptainProfileForm({
       setError("");
     }
   }, [captain]);
+
+  useEffect(() => {
+    if (!profilePicture) {
+      setProfilePreview("");
+      return;
+    }
+    const url = URL.createObjectURL(profilePicture);
+    setProfilePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [profilePicture]);
 
   function handleCnicChange(e) {
     setForm({ ...form, cnic: formatCnic(e.target.value) });
@@ -74,31 +85,44 @@ export default function CaptainProfileForm({
       )}
 
       <div className="flex items-center gap-3">
-        {profilePicture ? (
-          <img
-            src={URL.createObjectURL(profilePicture)}
-            alt="New profile preview"
-            className="h-14 w-14 rounded-xl object-cover ring-2 ring-emerald-500"
+        <label className="group relative cursor-pointer shrink-0">
+          {profilePreview ? (
+            <img
+              src={profilePreview}
+              alt="New profile preview"
+              className="h-14 w-14 rounded-xl object-cover ring-2 ring-emerald-500"
+            />
+          ) : captain?.profilePictureUrl ? (
+            <Image
+              src={captain.profilePictureUrl}
+              alt={captain.name}
+              width={56}
+              height={56}
+              className="h-14 w-14 rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-100 text-lg font-black text-emerald-700">
+              {(form.name || "?").charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/45 opacity-0 transition group-hover:opacity-100">
+            <UploadCloud className="h-5 w-5 text-white" />
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => setProfilePicture(e.target.files?.[0] || null)}
           />
-        ) : captain?.profilePictureUrl ? (
-          <Image
-            src={captain.profilePictureUrl}
-            alt={captain.name}
-            width={56}
-            height={56}
-            className="h-14 w-14 rounded-xl object-cover"
-          />
-        ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-100 text-lg font-black text-emerald-700">
-            {(form.name || "?").charAt(0).toUpperCase()}
-          </div>
-        )}
+        </label>
         <div>
           <p className="text-sm font-bold text-zinc-900 dark:text-white">
             {form.name || "Captain"}
           </p>
           <p className="text-xs text-zinc-500">
-            {profilePicture ? "New photo selected" : "Current profile photo"}
+            {profilePicture
+              ? "New photo selected — save to update"
+              : "Click photo to change"}
           </p>
         </div>
       </div>
@@ -153,7 +177,7 @@ export default function CaptainProfileForm({
         </div>
         <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-            WhatsApp Number *
+            Phone Number *
           </label>
           <input
             required

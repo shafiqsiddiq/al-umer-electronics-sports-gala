@@ -122,7 +122,7 @@ export default function CaptainLoginPage() {
                 Captain Login
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Enter your WhatsApp number and password
+                Enter your Phone Number and Password
               </p>
             </div>
 

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { Camera } from "lucide-react";
+import { compressImage } from "@/lib/compress-image";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -39,6 +41,8 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
     entryFeePaid: "0",
     entryFeeReceivedBy: "",
   });
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -52,9 +56,21 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
         entryFeePaid: String(team.entryFeePaid ?? 0),
         entryFeeReceivedBy: team.entryFeeReceivedBy || "",
       });
+      setProfilePicture(null);
+      setPreviewUrl("");
       setError("");
     }
   }, [team]);
+
+  useEffect(() => {
+    if (!profilePicture) {
+      setPreviewUrl("");
+      return;
+    }
+    const url = URL.createObjectURL(profilePicture);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [profilePicture]);
 
   if (!team) return null;
 
@@ -86,13 +102,22 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
     setLoading(true);
 
     try {
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("section", form.section);
+      formData.append("status", form.status);
+      formData.append("whatsapp", form.whatsapp);
+      formData.append("entryFeePaid", String(paid));
+      formData.append("entryFeeReceivedBy", form.entryFeeReceivedBy);
+
+      if (profilePicture) {
+        const compressed = await compressImage(profilePicture);
+        formData.append("profilePicture", compressed);
+      }
+
       const res = await fetch(`/api/admin/teams/${team._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          entryFeePaid: paid,
-        }),
+        body: formData,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update team");
@@ -104,6 +129,9 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
       setLoading(false);
     }
   }
+
+  const displayPhoto =
+    previewUrl || team.captain?.profilePictureUrl || "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -123,22 +151,45 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
 
         {team.captain && (
           <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
-            {team.captain.profilePictureUrl ? (
-              <Image
-                src={team.captain.profilePictureUrl}
-                alt={team.captain.name}
-                width={44}
-                height={44}
-                className="h-11 w-11 rounded-full object-cover"
+            <label className="group relative cursor-pointer shrink-0">
+              {displayPhoto ? (
+                previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt={team.captain.name}
+                    className="h-11 w-11 rounded-full object-cover"
+                  />
+                ) : (
+                  <Image
+                    src={team.captain.profilePictureUrl}
+                    alt={team.captain.name}
+                    width={44}
+                    height={44}
+                    className="h-11 w-11 rounded-full object-cover"
+                  />
+                )
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-200 text-xs dark:bg-zinc-700">
+                  N/A
+                </div>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 opacity-0 transition group-hover:opacity-100">
+                <Camera className="h-4 w-4 text-white" />
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => setProfilePicture(e.target.files?.[0] || null)}
               />
-            ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-200 text-xs dark:bg-zinc-700">
-                N/A
-              </div>
-            )}
-            <div>
+            </label>
+            <div className="min-w-0">
               <p className="font-medium">{team.captain.name}</p>
-              <p className="text-xs text-zinc-500">Captain · {team.captain.email || "—"}</p>
+              <p className="text-xs text-zinc-500">
+                {profilePicture
+                  ? "New photo selected — save to update"
+                  : "Click photo to change · Captain"}
+              </p>
             </div>
           </div>
         )}

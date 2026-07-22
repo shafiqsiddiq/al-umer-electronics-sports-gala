@@ -156,13 +156,13 @@ export default function RegisterForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
             <User className="h-5 w-5 text-emerald-500" />
             Captain Details
           </h2>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Captain Name *</label>
               <div className="relative">
@@ -208,7 +208,7 @@ export default function RegisterForm() {
               {errors.cnic && <p className="mt-1 text-xs text-red-500">{errors.cnic}</p>}
             </div>
             <div>
-              <label className={labelClass}>WhatsApp Number *</label>
+              <label className={labelClass}>Phone Number *</label>
               <div className="relative">
                 <Phone className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
                 <input
@@ -225,7 +225,22 @@ export default function RegisterForm() {
                 <p className="mt-1 text-xs text-red-500">{errors.whatsapp}</p>
               )}
             </div>
-            <div className="sm:col-span-2">
+            <div>
+              <label className={labelClass}>Team Name *</label>
+              <div className="relative">
+                <Users className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+                <input
+                  value={form.teamName}
+                  onChange={(e) => handleChange("teamName", e.target.value)}
+                  className={`${inputClass} ${errors.teamName ? errorInputClass : ""}`}
+                  placeholder="Enter your team name"
+                />
+              </div>
+              {errors.teamName && (
+                <p className="mt-1 text-xs text-red-500">{errors.teamName}</p>
+              )}
+            </div>
+            <div>
               <label className={labelClass}>Village or City Name *</label>
               <div className="relative">
                 <MapPin className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
@@ -240,52 +255,17 @@ export default function RegisterForm() {
                 <p className="mt-1 text-xs text-red-500">{errors.villageOrCity}</p>
               )}
             </div>
-          </div>
-        </div>
-
-        <hr className="border-zinc-100 dark:border-zinc-800" />
-
-        <div>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
-            <Users className="h-5 w-5 text-emerald-500" />
-            Team Details
-          </h2>
-          <div>
-            <label className={labelClass}>Team Name *</label>
-            <div className="relative">
-              <Users className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-              <input
-                value={form.teamName}
-                onChange={(e) => handleChange("teamName", e.target.value)}
-                className={`${inputClass} ${errors.teamName ? errorInputClass : ""}`}
-                placeholder="Enter your team name"
-              />
-            </div>
-            {errors.teamName && (
-              <p className="mt-1 text-xs text-red-500">{errors.teamName}</p>
-            )}
-          </div>
-        </div>
-
-        <hr className="border-zinc-100 dark:border-zinc-800" />
-
-        <div>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
-            <UploadCloud className="h-5 w-5 text-emerald-500" />
-            Documents Upload
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-1">
-            <div className="flex flex-col gap-2">
+            <div className="sm:col-span-2">
               <label className={labelClass}>Profile Picture *</label>
               <label
-                className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-zinc-50 transition-all hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${
+                className={`flex h-28 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-zinc-50 transition-all hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${
                   errors.profilePicture
                     ? "border-red-400"
                     : "border-zinc-300 dark:border-zinc-700"
                 }`}
               >
                 <ImageIcon
-                  className={`mb-2 h-8 w-8 ${
+                  className={`mb-1.5 h-7 w-7 ${
                     errors.profilePicture ? "text-red-400" : "text-zinc-400"
                   }`}
                 />
@@ -319,22 +299,44 @@ export default function RegisterForm() {
                   <img
                     src={URL.createObjectURL(profilePicture)}
                     alt="Profile Preview"
-                    className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg dark:border-zinc-800"
+                    className="h-20 w-20 rounded-full border-4 border-white object-cover shadow-lg dark:border-zinc-800"
                   />
                 </div>
+              )}
+            </div>
+            <div className="sm:col-span-2 sm:max-w-md">
+              <label className={labelClass}>Password *</label>
+              <div className="relative">
+                <Shield className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => handleChange("password", e.target.value)}
+                  className={`${inputClass} pr-11 ${errors.password ? errorInputClass : ""}`}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-500">{errors.password}</p>
               )}
             </div>
           </div>
         </div>
 
-        <hr className="border-zinc-100 dark:border-zinc-800" />
-
         <div>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
             <CreditCard className="h-5 w-5 text-indigo-500" />
             Tournament Entry Fee
           </h2>
-          <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-900/20">
+          <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-900/20">
             <p className="mb-2 text-sm text-indigo-800 dark:text-indigo-300">
               Please submit your entry fee to the following account. You can upload a
               screenshot below or share the receipt on WhatsApp.
@@ -390,42 +392,7 @@ export default function RegisterForm() {
           )}
         </div>
 
-        <hr className="border-zinc-100 dark:border-zinc-800" />
-
-        <div>
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-white">
-            <Shield className="h-5 w-5 text-emerald-500" />
-            Security
-          </h2>
-          <div className="grid gap-5 sm:grid-cols-1 sm:max-w-md">
-            <div>
-              <label className={labelClass}>Password *</label>
-              <div className="relative">
-                <Shield className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={(e) => handleChange("password", e.target.value)}
-                  className={`${inputClass} pr-11 ${errors.password ? errorInputClass : ""}`}
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1 text-xs text-red-500">{errors.password}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-2 sm:pt-4">
+        <div className="pt-1">
           <button
             type="submit"
             disabled={loading}

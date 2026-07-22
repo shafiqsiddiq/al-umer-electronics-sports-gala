@@ -73,16 +73,27 @@ export default function CaptainDashboard() {
     }
   }
 
-  async function handleUpdateCaptain(formData) {
+  async function handleUpdateCaptain(data) {
     setSavingCaptain(true);
     try {
-      const res = await fetch("/api/teams/captain", {
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("fatherName", data.fatherName);
+      formData.append("cnic", data.cnic);
+      formData.append("email", data.email || "");
+      formData.append("whatsapp", data.whatsapp);
+      if (data.profilePicture) formData.append("profilePicture", data.profilePicture);
+      if (data.cnicImage) formData.append("cnicImage", data.cnicImage);
+
+      const res = await fetch("/api/captain/profile", {
         method: "PATCH",
         body: formData,
       });
-      if (!res.ok) throw new Error("Failed to update profile");
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to update profile");
       setEditingCaptain(false);
       toast("Profile updated successfully", "success");
+      window.dispatchEvent(new Event("profile-update"));
       await fetchTeam();
     } catch (err) {
       toast(err.message, "error");
@@ -91,12 +102,13 @@ export default function CaptainDashboard() {
     }
   }
 
-  async function handleUpdateTeam(formData) {
+  async function handleUpdateTeam(data) {
     setSavingTeam(true);
     try {
       const res = await fetch("/api/teams/me", {
         method: "PATCH",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
       if (!res.ok) {
         const errorData = await res.json();

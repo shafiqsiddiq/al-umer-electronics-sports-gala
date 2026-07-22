@@ -35,6 +35,34 @@ export async function GET(_request, { params }) {
   return NextResponse.json({ team });
 }
 
+async function parsePatchBody(request) {
+  const contentType = request.headers.get("content-type") || "";
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const get = (key) => {
+      const value = formData.get(key);
+      return value == null || value === "" ? undefined : String(value);
+    };
+    return {
+      action: get("action"),
+      name: get("name"),
+      section: get("section"),
+      status: get("status"),
+      newPassword: get("newPassword"),
+      whatsapp: get("whatsapp"),
+      entryFeePaid: get("entryFeePaid"),
+      entryFeeReceivedBy:
+        formData.get("entryFeeReceivedBy") == null
+          ? undefined
+          : String(formData.get("entryFeeReceivedBy")),
+      profilePicture: formData.get("profilePicture"),
+    };
+  }
+
+  const body = await request.json();
+  return { ...body, profilePicture: null };
+}
+
 export async function PATCH(request, { params }) {
   const session = await getAdminSession();
   if (!session) {
@@ -42,8 +70,18 @@ export async function PATCH(request, { params }) {
   }
 
   const { id } = await params;
-  const body = await request.json();
-  const { action, name, section, status, newPassword, whatsapp, entryFeePaid, entryFeeReceivedBy } = body;
+  const body = await parsePatchBody(request);
+  const {
+    action,
+    name,
+    section,
+    status,
+    newPassword,
+    whatsapp,
+    entryFeePaid,
+    entryFeeReceivedBy,
+    profilePicture,
+  } = body;
 
   if (action === "changePassword") {
     if (!newPassword || newPassword.length < 6) {
@@ -135,13 +173,17 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ success: true });
   }
 
+  const hasProfilePicture =
+    profilePicture && typeof profilePicture === "object" && profilePicture.size > 0;
+
   if (
     name !== undefined ||
     section !== undefined ||
     status !== undefined ||
     whatsapp !== undefined ||
     entryFeePaid !== undefined ||
-    entryFeeReceivedBy !== undefined
+    entryFeeReceivedBy !== undefined ||
+    hasProfilePicture
   ) {
     const team = await writeClient.fetch(
       `*[_type == "team" && _id == $id][0]{ _id, "captainId": captain._ref }`,
@@ -161,6 +203,10 @@ export async function PATCH(request, { params }) {
       }
     }
 
+    if (!team.captainId && (whatsapp !== undefined || hasProfilePicture)) {
+      return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
+    }
+
     if (whatsapp !== undefined) {
       const digits = String(whatsapp).replace(/\D/g, "");
       if (digits.length !== 11 || !digits.startsWith("03")) {
@@ -168,9 +214,6 @@ export async function PATCH(request, { params }) {
           { error: "Enter a valid 11-digit WhatsApp number (e.g. 03001234567)" },
           { status: 400 }
         );
-      }
-      if (!team.captainId) {
-        return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
       }
       const duplicateWhatsapp = await writeClient.fetch(
         `*[_type == "captain" && whatsapp == $whatsapp && _id != $captainId][0]`,
@@ -185,6 +228,21 @@ export async function PATCH(request, { params }) {
       await writeClient
         .patch(team.captainId)
         .set({ whatsapp: digits, phone: digits })
+        .commit();
+    }
+
+    if (hasProfilePicture) {
+      const asset = await writeClient.assets.upload("image", profilePicture, {
+        filename: `captain-profile-${team.captainId}.jpg`,
+      });
+      await writeClient
+        .patch(team.captainId)
+        .set({
+          profilePicture: {
+            _type: "image",
+            asset: { _type: "reference", _ref: asset._id },
+          },
+        })
         .commit();
     }
 
