@@ -5,7 +5,6 @@ import {
   User,
   IdCard,
   Phone,
-  Mail,
   Users,
   Flag,
   Trophy,
@@ -131,12 +130,6 @@ export default function CaptainProfileCard({
             icon={Phone}
             label="WhatsApp"
             value={captain?.whatsapp || captain?.phone}
-          />
-          <InfoCell
-            icon={Mail}
-            label="Email"
-            value={captain?.email}
-            className="col-span-2"
           />
           <InfoCell
             icon={MapPin}

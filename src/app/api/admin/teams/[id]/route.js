@@ -4,7 +4,7 @@ import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
 
 const TEAM_QUERY = `*[_type == "team" && _id == $id][0]{
-  _id, name, section, status, wins, losses, points, entryFeeVerified, entryFeeRejected,
+  _id, name, section, status, wins, losses, points, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
   "entryFeeImageUrl": entryFeeImage.asset->url,
   "playerCount": count(players),
   "captain": captain->{
@@ -43,7 +43,7 @@ export async function PATCH(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { action, name, section, status, newPassword, whatsapp } = body;
+  const { action, name, section, status, newPassword, whatsapp, entryFeePaid, entryFeeReceivedBy } = body;
 
   if (action === "changePassword") {
     if (!newPassword || newPassword.length < 6) {
@@ -135,7 +135,14 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ success: true });
   }
 
-  if (name !== undefined || section !== undefined || status !== undefined || whatsapp !== undefined) {
+  if (
+    name !== undefined ||
+    section !== undefined ||
+    status !== undefined ||
+    whatsapp !== undefined ||
+    entryFeePaid !== undefined ||
+    entryFeeReceivedBy !== undefined
+  ) {
     const team = await writeClient.fetch(
       `*[_type == "team" && _id == $id][0]{ _id, "captainId": captain._ref }`,
       { id }
@@ -181,6 +188,16 @@ export async function PATCH(request, { params }) {
         .commit();
     }
 
+    if (entryFeePaid !== undefined) {
+      const paid = Number(entryFeePaid);
+      if (Number.isNaN(paid) || paid < 0) {
+        return NextResponse.json(
+          { error: "Paid amount must be a number 0 or greater" },
+          { status: 400 }
+        );
+      }
+    }
+
     if (status === "active") {
       const feeCheck = await writeClient.fetch(
         `*[_type == "team" && _id == $id][0]{
@@ -201,6 +218,10 @@ export async function PATCH(request, { params }) {
     if (name !== undefined) updates.name = name;
     if (section !== undefined) updates.section = section;
     if (status !== undefined) updates.status = status;
+    if (entryFeePaid !== undefined) updates.entryFeePaid = Number(entryFeePaid);
+    if (entryFeeReceivedBy !== undefined) {
+      updates.entryFeeReceivedBy = String(entryFeeReceivedBy).trim();
+    }
 
     if (Object.keys(updates).length > 0) {
       await writeClient.patch(id).set(updates).commit();

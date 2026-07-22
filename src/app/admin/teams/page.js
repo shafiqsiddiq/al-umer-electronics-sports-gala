@@ -5,6 +5,8 @@ import Image from "next/image";
 import TeamViewModal from "@/components/TeamViewModal";
 import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS, TOTAL_SQUAD } from "@/lib/tournament-logic";
+
+const ENTRY_FEE_TOTAL = 5000;
 import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -386,6 +388,8 @@ export default function AdminTeamsPage() {
               entryFeeImageUrl: updatedTeam.entryFeeImageUrl,
               entryFeeVerified: updatedTeam.entryFeeVerified,
               entryFeeRejected: updatedTeam.entryFeeRejected,
+              entryFeePaid: updatedTeam.entryFeePaid,
+              entryFeeReceivedBy: updatedTeam.entryFeeReceivedBy,
               playerCount: updatedTeam.players?.length ?? t.playerCount,
               captain: updatedTeam.captain
                 ? {
@@ -402,15 +406,44 @@ export default function AdminTeamsPage() {
   function feeStatusOf(team) {
     if (team.entryFeeVerified) return "verified";
     if (team.entryFeeRejected && !team.entryFeeImageUrl) return "rejected";
+    // Stay pending until full Rs. 5000 is paid OR admin manually verifies
+    const paid = Number(team.entryFeePaid || 0);
+    if (paid < ENTRY_FEE_TOTAL) return "pending";
     if (team.entryFeeImageUrl) return "pending";
     return "not_uploaded";
+  }
+
+  function FeeStatusBadge({ team }) {
+    if (team.entryFeeVerified) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-900/40">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          Verified
+        </span>
+      );
+    }
+    if (team.entryFeeRejected && !team.entryFeeImageUrl) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200/60 dark:bg-red-950/20 dark:text-red-400 dark:ring-red-900/40">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+          Rejected
+        </span>
+      );
+    }
+    // Pending until Rs. 5000 collected, or until admin verifies
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200/60 dark:bg-amber-950/20 dark:text-amber-400 dark:ring-amber-900/40">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Pending
+      </span>
+    );
   }
 
   const query = search.trim().toLowerCase();
   const filteredTeams = teams.filter((team) => {
     if (
       query &&
-      ![team.name, team.captain?.name, team.captain?.villageOrCity, team.captain?.whatsapp, team.captain?.phone].some((v) =>
+      ![team.name, team.captain?.name, team.captain?.villageOrCity, team.captain?.whatsapp, team.captain?.phone, team.entryFeeReceivedBy].some((v) =>
         v?.toLowerCase().includes(query)
       )
     ) {
@@ -620,7 +653,8 @@ export default function AdminTeamsPage() {
               <th className="hidden px-4 py-3.5 lg:table-cell">Village/City</th>
               <th className="hidden px-4 py-3.5 xl:table-cell">Phone</th>
               <th className="hidden px-4 py-3.5 xl:table-cell">Group</th>
-              <th className="px-4 py-3.5">Players</th>
+              <th className="px-4 py-3.5">Paid</th>
+              <th className="hidden px-4 py-3.5 lg:table-cell">Received By</th>
               <th className="px-4 py-3.5">Entry Fee</th>
               <th className="px-4 py-3.5">Status</th>
               <th className="rounded-tr-2xl px-5 py-3.5 text-right">Actions</th>
@@ -675,34 +709,42 @@ export default function AdminTeamsPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
-                    {(team.playerCount || 0) + 1}
+                  {(() => {
+                    const paid = Number(team.entryFeePaid || 0);
+                    const remaining = Math.max(0, ENTRY_FEE_TOTAL - paid);
+                    const fullyPaid = paid >= ENTRY_FEE_TOTAL;
+                    return (
+                      <div className="flex flex-col items-start gap-0.5">
+                        <span
+                          className={`text-sm font-bold tabular-nums ${
+                            fullyPaid
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : paid > 0
+                                ? "text-amber-700 dark:text-amber-400"
+                                : "text-zinc-500"
+                          }`}
+                        >
+                          Rs. {paid.toLocaleString()}
+                        </span>
+                        <span className="text-[10px] font-medium text-zinc-400">
+                          {fullyPaid
+                            ? "Full paid"
+                            : paid > 0
+                              ? `Due Rs. ${remaining.toLocaleString()}`
+                              : `of ${ENTRY_FEE_TOTAL.toLocaleString()}`}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </td>
+                <td className="hidden px-4 py-3.5 lg:table-cell">
+                  <span className="text-sm font-semibold capitalize text-zinc-800 dark:text-zinc-200">
+                    {team.entryFeeReceivedBy || "—"}
                   </span>
-                  <span className="text-xs text-zinc-400"> / {TOTAL_SQUAD}</span>
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex flex-col items-start gap-1.5">
-                    {!team.entryFeeImageUrl && team.entryFeeRejected ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200/60 dark:bg-red-950/20 dark:text-red-400 dark:ring-red-900/40">
-                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                        Rejected
-                      </span>
-                    ) : !team.entryFeeImageUrl ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-50 px-2.5 py-0.5 text-xs font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200/60 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-zinc-800">
-                        <span className="h-1.5 w-1.5 rounded-full bg-zinc-300 dark:bg-zinc-600" />
-                        Not uploaded
-                      </span>
-                    ) : team.entryFeeVerified ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60 dark:bg-emerald-950/20 dark:text-emerald-400 dark:ring-emerald-900/40">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200/60 dark:bg-amber-950/20 dark:text-amber-400 dark:ring-amber-900/40">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Pending
-                      </span>
-                    )}
+                    <FeeStatusBadge team={team} />
                     {team.entryFeeImageUrl && (
                       <button
                         type="button"
@@ -740,7 +782,7 @@ export default function AdminTeamsPage() {
             ))}
             {filteredTeams.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-sm text-zinc-400">
+                <td colSpan={9} className="px-5 py-12 text-center text-sm text-zinc-400">
                   {hasActiveFilters
                     ? "No teams match your search or filters"
                     : "No teams registered yet"}
@@ -853,23 +895,26 @@ export default function AdminTeamsPage() {
               </div>
 
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
+                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Paid</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-right tabular-nums">
+                  Rs. {Number(team.entryFeePaid || 0).toLocaleString()}
+                  <span className="ml-1 text-[10px] font-medium text-zinc-400">
+                    / {ENTRY_FEE_TOTAL.toLocaleString()}
+                  </span>
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
+                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Received By</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-right break-words max-w-[70%]">
+                  {team.entryFeeReceivedBy || "—"}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
                 <span className="text-zinc-400 dark:text-zinc-500 font-medium">Entry Fee</span>
                 <div className="flex flex-col items-end gap-1">
-                  {!team.entryFeeImageUrl && team.entryFeeRejected ? (
-                    <span className="inline-flex rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200/30">
-                      Rejected
-                    </span>
-                  ) : !team.entryFeeImageUrl ? (
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Not uploaded</span>
-                  ) : team.entryFeeVerified ? (
-                    <span className="inline-flex rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-200/30">
-                      Verified
-                    </span>
-                  ) : (
-                    <span className="inline-flex rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200/30">
-                      Pending verification
-                    </span>
-                  )}
+                  <FeeStatusBadge team={team} />
                   {team.entryFeeImageUrl && (
                     <button
                       type="button"

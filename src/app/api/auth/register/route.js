@@ -28,7 +28,6 @@ export async function POST(request) {
     const teamName = formData.get("teamName");
     const villageOrCity = formData.get("villageOrCity");
     const profilePicture = formData.get("profilePicture");
-    const cnicImage = formData.get("cnicImage");
     const entryFeeImage = formData.get("entryFeeImage");
 
     if (!captainName || !fatherName || !cnic || !whatsapp || !password || !teamName || !villageOrCity) {
@@ -41,9 +40,6 @@ export async function POST(request) {
 
     if (!profilePicture || profilePicture.size === 0) {
       return NextResponse.json({ error: "Profile picture is required" }, { status: 400 });
-    }
-    if (!cnicImage || cnicImage.size === 0) {
-      return NextResponse.json({ error: "CNIC upload is required" }, { status: 400 });
     }
 
     const hasEntryFee =
@@ -69,10 +65,9 @@ export async function POST(request) {
     const captainId = `captain.${crypto.randomUUID()}`;
 
     // Hash password + upload required images in parallel; entry fee is optional
-    const [passwordHash, profileAsset, cnicAsset, entryFeeAsset] = await Promise.all([
+    const [passwordHash, profileAsset, entryFeeAsset] = await Promise.all([
       bcrypt.hash(password, 8),
       uploadImage(profilePicture, safeFilename("captain-profile", cnic)),
-      uploadImage(cnicImage, safeFilename("captain-cnic", cnic)),
       hasEntryFee
         ? uploadImage(entryFeeImage, safeFilename("team-entry-fee", teamName))
         : Promise.resolve(null),
@@ -117,10 +112,6 @@ export async function POST(request) {
         profilePicture: {
           _type: "image",
           asset: { _type: "reference", _ref: profileAsset._id },
-        },
-        cnicImage: {
-          _type: "image",
-          asset: { _type: "reference", _ref: cnicAsset._id },
         },
         team: { _type: "reference", _ref: teamId },
       })

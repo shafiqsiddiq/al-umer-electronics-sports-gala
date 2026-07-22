@@ -118,7 +118,7 @@ function feeLabel(team) {
       badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
     };
   }
-  if (team.entryFeeRejected) {
+  if (team.entryFeeRejected && !team.entryFeeImageUrl) {
     return {
       text: "Rejected",
       className: "text-red-600",
@@ -126,19 +126,12 @@ function feeLabel(team) {
       badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
     };
   }
-  if (team.entryFeeImageUrl) {
-    return {
-      text: "Pending",
-      className: "text-amber-600",
-      icon: Clock,
-      badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    };
-  }
+  // Pending until full Rs. 5000 is paid, or until admin verifies
   return {
-    text: "Not uploaded",
-    className: "text-zinc-500",
-    icon: Receipt,
-    badge: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+    text: "Pending",
+    className: "text-amber-600",
+    icon: Clock,
+    badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   };
 }
 
@@ -288,25 +281,23 @@ export default function TeamViewModal({ team, onClose }) {
 
               <div
                 className={`mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-xs ${
-                  team.entryFeeRejected
+                  team.entryFeeRejected && !team.entryFeeImageUrl
                     ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
                     : team.entryFeeVerified
                       ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
-                      : team.entryFeeImageUrl
-                        ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
-                        : "border-dashed border-zinc-200 text-zinc-400 dark:border-zinc-700"
+                      : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
                 }`}
               >
                 <FeeIcon size={14} className="mt-0.5 shrink-0" />
                 <div>
                   <p className="font-semibold">
-                    {team.entryFeeRejected
+                    {team.entryFeeRejected && !team.entryFeeImageUrl
                       ? "Receipt rejected — captain must re-upload"
                       : team.entryFeeVerified
                         ? "Entry fee verified by admin"
-                        : team.entryFeeImageUrl
-                          ? "Receipt uploaded — awaiting verification"
-                          : "No entry fee receipt uploaded"}
+                        : Number(team.entryFeePaid || 0) < 5000
+                          ? `Pending — Rs. ${Number(team.entryFeePaid || 0).toLocaleString()} of 5,000 received`
+                          : "Full Rs. 5,000 received — awaiting admin verification"}
                   </p>
                 </div>
               </div>

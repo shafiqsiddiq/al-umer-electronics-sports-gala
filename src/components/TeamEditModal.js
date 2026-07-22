@@ -20,12 +20,24 @@ const SECTION_OPTIONS = [
   { value: "C", label: "Group C" },
 ];
 
+const RECEIVED_BY_OPTIONS = [
+  "Usman Umer",
+  "Amir Sohail",
+  "Amir Umer",
+  "Babar Umer",
+  "Shafiq Siddiq",
+];
+
+const ENTRY_FEE_TOTAL = 5000;
+
 export default function TeamEditModal({ team, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: "",
     section: "unassigned",
     status: "pending",
     whatsapp: "",
+    entryFeePaid: "0",
+    entryFeeReceivedBy: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,6 +49,8 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
         section: team.section || "unassigned",
         status: team.status || "pending",
         whatsapp: team.captain?.whatsapp || team.captain?.phone || "",
+        entryFeePaid: String(team.entryFeePaid ?? 0),
+        entryFeeReceivedBy: team.entryFeeReceivedBy || "",
       });
       setError("");
     }
@@ -49,6 +63,11 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
     setForm({ ...form, whatsapp: digits });
   }
 
+  function handlePaidChange(e) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setForm({ ...form, entryFeePaid: digits });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -58,13 +77,22 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
       return;
     }
 
+    const paid = Number(form.entryFeePaid || 0);
+    if (Number.isNaN(paid) || paid < 0) {
+      setError("Paid amount must be 0 or greater");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch(`/api/admin/teams/${team._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          entryFeePaid: paid,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update team");
@@ -144,6 +172,45 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
             />
             <p className="mt-1 text-xs text-zinc-500">11 digits, starting with 03</p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Paid Amount (PKR)</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={form.entryFeePaid}
+              onChange={handlePaidChange}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Full entry fee: Rs. {ENTRY_FEE_TOTAL.toLocaleString()} · Remaining: Rs.{" "}
+              {Math.max(0, ENTRY_FEE_TOTAL - Number(form.entryFeePaid || 0)).toLocaleString()}
+            </p>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Received By</label>
+            <select
+              value={form.entryFeeReceivedBy}
+              onChange={(e) => setForm({ ...form, entryFeeReceivedBy: e.target.value })}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+            >
+              <option value="">Select who received payment</option>
+              {RECEIVED_BY_OPTIONS.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+              {form.entryFeeReceivedBy &&
+                !RECEIVED_BY_OPTIONS.includes(form.entryFeeReceivedBy) && (
+                  <option value={form.entryFeeReceivedBy}>
+                    {form.entryFeeReceivedBy}
+                  </option>
+                )}
+            </select>
+            <p className="mt-1 text-xs text-zinc-500">
+              Jis ne payment wasool ki uska naam select karein
+            </p>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Group</label>

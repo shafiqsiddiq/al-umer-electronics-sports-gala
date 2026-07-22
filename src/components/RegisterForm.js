@@ -27,18 +27,15 @@ export default function RegisterForm() {
     whatsapp: "",
     villageOrCity: "",
     password: "",
-    confirmPassword: "",
     teamName: "",
   });
   const [profilePicture, setProfilePicture] = useState(null);
-  const [cnicImage, setCnicImage] = useState(null);
   const [entryFeeImage, setEntryFeeImage] = useState(null);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   function handleCnicChange(e) {
     setForm({ ...form, cnic: formatCnic(e.target.value) });
@@ -81,19 +78,11 @@ export default function RegisterForm() {
     } else if (profilePicture.size > 5 * 1024 * 1024) {
       newErrors.profilePicture = "Image size must be less than 5MB";
     }
-    if (!cnicImage) {
-      newErrors.cnicImage = "CNIC upload is required";
-    } else if (cnicImage.size > 5 * 1024 * 1024) {
-      newErrors.cnicImage = "Image size must be less than 5MB";
-    }
     if (entryFeeImage && entryFeeImage.size > 5 * 1024 * 1024) {
       newErrors.entryFeeImage = "Image size must be less than 5MB";
     }
     if (!form.password || form.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
-    }
-    if (form.password !== form.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
     }
 
     setErrors(newErrors);
@@ -109,9 +98,8 @@ export default function RegisterForm() {
     setLoading(true);
     setLoadingStep("Compressing images...");
     try {
-      const [profileOut, cnicOut, entryOut] = await Promise.all([
+      const [profileOut, entryOut] = await Promise.all([
         compressImage(profilePicture),
-        compressImage(cnicImage),
         entryFeeImage ? compressImage(entryFeeImage) : Promise.resolve(null),
       ]);
 
@@ -124,7 +112,6 @@ export default function RegisterForm() {
       formData.append("password", form.password);
       formData.append("teamName", form.teamName);
       formData.append("profilePicture", profileOut);
-      formData.append("cnicImage", cnicOut);
       if (entryOut) formData.append("entryFeeImage", entryOut);
 
       setLoadingStep("Creating your team...");
@@ -287,7 +274,7 @@ export default function RegisterForm() {
             <UploadCloud className="h-5 w-5 text-emerald-500" />
             Documents Upload
           </h2>
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-1">
             <div className="flex flex-col gap-2">
               <label className={labelClass}>Profile Picture *</label>
               <label
@@ -333,52 +320,6 @@ export default function RegisterForm() {
                     src={URL.createObjectURL(profilePicture)}
                     alt="Profile Preview"
                     className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg dark:border-zinc-800"
-                  />
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className={labelClass}>CNIC Front Image *</label>
-              <label
-                className={`flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed bg-zinc-50 transition-all hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${
-                  errors.cnicImage
-                    ? "border-red-400"
-                    : "border-zinc-300 dark:border-zinc-700"
-                }`}
-              >
-                <CreditCard
-                  className={`mb-2 h-8 w-8 ${
-                    errors.cnicImage ? "text-red-400" : "text-zinc-400"
-                  }`}
-                />
-                <p
-                  className={`text-sm ${
-                    errors.cnicImage
-                      ? "text-red-500"
-                      : "text-zinc-500 dark:text-zinc-400"
-                  }`}
-                >
-                  <span className="font-semibold">Click to upload</span>
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    setCnicImage(e.target.files[0]);
-                    if (errors.cnicImage) setErrors({ ...errors, cnicImage: "" });
-                  }}
-                  className="hidden"
-                />
-              </label>
-              {errors.cnicImage && (
-                <p className="mt-1 text-center text-xs text-red-500">{errors.cnicImage}</p>
-              )}
-              {cnicImage && !errors.cnicImage && (
-                <div className="mt-2 flex justify-center">
-                  <img
-                    src={URL.createObjectURL(cnicImage)}
-                    alt="CNIC Preview"
-                    className="h-24 w-40 rounded-lg border-4 border-white object-cover shadow-lg dark:border-zinc-800"
                   />
                 </div>
               )}
@@ -456,7 +397,7 @@ export default function RegisterForm() {
             <Shield className="h-5 w-5 text-emerald-500" />
             Security
           </h2>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-5 sm:grid-cols-1 sm:max-w-md">
             <div>
               <label className={labelClass}>Password *</label>
               <div className="relative">
@@ -479,34 +420,6 @@ export default function RegisterForm() {
               </div>
               {errors.password && (
                 <p className="mt-1 text-xs text-red-500">{errors.password}</p>
-              )}
-            </div>
-            <div>
-              <label className={labelClass}>Confirm Password *</label>
-              <div className="relative">
-                <Shield className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={form.confirmPassword}
-                  onChange={(e) => handleChange("confirmPassword", e.target.value)}
-                  className={`${inputClass} pr-11 ${
-                    errors.confirmPassword ? errorInputClass : ""
-                  }`}
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                  aria-label={
-                    showConfirmPassword ? "Hide password" : "Show password"
-                  }
-                >
-                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>
               )}
             </div>
           </div>
