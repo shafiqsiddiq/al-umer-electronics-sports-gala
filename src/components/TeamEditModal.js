@@ -38,7 +38,6 @@ const inputClass =
 export default function TeamEditModal({ team, onClose, onSaved }) {
   const [form, setForm] = useState({
     name: "",
-    villageOrCity: "",
     section: "unassigned",
     status: "pending",
     whatsapp: "",
@@ -54,7 +53,6 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
     if (team) {
       setForm({
         name: team.name || "",
-        villageOrCity: team.captain?.villageOrCity || "",
         section: team.section || "unassigned",
         status: team.status || "pending",
         whatsapp: team.captain?.whatsapp || team.captain?.phone || "",
@@ -98,11 +96,6 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
       return;
     }
 
-    if (!form.villageOrCity.trim() || form.villageOrCity.trim().length < 2) {
-      setError("Village / City name is required");
-      return;
-    }
-
     if (!form.whatsapp || form.whatsapp.length !== 11 || !form.whatsapp.startsWith("03")) {
       setError("Enter a valid 11-digit WhatsApp number (e.g. 03001234567)");
       return;
@@ -119,7 +112,6 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
     try {
       const formData = new FormData();
       formData.append("name", form.name.trim());
-      formData.append("villageOrCity", form.villageOrCity.trim());
       formData.append("section", form.section);
       formData.append("status", form.status);
       formData.append("whatsapp", form.whatsapp);
@@ -160,7 +152,7 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
         <div className="flex items-start justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
           <div>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Edit Team</h2>
-            <p className="text-xs text-zinc-500">Update team, captain location & fee details</p>
+            <p className="text-xs text-zinc-500">Update team, contact & fee details</p>
           </div>
           <button
             type="button"
@@ -227,22 +219,12 @@ export default function TeamEditModal({ team, onClose, onSaved }) {
 
           <form id="team-edit-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div>
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-medium">Team Name</label>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Village / City</label>
-                <input
-                  required
-                  value={form.villageOrCity}
-                  onChange={(e) => setForm({ ...form, villageOrCity: e.target.value })}
-                  placeholder="e.g., Lahore"
                   className={inputClass}
                 />
               </div>

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { writeClient } from "@/lib/sanity";
 import { createToken } from "@/lib/auth";
-import { validateCnic } from "@/lib/cnic";
 
 function safeFilename(prefix, value, ext = "jpg") {
   const slug = String(value || "file").replace(/[^a-z0-9]/gi, "").slice(0, 40) || "file";
@@ -21,21 +20,22 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const captainName = formData.get("captainName");
-    const fatherName = formData.get("fatherName");
-    const cnic = formData.get("cnic");
     const whatsapp = formData.get("whatsapp");
     const password = formData.get("password");
     const teamName = formData.get("teamName");
-    const villageOrCity = formData.get("villageOrCity");
     const profilePicture = formData.get("profilePicture");
     const entryFeeImage = formData.get("entryFeeImage");
 
-    if (!captainName || !cnic || !whatsapp || !password || !teamName || !villageOrCity) {
+    if (!captainName || !whatsapp || !password || !teamName) {
       return NextResponse.json({ error: "All required fields must be filled" }, { status: 400 });
     }
 
-    if (!validateCnic(cnic)) {
-      return NextResponse.json({ error: "Invalid CNIC format. Use 35201-8511102-5" }, { status: 400 });
+    const digits = String(whatsapp).replace(/\D/g, "");
+    if (digits.length !== 11 || !digits.startsWith("03")) {
+      return NextResponse.json(
+        { error: "Enter a valid 11-digit WhatsApp number (e.g. 03001234567)" },
+        { status: 400 }
+      );
     }
 
     if (!profilePicture || profilePicture.size === 0) {
@@ -48,14 +48,16 @@ export async function POST(request) {
       typeof entryFeeImage.size === "number" &&
       entryFeeImage.size > 0;
 
-    // Run uniqueness checks in parallel
-    const [existingCnic, teamExisting] = await Promise.all([
-      writeClient.fetch(`*[_type in ["captain", "player"] && cnic == $cnic][0]._id`, { cnic }),
+    const [existingWhatsapp, teamExisting] = await Promise.all([
+      writeClient.fetch(
+        `*[_type == "captain" && (whatsapp == $whatsapp || phone == $whatsapp)][0]._id`,
+        { whatsapp: digits }
+      ),
       writeClient.fetch(`*[_type == "team" && name == $teamName][0]._id`, { teamName }),
     ]);
 
-    if (existingCnic) {
-      return NextResponse.json({ error: "CNIC already registered" }, { status: 400 });
+    if (existingWhatsapp) {
+      return NextResponse.json({ error: "This phone number is already registered" }, { status: 400 });
     }
     if (teamExisting) {
       return NextResponse.json({ error: "Team name already taken" }, { status: 400 });
@@ -64,16 +66,14 @@ export async function POST(request) {
     const teamId = `team.${crypto.randomUUID()}`;
     const captainId = `captain.${crypto.randomUUID()}`;
 
-    // Hash password + upload required images in parallel; entry fee is optional
     const [passwordHash, profileAsset, entryFeeAsset] = await Promise.all([
       bcrypt.hash(password, 8),
-      uploadImage(profilePicture, safeFilename("captain-profile", cnic)),
+      uploadImage(profilePicture, safeFilename("captain-profile", digits)),
       hasEntryFee
         ? uploadImage(entryFeeImage, safeFilename("team-entry-fee", teamName))
         : Promise.resolve(null),
     ]);
 
-    // Create team + captain + link in a single Sanity transaction
     await writeClient
       .transaction()
       .create({
@@ -103,11 +103,8 @@ export async function POST(request) {
         _id: captainId,
         _type: "captain",
         name: captainName,
-        fatherName: typeof fatherName === "string" ? fatherName.trim() : "",
-        cnic,
-        whatsapp,
-        villageOrCity,
-        phone: whatsapp,
+        whatsapp: digits,
+        phone: digits,
         passwordHash,
         profilePicture: {
           _type: "image",
@@ -121,7 +118,7 @@ export async function POST(request) {
       role: "captain",
       captainId,
       teamId,
-      cnic,
+      whatsapp: digits,
     });
 
     const response = NextResponse.json({

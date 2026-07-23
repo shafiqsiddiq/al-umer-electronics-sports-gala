@@ -5,18 +5,15 @@ import Image from "next/image";
 import {
   X,
   Phone,
-  IdCard,
   Mail,
   Trophy,
   Receipt,
   ExternalLink,
   Shield,
-  MapPin,
   CheckCircle2,
   Clock,
   XCircle,
 } from "lucide-react";
-import { getSquadCounts } from "@/lib/tournament-logic";
 
 function Avatar({ src, alt, size = 40, ring = false }) {
   if (src) {
@@ -140,7 +137,6 @@ export default function TeamViewModal({ team, onClose }) {
 
   if (!team) return null;
 
-  const squad = getSquadCounts(team.players || []);
   const fee = feeLabel(team);
   const FeeIcon = fee.icon;
   const whatsapp = team.captain?.whatsapp || team.captain?.phone;
@@ -221,34 +217,13 @@ export default function TeamViewModal({ team, onClose }) {
                   <p className="truncate font-bold text-zinc-900 dark:text-white">
                     {team.captain?.name || "—"}
                   </p>
-                  {team.captain?.fatherName && (
-                    <p className="text-xs text-zinc-500">
-                      s/o {team.captain.fatherName}
-                    </p>
-                  )}
                 </div>
               </div>
 
               <div className="space-y-2.5">
-                <InfoRow icon={IdCard} label="CNIC" value={team.captain?.cnic} mono />
-                <InfoRow
-                  icon={MapPin}
-                  label="Village/City"
-                  value={team.captain?.villageOrCity}
-                />
                 <InfoRow icon={Phone} label="WhatsApp" value={whatsapp} />
                 <InfoRow icon={Mail} label="Email" value={team.captain?.email} />
               </div>
-
-              {team.captain?.cnicImageUrl && (
-                <div className="mt-3">
-                  <DocThumb
-                    src={team.captain.cnicImageUrl}
-                    label="Captain CNIC"
-                    onOpen={() => setPreviewUrl(team.captain.cnicImageUrl)}
-                  />
-                </div>
-              )}
             </section>
 
             {/* Stats */}
@@ -269,13 +244,13 @@ export default function TeamViewModal({ team, onClose }) {
                 />
                 <StatChip label="Points" value={team.points ?? 0} />
                 <StatChip
-                  label="Squad"
-                  value={`${squad.displayTotal} player${squad.displayTotal === 1 ? "" : "s"}`}
-                />
-                <StatChip
                   label="Entry Fee"
                   value={fee.text}
                   accent={fee.className}
+                />
+                <StatChip
+                  label="Status"
+                  value={(team.status || "pending").replace(/_/g, " ")}
                 />
               </div>
 

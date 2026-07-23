@@ -15,7 +15,6 @@ export async function GET() {
       "entryFeeImageUrl": entryFeeImage.asset->url,
       "captain": captain->{
         name,
-        villageOrCity,
         whatsapp,
         phone,
         "profilePictureUrl": profilePicture.asset->url

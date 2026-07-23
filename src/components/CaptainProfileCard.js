@@ -2,15 +2,12 @@
 
 import Image from "next/image";
 import {
-  User,
-  IdCard,
   Phone,
   Users,
   Flag,
   Trophy,
   Pencil,
   Shield,
-  MapPin,
   Activity,
   CreditCard,
 } from "lucide-react";
@@ -124,17 +121,10 @@ export default function CaptainProfileCard({
       <div className="space-y-2 p-3">
         <div className="grid grid-cols-2 gap-1.5">
           <InfoCell icon={Shield} label="Captain Name" value={captain?.name} />
-          <InfoCell icon={User} label="Father Name" value={captain?.fatherName} />
-          <InfoCell icon={IdCard} label="CNIC" value={captain?.cnic} mono />
           <InfoCell
             icon={Phone}
             label="WhatsApp"
             value={captain?.whatsapp || captain?.phone}
-          />
-          <InfoCell
-            icon={MapPin}
-            label="Village/City"
-            value={captain?.villageOrCity}
           />
           <InfoCell icon={Users} label="Team" value={team?.name} />
           <InfoCell icon={Flag} label="Group" value={sectionLabel} />

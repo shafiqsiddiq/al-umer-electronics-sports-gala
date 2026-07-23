@@ -41,13 +41,9 @@ export default function CaptainSettingsPage() {
     try {
       const formData = new FormData();
       formData.append("name", data.name);
-      formData.append("fatherName", data.fatherName);
-      formData.append("cnic", data.cnic);
       formData.append("email", data.email || "");
       formData.append("whatsapp", data.whatsapp);
-      formData.append("villageOrCity", data.villageOrCity || "");
       if (data.profilePicture) formData.append("profilePicture", data.profilePicture);
-      if (data.cnicImage) formData.append("cnicImage", data.cnicImage);
 
       const res = await fetch("/api/captain/profile", {
         method: "PATCH",

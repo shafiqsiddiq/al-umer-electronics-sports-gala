@@ -35,13 +35,13 @@ const REGISTER_STEPS = [
   {
     title: "Captain details bharein",
     detail:
-      "Name, father name, CNIC (35201-XXXXXXX-X), WhatsApp (03XXXXXXXXX), village/city, aur password (confirm ke sath).",
+      "Name, phone (03XXXXXXXXX), team name, profile picture, aur password.",
     icon: UserPlus,
   },
   {
     title: "Team name + photos",
     detail:
-      "Apni team ka naam likhein. Profile picture aur CNIC photo upload karein (clear image).",
+      "Apni team ka naam likhein aur clear profile picture upload karein.",
     icon: Shield,
   },
   {
@@ -204,8 +204,8 @@ export default function GuidePage() {
 └─────────────┘    └─────────────┘    └─────────────┘    └──────────────┘
         │                  │                  │
         ▼                  ▼                  ▼
-  Name, CNIC,      Jazz Cash / EP      WhatsApp +
-  Team, Photos     03047058705         Password`}</pre>
+  Name, Phone,     Jazz Cash / EP      WhatsApp +
+  Team, Photo      03047058705         Password`}</pre>
             </div>
           </div>
         </section>
@@ -341,10 +341,6 @@ export default function GuidePage() {
             <li className="flex gap-2">
               <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" />
               Password yaad rakhain; login ke baad Settings se profile update ho sakti hai.
-            </li>
-            <li className="flex gap-2">
-              <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" />
-              CNIC format: 35201-8511102-5 (dashes ke sath).
             </li>
             <li className="flex gap-2">
               <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-600" />

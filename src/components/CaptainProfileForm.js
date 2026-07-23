@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { formatCnic, validateCnic } from "@/lib/cnic";
 import { UploadCloud } from "lucide-react";
 
 const inputClass =
@@ -17,29 +16,21 @@ export default function CaptainProfileForm({
 }) {
   const [form, setForm] = useState({
     name: "",
-    fatherName: "",
-    cnic: "",
     email: "",
     whatsapp: "",
-    villageOrCity: "",
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePreview, setProfilePreview] = useState("");
-  const [cnicImage, setCnicImage] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (captain) {
       setForm({
         name: captain.name || "",
-        fatherName: captain.fatherName || "",
-        cnic: captain.cnic || "",
         email: captain.email || "",
         whatsapp: captain.whatsapp || captain.phone || "",
-        villageOrCity: captain.villageOrCity || "",
       });
       setProfilePicture(null);
-      setCnicImage(null);
       setError("");
     }
   }, [captain]);
@@ -54,29 +45,23 @@ export default function CaptainProfileForm({
     return () => URL.revokeObjectURL(url);
   }, [profilePicture]);
 
-  function handleCnicChange(e) {
-    setForm({ ...form, cnic: formatCnic(e.target.value) });
-  }
-
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!validateCnic(form.cnic)) {
-      setError("CNIC must be in format 35201-8511102-5");
+    if (!form.name.trim()) {
+      setError("Name is required");
       return;
     }
 
-    if (!form.villageOrCity.trim() || form.villageOrCity.trim().length < 2) {
-      setError("Village / City name is required");
+    if (!form.whatsapp || form.whatsapp.length !== 11 || !form.whatsapp.startsWith("03")) {
+      setError("Enter a valid 11-digit phone number (e.g. 03001234567)");
       return;
     }
 
     onSubmit({
       ...form,
-      villageOrCity: form.villageOrCity.trim(),
       profilePicture: profilePicture || undefined,
-      cnicImage: cnicImage || undefined,
     });
   }
 
@@ -149,42 +134,6 @@ export default function CaptainProfileForm({
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-            Father Name
-          </label>
-          <input
-            value={form.fatherName}
-            onChange={(e) => setForm({ ...form, fatherName: e.target.value })}
-            className={inputClass}
-            placeholder="optional"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-            CNIC *
-          </label>
-          <input
-            required
-            value={form.cnic}
-            onChange={handleCnicChange}
-            placeholder="35201-8511102-5"
-            maxLength={15}
-            className={`${inputClass} font-mono`}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-            Email
-          </label>
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className={inputClass}
-            placeholder="optional"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
             Phone Number *
           </label>
           <input
@@ -205,49 +154,30 @@ export default function CaptainProfileForm({
         </div>
         <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-            Village / City *
+            Email
           </label>
           <input
-            required
-            value={form.villageOrCity}
-            onChange={(e) => setForm({ ...form, villageOrCity: e.target.value })}
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
             className={inputClass}
-            placeholder="e.g., Lahore"
+            placeholder="optional"
           />
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex cursor-pointer flex-col gap-1.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 px-3 py-3 text-xs dark:border-zinc-700 dark:bg-zinc-900/50">
-          <span className="inline-flex items-center gap-1.5 font-semibold text-zinc-600 dark:text-zinc-300">
-            <UploadCloud size={14} />
-            New Profile Picture
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setProfilePicture(e.target.files[0] || null)}
-            className="text-[11px] file:mr-2 file:rounded-md file:border-0 file:bg-emerald-50 file:px-2 file:py-1 file:text-[11px] file:font-semibold file:text-emerald-700"
-          />
-        </label>
-        <label className="flex cursor-pointer flex-col gap-1.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 px-3 py-3 text-xs dark:border-zinc-700 dark:bg-zinc-900/50">
-          <span className="inline-flex items-center gap-1.5 font-semibold text-zinc-600 dark:text-zinc-300">
-            <UploadCloud size={14} />
-            New CNIC Upload
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setCnicImage(e.target.files[0] || null)}
-            className="text-[11px] file:mr-2 file:rounded-md file:border-0 file:bg-emerald-50 file:px-2 file:py-1 file:text-[11px] file:font-semibold file:text-emerald-700"
-          />
-          {cnicImage && (
-            <span className="text-[10px] font-bold text-emerald-600">
-              New CNIC selected
-            </span>
-          )}
-        </label>
-      </div>
+      <label className="flex cursor-pointer flex-col gap-1.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 px-3 py-3 text-xs dark:border-zinc-700 dark:bg-zinc-900/50">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-zinc-600 dark:text-zinc-300">
+          <UploadCloud size={14} />
+          New Profile Picture
+        </span>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setProfilePicture(e.target.files[0] || null)}
+          className="text-[11px] file:mr-2 file:rounded-md file:border-0 file:bg-emerald-50 file:px-2 file:py-1 file:text-[11px] file:font-semibold file:text-emerald-700"
+        />
+      </label>
 
       <div className="flex flex-wrap gap-2 pt-1">
         <button

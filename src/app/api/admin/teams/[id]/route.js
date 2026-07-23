@@ -8,7 +8,7 @@ const TEAM_QUERY = `*[_type == "team" && _id == $id][0]{
   "entryFeeImageUrl": entryFeeImage.asset->url,
   "playerCount": count(players),
   "captain": captain->{
-    _id, name, fatherName, cnic, email, whatsapp, phone, villageOrCity,
+    _id, name, fatherName, cnic, email, whatsapp, phone,
     "profilePictureUrl": profilePicture.asset->url,
     "cnicImageUrl": cnicImage.asset->url
   },
@@ -50,10 +50,6 @@ async function parsePatchBody(request) {
       status: get("status"),
       newPassword: get("newPassword"),
       whatsapp: get("whatsapp"),
-      villageOrCity:
-        formData.get("villageOrCity") == null
-          ? undefined
-          : String(formData.get("villageOrCity")).trim(),
       entryFeePaid: get("entryFeePaid"),
       entryFeeReceivedBy:
         formData.get("entryFeeReceivedBy") == null
@@ -82,7 +78,6 @@ export async function PATCH(request, { params }) {
     status,
     newPassword,
     whatsapp,
-    villageOrCity,
     entryFeePaid,
     entryFeeReceivedBy,
     profilePicture,
@@ -186,7 +181,6 @@ export async function PATCH(request, { params }) {
     section !== undefined ||
     status !== undefined ||
     whatsapp !== undefined ||
-    villageOrCity !== undefined ||
     entryFeePaid !== undefined ||
     entryFeeReceivedBy !== undefined ||
     hasProfilePicture
@@ -210,7 +204,7 @@ export async function PATCH(request, { params }) {
     }
 
     const needsCaptainUpdate =
-      whatsapp !== undefined || villageOrCity !== undefined || hasProfilePicture;
+      whatsapp !== undefined || hasProfilePicture;
 
     if (!team.captainId && needsCaptainUpdate) {
       return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
@@ -238,16 +232,6 @@ export async function PATCH(request, { params }) {
       }
       captainUpdates.whatsapp = digits;
       captainUpdates.phone = digits;
-    }
-
-    if (villageOrCity !== undefined) {
-      if (!villageOrCity || villageOrCity.length < 2) {
-        return NextResponse.json(
-          { error: "Village / City name is required" },
-          { status: 400 }
-        );
-      }
-      captainUpdates.villageOrCity = villageOrCity;
     }
 
     if (hasProfilePicture) {

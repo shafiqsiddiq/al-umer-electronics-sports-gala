@@ -6,7 +6,7 @@ const TEAM_QUERY = `*[_type == "team" && _id == $teamId][0]{
   _id, name, status, section, wins, losses, points, entryFeeVerified, entryFeeRejected,
   "entryFeeImageUrl": entryFeeImage.asset->url,
   "captain": captain->{
-    _id, name, fatherName, cnic, email, phone, whatsapp, villageOrCity,
+    _id, name, fatherName, cnic, email, phone, whatsapp,
     "profilePictureUrl": profilePicture.asset->url,
     "cnicImageUrl": cnicImage.asset->url
   },

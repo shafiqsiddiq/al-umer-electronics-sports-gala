@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import TeamViewModal from "@/components/TeamViewModal";
 import TeamEditModal from "@/components/TeamEditModal";
-import { TOTAL_PLAYER_SLOTS, TOTAL_SQUAD } from "@/lib/tournament-logic";
+import { TOTAL_PLAYER_SLOTS } from "@/lib/tournament-logic";
 
 const ENTRY_FEE_TOTAL = 5000;
 import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
@@ -443,7 +443,7 @@ export default function AdminTeamsPage() {
   const filteredTeams = teams.filter((team) => {
     if (
       query &&
-      ![team.name, team.captain?.name, team.captain?.villageOrCity, team.captain?.whatsapp, team.captain?.phone, team.entryFeeReceivedBy].some((v) =>
+      ![team.name, team.captain?.name, team.captain?.whatsapp, team.captain?.phone, team.entryFeeReceivedBy].some((v) =>
         v?.toLowerCase().includes(query)
       )
     ) {
@@ -650,7 +650,6 @@ export default function AdminTeamsPage() {
           <thead>
             <tr className="border-b border-emerald-700/20 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-[11px] font-bold uppercase tracking-wider text-emerald-50">
               <th className="rounded-tl-2xl px-5 py-3.5">Team</th>
-              <th className="hidden px-4 py-3.5 lg:table-cell">Village/City</th>
               <th className="hidden px-4 py-3.5 xl:table-cell">Phone</th>
               <th className="hidden px-4 py-3.5 xl:table-cell">Group</th>
               <th className="px-4 py-3.5">Paid</th>
@@ -690,11 +689,6 @@ export default function AdminTeamsPage() {
                       </div>
                     </div>
                   </div>
-                </td>
-                <td className="hidden px-4 py-3.5 lg:table-cell">
-                  <span className="text-sm font-medium capitalize text-zinc-700 dark:text-zinc-300">
-                    {team.captain?.villageOrCity || "—"}
-                  </span>
                 </td>
                 <td className="hidden px-4 py-3.5 xl:table-cell">
                   <span className="font-mono text-xs font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
@@ -865,13 +859,6 @@ export default function AdminTeamsPage() {
               </div>
 
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
-                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Village/City</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize text-right break-words max-w-[70%]">
-                  {team.captain?.villageOrCity || "—"}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
                 <span className="text-zinc-400 dark:text-zinc-500 font-medium">Phone</span>
                 <span className="font-semibold font-mono text-xs text-zinc-800 dark:text-zinc-200 text-right">
                   {team.captain?.whatsapp || team.captain?.phone || "—"}
@@ -884,13 +871,6 @@ export default function AdminTeamsPage() {
                   {!team.section || team.section === "unassigned"
                     ? "Unassigned"
                     : `Group ${team.section}`}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
-                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Squad</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-right">
-                  {(team.playerCount || 0) + 1} / {TOTAL_SQUAD} Players
                 </span>
               </div>
 

@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { formatCnic, validateCnic } from "@/lib/cnic";
 import { compressImage } from "@/lib/compress-image";
 import {
   User,
   Phone,
-  MapPin,
   Users,
   Shield,
   Image as ImageIcon,
@@ -22,10 +20,7 @@ export default function RegisterForm() {
   const router = useRouter();
   const [form, setForm] = useState({
     captainName: "",
-    fatherName: "",
-    cnic: "",
     whatsapp: "",
-    villageOrCity: "",
     password: "",
     teamName: "",
   });
@@ -36,11 +31,6 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  function handleCnicChange(e) {
-    setForm({ ...form, cnic: formatCnic(e.target.value) });
-    if (errors.cnic) setErrors({ ...errors, cnic: "" });
-  }
 
   function handleChange(field, value) {
     setForm({ ...form, [field]: value });
@@ -58,17 +48,8 @@ export default function RegisterForm() {
     if (!form.captainName || form.captainName.length < 3) {
       newErrors.captainName = "Captain Name must be at least 3 characters";
     }
-    if (form.fatherName && form.fatherName.length < 3) {
-      newErrors.fatherName = "Father Name must be at least 3 characters";
-    }
-    if (!validateCnic(form.cnic)) {
-      newErrors.cnic = "CNIC must be in format 35201-8511102-5";
-    }
     if (!form.whatsapp || form.whatsapp.length !== 11 || !form.whatsapp.startsWith("03")) {
       newErrors.whatsapp = "Enter valid 11-digit WhatsApp (e.g. 03001234567)";
-    }
-    if (!form.villageOrCity || form.villageOrCity.length < 2) {
-      newErrors.villageOrCity = "Village/City Name is required";
     }
     if (!form.teamName || form.teamName.length < 3) {
       newErrors.teamName = "Team Name must be at least 3 characters";
@@ -105,10 +86,7 @@ export default function RegisterForm() {
 
       const formData = new FormData();
       formData.append("captainName", form.captainName);
-      formData.append("fatherName", form.fatherName);
-      formData.append("cnic", form.cnic);
       formData.append("whatsapp", form.whatsapp);
-      formData.append("villageOrCity", form.villageOrCity);
       formData.append("password", form.password);
       formData.append("teamName", form.teamName);
       formData.append("profilePicture", profileOut);
@@ -179,35 +157,6 @@ export default function RegisterForm() {
               )}
             </div>
             <div>
-              <label className={labelClass}>Father Name</label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  value={form.fatherName}
-                  onChange={(e) => handleChange("fatherName", e.target.value)}
-                  className={`${inputClass} ${errors.fatherName ? errorInputClass : ""}`}
-                  placeholder="Enter father's name"
-                />
-              </div>
-              {errors.fatherName && (
-                <p className="mt-1 text-xs text-red-500">{errors.fatherName}</p>
-              )}
-            </div>
-            <div>
-              <label className={labelClass}>CNIC *</label>
-              <div className="relative">
-                <CreditCard className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  value={form.cnic}
-                  onChange={handleCnicChange}
-                  placeholder="35201-8511102-5"
-                  maxLength={15}
-                  className={`${inputClass} font-mono ${errors.cnic ? errorInputClass : ""}`}
-                />
-              </div>
-              {errors.cnic && <p className="mt-1 text-xs text-red-500">{errors.cnic}</p>}
-            </div>
-            <div>
               <label className={labelClass}>Phone Number *</label>
               <div className="relative">
                 <Phone className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
@@ -238,21 +187,6 @@ export default function RegisterForm() {
               </div>
               {errors.teamName && (
                 <p className="mt-1 text-xs text-red-500">{errors.teamName}</p>
-              )}
-            </div>
-            <div>
-              <label className={labelClass}>Village or City Name *</label>
-              <div className="relative">
-                <MapPin className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  value={form.villageOrCity}
-                  onChange={(e) => handleChange("villageOrCity", e.target.value)}
-                  className={`${inputClass} ${errors.villageOrCity ? errorInputClass : ""}`}
-                  placeholder="e.g., Lahore"
-                />
-              </div>
-              {errors.villageOrCity && (
-                <p className="mt-1 text-xs text-red-500">{errors.villageOrCity}</p>
               )}
             </div>
             <div className="sm:col-span-2">
