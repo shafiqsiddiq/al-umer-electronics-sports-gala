@@ -2,29 +2,28 @@
 
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import { Activity, BarChart3, PieChart, Target } from "lucide-react";
+import { Activity, BarChart3, Target } from "lucide-react";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 function Panel({ title, icon: Icon, children }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
-      <div className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-emerald-50/80 to-transparent px-5 py-3.5 dark:border-zinc-800 dark:from-emerald-950/30">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
-          <Icon size={15} />
+    <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white/90 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
+      <div className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-emerald-50/80 to-transparent px-3.5 py-2.5 dark:border-zinc-800 dark:from-emerald-950/30">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
+          <Icon size={13} />
         </span>
-        <h3 className="font-bold text-zinc-900 dark:text-white">{title}</h3>
+        <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{title}</h3>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-3">{children}</div>
     </div>
   );
 }
 
 function EmptyState({ message }) {
   return (
-    <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 dark:border-zinc-700 dark:bg-zinc-900/40">
-      <div className="mb-2 h-2 w-16 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 opacity-60" />
-      <p className="max-w-xs text-center text-sm text-zinc-500 dark:text-zinc-400">
+    <div className="flex min-h-[140px] flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50/60 dark:border-zinc-700 dark:bg-zinc-900/40">
+      <p className="max-w-xs px-3 text-center text-xs text-zinc-500 dark:text-zinc-400">
         {message}
       </p>
     </div>
@@ -55,71 +54,61 @@ const baseChart = {
   },
 };
 
-function StatusDonut({ data }) {
-  const series = data.map((d) => d.value);
-  const labels = data.map((d) => d.label);
+function StatusBarChart({ data }) {
+  const categories = data.map((d) => d.label);
+  const series = useMemo(
+    () => [{ name: "Teams", data: data.map((d) => d.value) }],
+    [data]
+  );
   const colors = data.map((d) => d.color || "#10b981");
-  const total = series.reduce((a, b) => a + b, 0);
+  const total = data.reduce((a, b) => a + (b.value || 0), 0);
 
   const options = useMemo(
     () => ({
       ...baseChart,
-      chart: { ...baseChart.chart, type: "donut" },
-      labels,
-      colors,
-      stroke: { width: 3, colors: ["#fff"] },
+      chart: { ...baseChart.chart, type: "bar" },
       plotOptions: {
-        pie: {
-          donut: {
-            size: "72%",
-            labels: {
-              show: true,
-              name: {
-                show: true,
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#71717a",
-                offsetY: 18,
-              },
-              value: {
-                show: true,
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "#18181b",
-                offsetY: -10,
-                formatter: (v) => String(v),
-              },
-              total: {
-                show: true,
-                label: "Teams",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#71717a",
-                formatter: () => String(total),
-              },
-            },
-          },
+        bar: {
+          borderRadius: 6,
+          columnWidth: "22%",
+          distributed: true,
         },
       },
-      legend: {
-        ...baseChart.legend,
-        position: "bottom",
-        horizontalAlign: "center",
-      },
-      responsive: [
-        {
-          breakpoint: 640,
-          options: {
-            chart: { height: 280 },
-          },
+      colors,
+      xaxis: {
+        categories,
+        labels: {
+          style: { colors: "#71717a", fontSize: "11px", fontWeight: 600 },
         },
-      ],
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      yaxis: {
+        labels: {
+          style: { colors: "#71717a", fontSize: "11px", fontWeight: 600 },
+        },
+        forceNiceScale: true,
+        min: 0,
+      },
+      grid: {
+        borderColor: "#f4f4f5",
+        strokeDashArray: 4,
+      },
+      legend: { show: false },
+      dataLabels: {
+        enabled: true,
+        style: { colors: ["#fff"], fontSize: "11px", fontWeight: 700 },
+      },
+      tooltip: {
+        ...baseChart.tooltip,
+        y: { formatter: (v) => `${v} of ${total} teams` },
+      },
     }),
-    [labels, colors, total]
+    [categories, colors, total]
   );
 
   return (
-    <Chart type="donut" series={series} options={options} height={300} width="100%" />
+    <Chart type="bar" series={series} options={options} height={200} width="100%" />
   );
 }
 
@@ -179,7 +168,7 @@ function GroupBarChart({ data }) {
   );
 
   return (
-    <Chart type="bar" series={series} options={options} height={280} width="100%" />
+    <Chart type="bar" series={series} options={options} height={200} width="100%" />
   );
 }
 
@@ -198,7 +187,7 @@ function MatchStatusChart({ data }) {
       plotOptions: {
         bar: {
           borderRadius: 10,
-          columnWidth: "48%",
+          columnWidth: "28%",
           distributed: true,
         },
       },
@@ -236,7 +225,7 @@ function MatchStatusChart({ data }) {
   );
 
   return (
-    <Chart type="bar" series={series} options={options} height={280} width="100%" />
+    <Chart type="bar" series={series} options={options} height={200} width="100%" />
   );
 }
 
@@ -311,10 +300,10 @@ function ProgressRadial({ stats }) {
         type="radialBar"
         series={series}
         options={options}
-        height={300}
+        height={200}
         width="100%"
       />
-      <div className="mt-1 grid grid-cols-3 gap-2 text-center text-xs text-zinc-500">
+      <div className="mt-1 grid grid-cols-3 gap-2 text-center text-[10px] text-zinc-500">
         <p>
           <span className="font-bold text-zinc-800 dark:text-zinc-200">
             {stats.totalTeams}/{stats.targetTeams}
@@ -349,18 +338,18 @@ export default function AdminDashboardCharts({ stats }) {
   const hasMatches = (stats.matchStatusChart || []).some((d) => d.value > 0);
 
   return (
-    <div className="mb-8 space-y-4">
+    <div className="mb-5 space-y-3">
       <div className="flex items-center gap-2">
-        <Activity size={18} className="text-emerald-600" />
-        <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+        <Activity size={16} className="text-emerald-600" />
+        <h2 className="text-base font-bold text-zinc-900 dark:text-white">
           Tournament Pulse
         </h2>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Teams by Status" icon={PieChart}>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Panel title="Teams by Status" icon={BarChart3}>
           {hasStatus ? (
-            <StatusDonut data={stats.teamStatusChart} />
+            <StatusBarChart data={stats.teamStatusChart} />
           ) : (
             <EmptyState message="No teams registered yet — waiting for captains" />
           )}

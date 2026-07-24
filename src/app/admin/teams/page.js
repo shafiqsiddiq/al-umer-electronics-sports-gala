@@ -7,9 +7,10 @@ import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS } from "@/lib/tournament-logic";
 
 const ENTRY_FEE_TOTAL = 5000;
-import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
+import { generateWelcomePost } from "@/lib/welcome-post";
 
 const STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200/40 dark:border-amber-900/20",
@@ -28,6 +29,8 @@ function TeamActionDropdown({
   updateTeam,
   onRejectFee,
   onChangePassword,
+  onGeneratePost,
+  generatingPostId,
   alignUp = false,
   light = false,
 }) {
@@ -48,6 +51,8 @@ function TeamActionDropdown({
     };
   }, [open]);
 
+  const isGenerating = generatingPostId === team._id;
+
   return (
     <div className="relative inline-block text-left" ref={ref}>
       <button
@@ -63,7 +68,7 @@ function TeamActionDropdown({
       </button>
 
       {open && (
-        <div className={`absolute right-0 w-48 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-950 z-50 ${
+        <div className={`absolute right-0 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-950 z-50 ${
           alignUp 
             ? "bottom-full mb-1.5 origin-bottom-right" 
             : "top-full mt-1.5 origin-top-right"
@@ -92,6 +97,19 @@ function TeamActionDropdown({
           >
             <Edit size={14} />
             <span>Edit Team</span>
+          </button>
+
+          {/* Generate Welcome Post */}
+          <button
+            onClick={() => {
+              setOpen(false);
+              onGeneratePost(team);
+            }}
+            disabled={isGenerating}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/35 transition disabled:opacity-50"
+          >
+            {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <ImageDown size={14} />}
+            <span>{isGenerating ? "Generating…" : "Generate Post & Download"}</span>
           </button>
 
           {/* Change Password */}
@@ -209,6 +227,7 @@ export default function AdminTeamsPage() {
   const [editTeam, setEditTeam] = useState(null);
   const [loadingTeamId, setLoadingTeamId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [generatingPostId, setGeneratingPostId] = useState(null);
 
   // Reusable modal states
   const [deleteTargetTeam, setDeleteTargetTeam] = useState(null);
@@ -275,6 +294,24 @@ export default function AdminTeamsPage() {
       setEditTeam(fullTeam);
     } catch (err) {
       toast(err.message, "error");
+    }
+  }
+
+  async function handleGeneratePost(team) {
+    setGeneratingPostId(team._id);
+    try {
+      await generateWelcomePost({
+        name: team.name,
+        captainName: team.captain?.name,
+        profilePictureUrl: team.captain?.profilePictureUrl,
+        captain: team.captain,
+      });
+      toast(`Welcome post downloaded for ${team.name}`, "success");
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Failed to generate post", "error");
+    } finally {
+      setGeneratingPostId(null);
     }
   }
 
@@ -769,6 +806,8 @@ export default function AdminTeamsPage() {
                     updateTeam={updateTeam}
                     onRejectFee={handleRejectFeeConfirm}
                     onChangePassword={(t) => setPasswordTargetTeam(t)}
+                    onGeneratePost={handleGeneratePost}
+                    generatingPostId={generatingPostId}
                     alignUp={idx >= paginatedTeams.length - 2 && paginatedTeams.length > 2}
                   />
                 </td>
@@ -843,6 +882,8 @@ export default function AdminTeamsPage() {
                   updateTeam={updateTeam}
                   onRejectFee={handleRejectFeeConfirm}
                   onChangePassword={(t) => setPasswordTargetTeam(t)}
+                  onGeneratePost={handleGeneratePost}
+                  generatingPostId={generatingPostId}
                   alignUp={idx >= paginatedTeams.length - 2 && paginatedTeams.length > 2}
                   light
                 />

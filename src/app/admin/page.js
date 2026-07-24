@@ -149,33 +149,32 @@ export default function AdminDashboard() {
 
   return (
     <div className="relative">
-      <div className="relative mb-8 overflow-hidden rounded-3xl border border-emerald-200/70 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 p-6 text-white shadow-xl shadow-emerald-600/20 sm:p-8 dark:border-emerald-800">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
+      <div className="relative mb-5 overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 px-4 py-4 text-white shadow-md shadow-emerald-600/15 sm:px-5 sm:py-4 dark:border-emerald-800">
+        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <div
-          className="pointer-events-none absolute inset-0 opacity-20"
+          className="pointer-events-none absolute inset-0 opacity-15"
           style={{
             backgroundImage:
               "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
-            backgroundSize: "24px 24px",
+            backgroundSize: "22px 22px",
           }}
         />
 
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wider backdrop-blur">
-              <Trophy size={13} className="text-amber-200" />
+        <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur">
+              <Trophy size={11} className="text-amber-200" />
               Control Room
             </div>
-            <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl">
               Sports Gala Dashboard
             </h1>
-            <p className="mt-2 max-w-lg text-sm text-emerald-50/90">
-              Run the tournament from registration to Super 8 — teams, fixtures, scores, and champions in one place.
+            <p className="mt-0.5 max-w-md text-xs text-emerald-50/90">
+              Teams, fixtures, scores — all in one place.
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
             {[
               { label: "Teams", value: stats?.totalTeams ?? 0, sub: `/ ${stats?.targetTeams || TOTAL_TEAMS}` },
               { label: "Matches", value: stats?.totalMatches ?? 0, sub: "total" },
@@ -183,15 +182,15 @@ export default function AdminDashboard() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-center backdrop-blur sm:px-4"
+                className="rounded-xl border border-white/20 bg-white/10 px-2.5 py-2 text-center backdrop-blur sm:min-w-[76px]"
               >
-                <p className="text-2xl font-black tabular-nums sm:text-3xl">
+                <p className="text-lg font-black tabular-nums sm:text-xl">
                   {item.value}
-                  <span className="text-sm font-semibold text-emerald-100/80">
+                  <span className="text-[10px] font-semibold text-emerald-100/80">
                     {item.sub?.startsWith("/") ? item.sub : ""}
                   </span>
                 </p>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-100/80">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-100/80">
                   {item.label}
                   {item.sub && !item.sub.startsWith("/") ? ` · ${item.sub}` : ""}
                 </p>
@@ -200,14 +199,14 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="relative mt-6">
-          <div className="mb-1.5 flex justify-between text-xs font-semibold text-emerald-100/90">
+        <div className="relative mt-3">
+          <div className="mb-1 flex justify-between text-[10px] font-semibold text-emerald-100/90">
             <span>Registration progress</span>
             <span>
               {stats?.totalTeams ?? 0}/{stats?.targetTeams || TOTAL_TEAMS}
             </span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-black/20">
+          <div className="h-1.5 overflow-hidden rounded-full bg-black/20">
             <div
               className="h-full rounded-full bg-gradient-to-r from-amber-300 to-white transition-all duration-700"
               style={{ width: `${regPct}%` }}
@@ -220,25 +219,25 @@ export default function AdminDashboard() {
 
       <AdminDashboardCharts stats={stats} />
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-emerald-600" />
-          <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+          <Sparkles size={16} className="text-emerald-600" />
+          <h2 className="text-base font-bold text-zinc-900 dark:text-white">
             Quick Actions
           </h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {actions.map((action) => {
             const Icon = action.icon;
-            const className = `group relative flex items-start gap-4 overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-left text-white shadow-lg transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-50 ${action.tone}`;
+            const className = `group relative flex items-start gap-3 overflow-hidden rounded-xl bg-gradient-to-br p-3.5 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-50 ${action.tone}`;
             const inner = (
               <>
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur">
-                  <Icon size={20} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 backdrop-blur">
+                  <Icon size={17} />
                 </span>
                 <div>
-                  <p className="font-bold">{action.label}</p>
-                  <p className="mt-0.5 text-xs text-white/80">{action.desc}</p>
+                  <p className="text-sm font-bold">{action.label}</p>
+                  <p className="mt-0.5 text-[11px] text-white/80">{action.desc}</p>
                 </div>
               </>
             );

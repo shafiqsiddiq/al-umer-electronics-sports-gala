@@ -49,24 +49,24 @@ function StatCard({ label, value, sublabel, accent = "emerald", icon: Icon }) {
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br p-4 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 ${a.wrap} ${a.ring}`}
+      className={`group relative overflow-hidden rounded-xl border border-zinc-200/80 bg-gradient-to-br p-3 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 ${a.wrap} ${a.ring}`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div>
-          <p className={`text-3xl font-black tracking-tight tabular-nums ${a.value}`}>
+          <p className={`text-2xl font-black tracking-tight tabular-nums ${a.value}`}>
             {value ?? 0}
           </p>
-          <p className="mt-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+          <p className="mt-0.5 text-xs font-semibold text-zinc-800 dark:text-zinc-100">
             {label}
           </p>
           {sublabel && (
-            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{sublabel}</p>
+            <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{sublabel}</p>
           )}
         </div>
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-lg ${a.icon}`}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-md ${a.icon}`}
         >
-          <Icon size={18} />
+          <Icon size={15} />
         </span>
       </div>
     </div>
@@ -136,7 +136,7 @@ export default function AdminStatsCards({ stats }) {
   ];
 
   return (
-    <div className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mb-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
         <StatCard key={card.label} {...card} />
       ))}
