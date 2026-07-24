@@ -1,14 +1,15 @@
 /**
  * Generate a welcome registration post for a team and download as PNG.
- * Canvas size: 1080×1350 (Instagram portrait).
+ * Canvas: 1080×1600 — tall portrait so nothing clips.
  */
 
 const W = 1080;
-const H = 1350;
+const H = 1600;
 const GOLD = "#d4af37";
 const GOLD_LIGHT = "#f5e6a3";
 const GREEN = "#1a9b4a";
 const GREEN_DARK = "#0d5c2e";
+const SAFE = 48; // edge padding so content never clips
 
 function loadImage(src, { cors = false } = {}) {
   return new Promise((resolve, reject) => {
@@ -237,19 +238,17 @@ function drawBalloons(ctx, x, y) {
 
 /** Big celebration icons around the header / profile area */
 function drawCelebrationIcons(ctx) {
-  // Top-left firework (marked circle area)
+  // Top corners
   drawFirework(ctx, 95, 95, 85);
-  // Mid-left next to profile
-  drawPartyPopper(ctx, 70, 380, true);
-  drawFirework(ctx, 130, 300, 55);
-  // Mid-right next to profile
-  drawPartyPopper(ctx, W - 70, 380, false);
-  drawFirework(ctx, W - 120, 290, 60);
-  // Top-right accent
   drawFirework(ctx, W - 90, 110, 75);
-  // Balloons flanking brand banner
-  drawBalloons(ctx, 95, 175);
-  drawBalloons(ctx, W - 95, 175);
+  // Flanking profile (kept outward so they don't cover the big photo)
+  drawPartyPopper(ctx, 55, 520, true);
+  drawFirework(ctx, 100, 430, 48);
+  drawPartyPopper(ctx, W - 55, 520, false);
+  drawFirework(ctx, W - 100, 430, 52);
+  // Balloons near brand banner
+  drawBalloons(ctx, 90, 175);
+  drawBalloons(ctx, W - 90, 175);
 }
 
 function drawStars(ctx, cx, y, count = 5, size = 10) {
@@ -272,8 +271,8 @@ function drawStars(ctx, cx, y, count = 5, size = 10) {
 }
 
 function drawRibbon(ctx, text, y) {
-  const rw = 620;
-  const rh = 52;
+  const rw = Math.min(700, W - SAFE * 2 - 40);
+  const rh = 54;
   const rx = (W - rw) / 2;
 
   ctx.save();
@@ -301,16 +300,16 @@ function drawRibbon(ctx, text, y) {
   ctx.restore();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 22px Arial, sans-serif";
+  ctx.font = "bold 24px Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, W / 2, y + rh / 2 - 2);
 
   // Side stars
   ctx.fillStyle = GOLD_LIGHT;
-  ctx.font = "18px Arial";
-  ctx.fillText("★", rx + 36, y + rh / 2 - 2);
-  ctx.fillText("★", rx + rw - 36, y + rh / 2 - 2);
+  ctx.font = "20px Arial";
+  ctx.fillText("★", rx + 40, y + rh / 2 - 2);
+  ctx.fillText("★", rx + rw - 40, y + rh / 2 - 2);
 }
 
 function drawCover(ctx, img, x, y, size) {
@@ -336,19 +335,20 @@ function drawCover(ctx, img, x, y, size) {
 
   // Gold ring
   ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2 + 4, 0, Math.PI * 2);
+  ctx.arc(x + size / 2, y + size / 2, size / 2 + 5, 0, Math.PI * 2);
   ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 10;
+  ctx.lineWidth = 12;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size / 2 - 2, 0, Math.PI * 2);
   ctx.strokeStyle = GOLD_LIGHT;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.stroke();
 }
 
 /**
- * @param {{ name: string, captainName?: string, profilePictureUrl?: string }} team
+ * @param {{ name: string, captainName?: string, profilePictureUrl?: string, captain?: object }} team
+ * @returns {Promise<{ filename: string, blob: Blob, url: string }>}
  */
 export async function generateWelcomePost(team) {
   const teamName = (team.name || "TEAM").trim().toUpperCase();
@@ -384,7 +384,6 @@ export async function generateWelcomePost(team) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Dark overlay for readability
   const overlay = ctx.createLinearGradient(0, 0, 0, H);
   overlay.addColorStop(0, "rgba(0,0,0,0.55)");
   overlay.addColorStop(0.35, "rgba(0,20,10,0.45)");
@@ -396,74 +395,75 @@ export async function generateWelcomePost(team) {
   drawConfetti(ctx);
   drawCelebrationIcons(ctx);
 
-  // Trophy — larger
+  // Trophy
+  let cursorY = SAFE;
   if (trophy) {
-    const tw = 140;
+    const tw = 120;
     const th = (trophy.height / trophy.width) * tw;
-    ctx.drawImage(trophy, (W - tw) / 2, 18, tw, th);
+    ctx.drawImage(trophy, (W - tw) / 2, cursorY, tw, th);
+    cursorY += th + 12;
   }
 
-  // Brand banner — bigger & wider
-  const bannerY = trophy ? 165 : 55;
-  const bannerH = 78;
-  const bannerPadX = 70;
-  roundRect(ctx, bannerPadX, bannerY, W - bannerPadX * 2, bannerH, 12);
+  // Brand banner
+  const bannerH = 72;
+  const bannerPadX = SAFE + 20;
+  roundRect(ctx, bannerPadX, cursorY, W - bannerPadX * 2, bannerH, 12);
   ctx.fillStyle = "rgba(0,0,0,0.88)";
   ctx.fill();
   ctx.strokeStyle = GOLD;
   ctx.lineWidth = 4;
   ctx.stroke();
-  // inner gold line
-  roundRect(ctx, bannerPadX + 6, bannerY + 6, W - bannerPadX * 2 - 12, bannerH - 12, 8);
+  roundRect(ctx, bannerPadX + 6, cursorY + 6, W - bannerPadX * 2 - 12, bannerH - 12, 8);
   ctx.strokeStyle = "rgba(212,175,55,0.35)";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
   if (logo) {
-    ctx.drawImage(logo, bannerPadX + 22, bannerY + 12, 54, 54);
+    ctx.drawImage(logo, bannerPadX + 18, cursorY + 10, 52, 52);
   }
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 36px Arial Black, Arial, sans-serif";
+  ctx.font = "bold 34px Arial Black, Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("AL UMER ELECTRONICS", W / 2 + (logo ? 16 : 0), bannerY + bannerH / 2);
+  ctx.fillText("AL UMER ELECTRONICS", W / 2 + (logo ? 14 : 0), cursorY + bannerH / 2);
 
+  cursorY += bannerH + 28;
   ctx.fillStyle = "#2ecc71";
-  ctx.font = "bold 30px Arial Black, Arial, sans-serif";
-  ctx.fillText("SPORTS GALA – SEASON 3", W / 2, bannerY + bannerH + 38);
-  drawStars(ctx, W / 2, bannerY + bannerH + 68, 5, 11);
+  ctx.font = "bold 28px Arial Black, Arial, sans-serif";
+  ctx.fillText("SPORTS GALA – SEASON 3", W / 2, cursorY);
+  cursorY += 28;
+  drawStars(ctx, W / 2, cursorY, 5, 10);
+  cursorY += 36;
 
-  // Profile photo — slightly larger
-  const photoSize = 240;
-  const photoY = bannerY + bannerH + 90;
-  drawCover(ctx, profile, (W - photoSize) / 2, photoY, photoSize);
+  // Profile — large hero circle (fully inside canvas + gold ring)
+  const photoSize = 420;
+  const photoX = (W - photoSize) / 2;
+  const photoY = cursorY + 8;
+  drawCover(ctx, profile, photoX, photoY, photoSize);
 
   if (!profile) {
     ctx.fillStyle = "#ffffff";
-    ctx.font = "900 72px Arial Black, Arial, sans-serif";
+    ctx.font = "900 110px Arial Black, Arial, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(teamName.charAt(0) || "T", W / 2, photoY + photoSize / 2);
   }
 
-  // WELCOME
-  let y = photoY + photoSize + 48;
+  let y = photoY + photoSize + 72;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
 
   ctx.shadowColor = "rgba(0,0,0,0.6)";
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = 10;
   ctx.fillStyle = GOLD;
-  ctx.font = "900 52px Arial Black, Impact, Arial, sans-serif";
+  ctx.font = "900 58px Arial Black, Impact, Arial, sans-serif";
   ctx.fillText("WELCOME", W / 2, y);
   ctx.shadowBlur = 0;
 
   y += 58;
-  const nameSize = fitText(ctx, teamName, W - 100, 64, 30);
-  ctx.fillStyle = "#ffffff";
+  const nameSize = fitText(ctx, teamName, W - SAFE * 2, 72, 32);
   ctx.font = `900 ${nameSize}px Arial Black, Impact, Arial, sans-serif`;
-  // slight 3D shadow
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.fillText(teamName, W / 2 + 3, y + 3);
   ctx.fillStyle = "#ffffff";
@@ -471,50 +471,44 @@ export async function generateWelcomePost(team) {
 
   y += 36;
   drawRibbon(ctx, "OFFICIALLY REGISTERED TEAM", y);
-  y += 90;
+  y += 80;
 
-  // Captain box
-  const capW = 560;
-  const capH = 58;
+  const capW = Math.min(640, W - SAFE * 2);
+  const capH = 60;
   const capX = (W - capW) / 2;
-  roundRect(ctx, capX, y, capW, capH, 12);
+  roundRect(ctx, capX, y, capW, capH, 14);
   ctx.fillStyle = "rgba(0,0,0,0.75)";
   ctx.fill();
   ctx.strokeStyle = GOLD;
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  ctx.fillStyle = GOLD;
-  ctx.font = "bold 20px Arial, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
   const capLabel = "CAPTAIN: ";
-  const fullCap = `${capLabel}${captainName}`;
-  let capFont = 22;
+  let capFont = 24;
   ctx.font = `bold ${capFont}px Arial, sans-serif`;
-  while (capFont > 14 && ctx.measureText(fullCap).width > capW - 40) {
+  while (capFont > 14 && ctx.measureText(capLabel + captainName).width > capW - 40) {
     capFont -= 1;
     ctx.font = `bold ${capFont}px Arial, sans-serif`;
   }
   const labelW = ctx.measureText(capLabel).width;
   const nameW = ctx.measureText(captainName).width;
   const start = W / 2 - (labelW + nameW) / 2;
-  ctx.fillStyle = GOLD;
+  ctx.textBaseline = "middle";
   ctx.textAlign = "left";
+  ctx.fillStyle = GOLD;
   ctx.fillText(capLabel, start, y + capH / 2);
   ctx.fillStyle = "#ffffff";
   ctx.fillText(captainName, start + labelW, y + capH / 2);
 
-  y += capH + 28;
+  y += capH + 24;
 
-  // Message box
-  const msgW = 860;
-  const msgX = (W - msgW) / 2;
-  const msgPad = 28;
-  ctx.font = "22px Arial, sans-serif";
+  const msgW = W - SAFE * 2;
+  const msgX = SAFE;
+  const msgPad = 24;
+  ctx.font = "21px Arial, sans-serif";
   const message = `We are delighted to welcome ${team.name || teamName} to AL Umer Electronics Sports Gala – Season 3. Wishing the team great success, sportsmanship, and an unforgettable tournament.`;
   const lines = wrapText(ctx, message, msgW - msgPad * 2);
-  const msgH = lines.length * 32 + 90;
+  const msgH = lines.length * 30 + 84;
 
   roundRect(ctx, msgX, y, msgW, msgH, 16);
   ctx.fillStyle = "rgba(0,0,0,0.7)";
@@ -524,20 +518,20 @@ export async function generateWelcomePost(team) {
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "22px Arial, sans-serif";
+  ctx.font = "21px Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   lines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, y + msgPad + i * 32);
+    ctx.fillText(line, W / 2, y + msgPad + i * 30);
   });
 
   ctx.fillStyle = GOLD;
   ctx.font = "italic 700 28px Georgia, 'Times New Roman', serif";
-  ctx.fillText("Best of luck!", W / 2, y + msgH - 42);
+  ctx.fillText("Best of luck!", W / 2, y + msgH - 40);
 
-  y += msgH + 36;
+  y += msgH + 32;
 
-  // Date
+  ctx.textBaseline = "alphabetic";
   ctx.fillStyle = GREEN;
   ctx.font = "bold 18px Arial, sans-serif";
   ctx.fillText("SEE YOU ON", W / 2, y);
@@ -545,17 +539,17 @@ export async function generateWelcomePost(team) {
   ctx.font = "900 36px Arial Black, Arial, sans-serif";
   ctx.fillText("7TH AUGUST 2026", W / 2, y + 40);
 
-  // Footer pill
-  const footerY = H - 70;
-  const fw = 720;
+  // Footer — always inside safe area
+  const footerY = H - SAFE - 48;
+  const fw = W - SAFE * 2 - 40;
   roundRect(ctx, (W - fw) / 2, footerY, fw, 40, 20);
   ctx.fillStyle = GREEN;
   ctx.fill();
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 16px Arial, sans-serif";
+  ctx.font = "bold 15px Arial, sans-serif";
   ctx.textBaseline = "middle";
   ctx.fillText("AL UMER ELECTRONICS SPORTS GALA – SEASON 3", W / 2, footerY + 20);
-  drawStars(ctx, W / 2, H - 22, 5, 6);
+  drawStars(ctx, W / 2, H - SAFE + 4, 5, 6);
 
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -568,13 +562,14 @@ export async function generateWelcomePost(team) {
   const safeName = teamName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "team";
   const filename = `welcome-${safeName}.png`;
   const objectUrl = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = objectUrl;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
 
-  return { filename, blob };
+  return { filename, blob, url: objectUrl };
 }
