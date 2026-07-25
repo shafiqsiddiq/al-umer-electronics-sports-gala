@@ -9,6 +9,7 @@ import {
   GitBranch,
   ClipboardList,
   Trophy,
+  Wallet,
 } from "lucide-react";
 
 const links = [
@@ -17,6 +18,7 @@ const links = [
   { href: "/admin/fixtures", label: "Fixtures", icon: Calendar },
   { href: "/admin/brackets", label: "Brackets", icon: GitBranch },
   { href: "/admin/scores", label: "Scores", icon: ClipboardList },
+  { href: "/admin/expenses", label: "Expenses", icon: Wallet },
 ];
 
 export default function AdminSidebar() {
@@ -39,7 +41,8 @@ export default function AdminSidebar() {
       </div>
       <nav className="flex flex-row gap-1 overflow-x-auto px-3 py-2.5 scrollbar-none md:flex-col md:space-y-1 md:px-3 md:pb-5 md:pt-0">
         {links.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active =
+            href === "/admin" ? pathname === href : pathname.startsWith(href);
           return (
             <Link
               key={href}
