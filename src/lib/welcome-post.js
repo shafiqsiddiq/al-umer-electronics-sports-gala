@@ -238,17 +238,21 @@ function drawBalloons(ctx, x, y) {
 
 /** Big celebration icons around the header / profile area */
 function drawCelebrationIcons(ctx) {
-  // Top corners
-  drawFirework(ctx, 95, 95, 85);
-  drawFirework(ctx, W - 90, 110, 75);
-  // Flanking profile (kept outward so they don't cover the big photo)
-  drawPartyPopper(ctx, 55, 520, true);
-  drawFirework(ctx, 100, 430, 48);
-  drawPartyPopper(ctx, W - 55, 520, false);
-  drawFirework(ctx, W - 100, 430, 52);
-  // Balloons near brand banner
-  drawBalloons(ctx, 90, 175);
-  drawBalloons(ctx, W - 90, 175);
+  // Top corners (above banner)
+  drawFirework(ctx, 95, 88, 78);
+  drawFirework(ctx, W - 90, 95, 72);
+  // Flanking profile
+  drawPartyPopper(ctx, 55, 540, true);
+  drawFirework(ctx, 100, 450, 48);
+  drawPartyPopper(ctx, W - 55, 540, false);
+  drawFirework(ctx, W - 100, 450, 52);
+}
+
+/** Balloons drawn beside the brand banner so they stay visible */
+function drawBannerSideBalloons(ctx, bannerY, bannerH) {
+  const midY = bannerY + bannerH / 2 - 10;
+  drawBalloons(ctx, 58, midY);
+  drawBalloons(ctx, W - 58, midY);
 }
 
 function drawStars(ctx, cx, y, count = 5, size = 10) {
@@ -404,37 +408,40 @@ export async function generateWelcomePost(team) {
     cursorY += th + 12;
   }
 
-  // Brand banner
-  const bannerH = 72;
-  const bannerPadX = SAFE + 20;
-  roundRect(ctx, bannerPadX, cursorY, W - bannerPadX * 2, bannerH, 12);
-  ctx.fillStyle = "rgba(0,0,0,0.88)";
+  // Brand banner — large, with side gutters for balloons
+  const bannerH = 96;
+  const bannerPadX = 118;
+  roundRect(ctx, bannerPadX, cursorY, W - bannerPadX * 2, bannerH, 14);
+  ctx.fillStyle = "rgba(0,0,0,0.9)";
   ctx.fill();
   ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.stroke();
-  roundRect(ctx, bannerPadX + 6, cursorY + 6, W - bannerPadX * 2 - 12, bannerH - 12, 8);
-  ctx.strokeStyle = "rgba(212,175,55,0.35)";
-  ctx.lineWidth = 1.5;
+  roundRect(ctx, bannerPadX + 7, cursorY + 7, W - bannerPadX * 2 - 14, bannerH - 14, 10);
+  ctx.strokeStyle = "rgba(212,175,55,0.4)";
+  ctx.lineWidth = 2;
   ctx.stroke();
 
   if (logo) {
-    ctx.drawImage(logo, bannerPadX + 18, cursorY + 10, 52, 52);
+    ctx.drawImage(logo, bannerPadX + 18, cursorY + 14, 68, 68);
   }
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 34px Arial Black, Arial, sans-serif";
+  ctx.font = "bold 40px Arial Black, Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("AL UMER ELECTRONICS", W / 2 + (logo ? 14 : 0), cursorY + bannerH / 2);
+  ctx.fillText("AL UMER ELECTRONICS", W / 2 + (logo ? 16 : 0), cursorY + bannerH / 2);
 
-  cursorY += bannerH + 28;
+  // Balloons on both sides of banner (drawn after so they stay visible)
+  drawBannerSideBalloons(ctx, cursorY, bannerH);
+
+  cursorY += bannerH + 30;
   ctx.fillStyle = "#2ecc71";
-  ctx.font = "bold 28px Arial Black, Arial, sans-serif";
+  ctx.font = "bold 32px Arial Black, Arial, sans-serif";
   ctx.fillText("SPORTS GALA – SEASON 3", W / 2, cursorY);
-  cursorY += 28;
-  drawStars(ctx, W / 2, cursorY, 5, 10);
-  cursorY += 36;
+  cursorY += 30;
+  drawStars(ctx, W / 2, cursorY, 5, 12);
+  cursorY += 38;
 
   // Profile — large hero circle (fully inside canvas + gold ring)
   const photoSize = 420;

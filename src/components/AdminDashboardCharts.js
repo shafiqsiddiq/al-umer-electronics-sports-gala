@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import { Activity, BarChart3, Target } from "lucide-react";
+import { BarChart3, PieChart, Target } from "lucide-react";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -54,278 +54,265 @@ const baseChart = {
   },
 };
 
-function StatusBarChart({ data }) {
-  const categories = data.map((d) => d.label);
-  const series = useMemo(
-    () => [{ name: "Teams", data: data.map((d) => d.value) }],
-    [data]
-  );
-  const colors = data.map((d) => d.color || "#10b981");
-  const total = data.reduce((a, b) => a + (b.value || 0), 0);
+const TRACK_LIGHT = {
+  "#10b981": "#bbf7d0",
+  "#0284c7": "#bae6fd",
+  "#0d9488": "#99f6e4",
+  "#f59e0b": "#fde68a",
+  "#d97706": "#fde68a",
+  "#ef4444": "#fecaca",
+  "#ca8a04": "#fef08a",
+  "#059669": "#a7f3d0",
+  "#71717a": "#e4e4e7",
+};
 
-  const options = useMemo(
-    () => ({
-      ...baseChart,
-      chart: { ...baseChart.chart, type: "bar" },
-      plotOptions: {
-        bar: {
-          borderRadius: 6,
-          columnWidth: "22%",
-          distributed: true,
-        },
-      },
-      colors,
-      xaxis: {
-        categories,
-        labels: {
-          style: { colors: "#71717a", fontSize: "11px", fontWeight: 600 },
-        },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-      },
-      yaxis: {
-        labels: {
-          style: { colors: "#71717a", fontSize: "11px", fontWeight: 600 },
-        },
-        forceNiceScale: true,
-        min: 0,
-      },
-      grid: {
-        borderColor: "#f4f4f5",
-        strokeDashArray: 4,
-      },
-      legend: { show: false },
-      dataLabels: {
-        enabled: true,
-        style: { colors: ["#fff"], fontSize: "11px", fontWeight: 700 },
-      },
-      tooltip: {
-        ...baseChart.tooltip,
-        y: { formatter: (v) => `${v} of ${total} teams` },
-      },
-    }),
-    [categories, colors, total]
-  );
-
-  return (
-    <Chart type="bar" series={series} options={options} height={200} width="100%" />
-  );
+function lightTrackColor(hex) {
+  const key = String(hex || "").toLowerCase();
+  return TRACK_LIGHT[key] || TRACK_LIGHT[hex] || "#e4e4e7";
 }
 
-function GroupBarChart({ data }) {
-  const categories = data.map((d) => d.label);
-  const series = useMemo(
-    () => [{ name: "Teams", data: data.map((d) => d.value) }],
-    [data]
-  );
-  const colors = data.map((d) => d.color || "#10b981");
+function StatusRadialChart({ data, targetTeams = 48 }) {
+  const registered = data.reduce((a, b) => a + (b.value || 0), 0);
+  const target = targetTeams || 48;
+  const size = 180;
+  const cx = size / 2;
+  const cy = size / 2;
+  const stroke = 12;
+  const gap = 6;
+  const startAngle = -135;
+  const sweep = 270; // degrees of the gauge arc
 
-  const options = useMemo(
-    () => ({
-      ...baseChart,
-      chart: { ...baseChart.chart, type: "bar" },
-      plotOptions: {
-        bar: {
-          horizontal: true,
-          borderRadius: 8,
-          barHeight: "58%",
-          distributed: true,
-          dataLabels: { position: "top" },
-        },
-      },
-      colors,
-      xaxis: {
-        categories,
-        labels: {
-          style: { colors: "#71717a", fontSize: "12px", fontWeight: 600 },
-        },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-      },
-      yaxis: {
-        labels: {
-          style: { colors: "#3f3f46", fontSize: "13px", fontWeight: 700 },
-        },
-      },
-      grid: {
-        borderColor: "#f4f4f5",
-        strokeDashArray: 4,
-        xaxis: { lines: { show: true } },
-        yaxis: { lines: { show: false } },
-      },
-      legend: { show: false },
-      dataLabels: {
-        enabled: true,
-        offsetX: 28,
-        style: { colors: ["#3f3f46"], fontSize: "12px", fontWeight: 700 },
-      },
-      tooltip: {
-        ...baseChart.tooltip,
-        y: { formatter: (v) => `${v} teams` },
-      },
-    }),
-    [categories, colors]
-  );
+  const rings = data.map((d, i) => {
+    const pct = Math.min(((d.value || 0) / target) * 100, 100);
+    const radius = 68 - i * (stroke + gap);
+    const color = d.color || "#10b981";
+    return {
+      label: d.label,
+      value: d.value || 0,
+      pct: Math.round(pct),
+      color,
+      track: lightTrackColor(color),
+      radius,
+    };
+  });
+
+  function polar(r, deg) {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return {
+      x: cx + r * Math.cos(rad),
+      y: cy + r * Math.sin(rad),
+    };
+  }
+
+  function arcPath(r, fromDeg, toDeg) {
+    const start = polar(r, fromDeg);
+    const end = polar(r, toDeg);
+    const large = toDeg - fromDeg > 180 ? 1 : 0;
+    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
+  }
 
   return (
-    <Chart type="bar" series={series} options={options} height={200} width="100%" />
-  );
-}
-
-function MatchStatusChart({ data }) {
-  const categories = data.map((d) => d.label);
-  const series = useMemo(
-    () => [{ name: "Matches", data: data.map((d) => d.value) }],
-    [data]
-  );
-  const colors = data.map((d) => d.color || "#10b981");
-
-  const options = useMemo(
-    () => ({
-      ...baseChart,
-      chart: { ...baseChart.chart, type: "bar" },
-      plotOptions: {
-        bar: {
-          borderRadius: 10,
-          columnWidth: "28%",
-          distributed: true,
-        },
-      },
-      colors,
-      xaxis: {
-        categories,
-        labels: {
-          style: { colors: "#71717a", fontSize: "12px", fontWeight: 600 },
-        },
-        axisBorder: { show: false },
-        axisTicks: { show: false },
-      },
-      yaxis: {
-        labels: {
-          style: { colors: "#71717a", fontSize: "12px", fontWeight: 600 },
-        },
-        forceNiceScale: true,
-        min: 0,
-      },
-      grid: {
-        borderColor: "#f4f4f5",
-        strokeDashArray: 4,
-      },
-      legend: { show: false },
-      dataLabels: {
-        enabled: true,
-        style: { colors: ["#fff"], fontSize: "12px", fontWeight: 700 },
-      },
-      tooltip: {
-        ...baseChart.tooltip,
-        y: { formatter: (v) => `${v} matches` },
-      },
-    }),
-    [categories, colors]
-  );
-
-  return (
-    <Chart type="bar" series={series} options={options} height={200} width="100%" />
-  );
-}
-
-function ProgressRadial({ stats }) {
-  const registration = stats.targetTeams
-    ? Math.min(Math.round((stats.totalTeams / stats.targetTeams) * 100), 100)
-    : 0;
-  const fees = stats.totalTeams
-    ? Math.min(Math.round((stats.entryFeeUploaded / stats.totalTeams) * 100), 100)
-    : 0;
-  const matches = stats.totalMatches
-    ? Math.min(Math.round((stats.completedMatches / stats.totalMatches) * 100), 100)
-    : 0;
-
-  const series = [registration, fees, matches];
-
-  const options = useMemo(
-    () => ({
-      ...baseChart,
-      chart: { ...baseChart.chart, type: "radialBar" },
-      plotOptions: {
-        radialBar: {
-          hollow: { size: "28%" },
-          track: {
-            background: "#f4f4f5",
-            strokeWidth: "100%",
-            margin: 8,
-          },
-          dataLabels: {
-            name: {
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "#71717a",
-            },
-            value: {
-              fontSize: "18px",
-              fontWeight: 800,
-              color: "#18181b",
-              formatter: (v) => `${v}%`,
-            },
-            total: {
-              show: true,
-              label: "Overall",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "#71717a",
-              formatter: () =>
-                `${Math.round(series.reduce((a, b) => a + b, 0) / series.length)}%`,
-            },
-          },
-        },
-      },
-      colors: ["#10b981", "#f59e0b", "#0d9488"],
-      labels: ["Registration", "Entry Fees", "Matches Done"],
-      stroke: { lineCap: "round" },
-      legend: {
-        ...baseChart.legend,
-        show: true,
-        position: "bottom",
-        horizontalAlign: "center",
-        formatter: (seriesName, opts) =>
-          `${seriesName}: ${opts.w.globals.series[opts.seriesIndex]}%`,
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [registration, fees, matches]
-  );
-
-  return (
-    <div>
-      <Chart
-        type="radialBar"
-        series={series}
-        options={options}
-        height={200}
-        width="100%"
-      />
-      <div className="mt-1 grid grid-cols-3 gap-2 text-center text-[10px] text-zinc-500">
-        <p>
-          <span className="font-bold text-zinc-800 dark:text-zinc-200">
-            {stats.totalTeams}/{stats.targetTeams}
-          </span>
-          <br />
-          Teams
-        </p>
-        <p>
-          <span className="font-bold text-zinc-800 dark:text-zinc-200">
-            {stats.entryFeeUploaded}/{stats.totalTeams || 0}
-          </span>
-          <br />
-          Fees
-        </p>
-        <p>
-          <span className="font-bold text-zinc-800 dark:text-zinc-200">
-            {stats.completedMatches}/{stats.totalMatches || 0}
-          </span>
-          <br />
-          Done
-        </p>
+    <div className="flex min-h-[200px] flex-col items-center justify-center">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          {rings.map((ring) => {
+            const filledTo = startAngle + (sweep * ring.pct) / 100;
+            return (
+              <g key={ring.label}>
+                {/* Remaining track — light color */}
+                <path
+                  d={arcPath(ring.radius, startAngle, startAngle + sweep)}
+                  fill="none"
+                  stroke={ring.track}
+                  strokeWidth={stroke}
+                  strokeLinecap="round"
+                />
+                {/* Filled progress */}
+                {ring.pct > 0 && (
+                  <path
+                    d={arcPath(
+                      ring.radius,
+                      startAngle,
+                      Math.max(startAngle + 0.5, filledTo)
+                    )}
+                    fill="none"
+                    stroke={ring.color}
+                    strokeWidth={stroke}
+                    strokeLinecap="round"
+                  />
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-2">
+          <p className="text-[11px] font-semibold text-zinc-500">Registered</p>
+          <p className="text-xl font-black tabular-nums text-zinc-900 dark:text-white">
+            {registered}/{target}
+          </p>
+        </div>
       </div>
+
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+        {rings.map((ring) => (
+          <p
+            key={ring.label}
+            className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300"
+          >
+            <span
+              className="mr-1.5 inline-block h-2 w-2 rounded-full"
+              style={{ backgroundColor: ring.color }}
+            />
+            {ring.label}: {ring.value} ({ring.pct}%)
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProgressBarChart({ stats }) {
+  const items = [
+    {
+      label: "Registration",
+      pct: stats.targetTeams
+        ? Math.min(Math.round((stats.totalTeams / stats.targetTeams) * 100), 100)
+        : 0,
+      count: `${stats.totalTeams}/${stats.targetTeams}`,
+      unit: "Teams",
+      bar: "bg-emerald-500",
+      track: "bg-emerald-100 dark:bg-emerald-950/50",
+      text: "text-emerald-700 dark:text-emerald-300",
+    },
+    {
+      label: "Entry Fees",
+      pct: stats.totalTeams
+        ? Math.min(
+            Math.round((stats.entryFeeUploaded / stats.totalTeams) * 100),
+            100
+          )
+        : 0,
+      count: `${stats.entryFeeUploaded}/${stats.totalTeams || 0}`,
+      unit: "Fees",
+      bar: "bg-amber-500",
+      track: "bg-amber-100 dark:bg-amber-950/50",
+      text: "text-amber-700 dark:text-amber-300",
+    },
+    {
+      label: "Matches",
+      pct: stats.totalMatches
+        ? Math.min(
+            Math.round((stats.completedMatches / stats.totalMatches) * 100),
+            100
+          )
+        : 0,
+      count: `${stats.completedMatches || 0}/${stats.totalMatches || 0}`,
+      unit: "Done",
+      bar: "bg-teal-600",
+      track: "bg-teal-100 dark:bg-teal-950/50",
+      text: "text-teal-700 dark:text-teal-300",
+    },
+  ];
+
+  return (
+    <div className="grid min-h-[200px] grid-cols-3 gap-2 pt-1">
+      {items.map((item) => (
+        <div key={item.label} className="flex flex-col items-center">
+          <p className={`mb-1.5 text-sm font-black tabular-nums ${item.text}`}>
+            {item.pct}%
+          </p>
+
+          <div className="flex h-[140px] w-5 items-end sm:w-6">
+            <div
+              className={`relative flex h-full w-full items-end overflow-hidden rounded-full ${item.track}`}
+            >
+              <div
+                className={`w-full rounded-full transition-all duration-700 ease-out ${item.bar}`}
+                style={{
+                  height: `${item.pct > 0 ? Math.max(item.pct, 4) : 0}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <p className="mt-2 text-center text-[10px] font-bold leading-tight text-zinc-800 dark:text-zinc-100">
+            {item.label}
+          </p>
+          <p className="mt-0.5 text-center text-[11px] font-black tabular-nums text-zinc-700 dark:text-zinc-200">
+            {item.count}
+          </p>
+          <p className="text-[9px] font-medium uppercase tracking-wide text-zinc-400">
+            {item.unit}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const GROUP_STYLES = {
+  "Group A": {
+    color: "bg-emerald-500",
+    track: "bg-emerald-100 dark:bg-emerald-950/50",
+    text: "text-emerald-700 dark:text-emerald-300",
+  },
+  "Group B": {
+    color: "bg-teal-600",
+    track: "bg-teal-100 dark:bg-teal-950/50",
+    text: "text-teal-700 dark:text-teal-300",
+  },
+  "Group C": {
+    color: "bg-sky-600",
+    track: "bg-sky-100 dark:bg-sky-950/50",
+    text: "text-sky-700 dark:text-sky-300",
+  },
+  Unassigned: {
+    color: "bg-zinc-500",
+    track: "bg-zinc-100 dark:bg-zinc-800",
+    text: "text-zinc-700 dark:text-zinc-300",
+  },
+};
+
+function GroupProgressList({ data, targetTeams }) {
+  const total = targetTeams || 48;
+
+  const items = data.map((d) => {
+    const style = GROUP_STYLES[d.label] || GROUP_STYLES.Unassigned;
+    const pct = Math.min(Math.round(((d.value || 0) / total) * 100), 100);
+    return {
+      label: d.label,
+      value: d.value || 0,
+      pct,
+      detail: `${d.value || 0} / ${total} teams`,
+      ...style,
+    };
+  });
+
+  return (
+    <div className="flex min-h-[180px] flex-col justify-center gap-3.5 px-0.5 py-1">
+      {items.map((item) => (
+        <div key={item.label}>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-zinc-800 dark:text-zinc-100">
+                {item.label}
+              </p>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                {item.detail}
+              </p>
+            </div>
+            <span className={`shrink-0 text-sm font-black tabular-nums ${item.text}`}>
+              {item.pct}%
+            </span>
+          </div>
+          <div className={`h-2.5 overflow-hidden rounded-full ${item.track}`}>
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${item.color}`}
+              style={{ width: `${item.pct}%` }}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -335,21 +322,20 @@ export default function AdminDashboardCharts({ stats }) {
 
   const hasStatus = (stats.teamStatusChart || []).some((d) => d.value > 0);
   const hasGroups = (stats.sectionChart || []).some((d) => d.value > 0);
-  const hasMatches = (stats.matchStatusChart || []).some((d) => d.value > 0);
 
   return (
-    <div className="mb-5 space-y-3">
-      <div className="flex items-center gap-2">
-        <Activity size={16} className="text-emerald-600" />
-        <h2 className="text-base font-bold text-zinc-900 dark:text-white">
-          Tournament Pulse
-        </h2>
-      </div>
+    <div className="mb-5">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <Panel title="Tournament Progress" icon={Target}>
+          <ProgressBarChart stats={stats} />
+        </Panel>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Panel title="Teams by Status" icon={BarChart3}>
+        <Panel title="Teams by Status" icon={PieChart}>
           {hasStatus ? (
-            <StatusBarChart data={stats.teamStatusChart} />
+            <StatusRadialChart
+              data={stats.teamStatusChart}
+              targetTeams={stats.targetTeams}
+            />
           ) : (
             <EmptyState message="No teams registered yet — waiting for captains" />
           )}
@@ -357,22 +343,13 @@ export default function AdminDashboardCharts({ stats }) {
 
         <Panel title="Teams by Group" icon={BarChart3}>
           {hasGroups ? (
-            <GroupBarChart data={stats.sectionChart} />
+            <GroupProgressList
+              data={stats.sectionChart}
+              targetTeams={stats.targetTeams}
+            />
           ) : (
             <EmptyState message="No group assignments yet" />
           )}
-        </Panel>
-
-        <Panel title="Matches by Status" icon={Activity}>
-          {hasMatches ? (
-            <MatchStatusChart data={stats.matchStatusChart} />
-          ) : (
-            <EmptyState message="No matches created yet — generate fixtures when ready" />
-          )}
-        </Panel>
-
-        <Panel title="Tournament Progress" icon={Target}>
-          <ProgressRadial stats={stats} />
         </Panel>
       </div>
     </div>

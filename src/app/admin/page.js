@@ -166,11 +166,11 @@ export default function AdminDashboard() {
               <Trophy size={11} className="text-amber-200" />
               Control Room
             </div>
-            <h1 className="text-xl font-black tracking-tight sm:text-2xl">
-              Sports Gala Dashboard
+            <h1 className="text-xxl font-black tracking-tight sm:text-2xl">
+              Al Umer Electronics
             </h1>
-            <p className="mt-0.5 max-w-md text-xs text-emerald-50/90">
-              Teams, fixtures, scores — all in one place.
+            <p className="mt-0 max-w-md text-md text-emerald-50/90">
+              Sports Gala Season 3
             </p>
           </div>
 
@@ -226,18 +226,20 @@ export default function AdminDashboard() {
             Quick Actions
           </h2>
         </div>
-        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {actions.map((action) => {
             const Icon = action.icon;
-            const className = `group relative flex items-start gap-3 overflow-hidden rounded-xl bg-gradient-to-br p-3.5 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-50 ${action.tone}`;
+            const className = `group relative flex min-w-0 items-start gap-2 overflow-hidden rounded-xl bg-gradient-to-br p-2.5 text-left text-white shadow-md transition hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-50 ${action.tone}`;
             const inner = (
               <>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 backdrop-blur">
-                  <Icon size={17} />
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 backdrop-blur">
+                  <Icon size={15} />
                 </span>
-                <div>
-                  <p className="text-sm font-bold">{action.label}</p>
-                  <p className="mt-0.5 text-[11px] text-white/80">{action.desc}</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold leading-snug sm:text-sm">{action.label}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-white/80">
+                    {action.desc}
+                  </p>
                 </div>
               </>
             );

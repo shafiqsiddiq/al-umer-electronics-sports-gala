@@ -247,12 +247,13 @@ export default function AdminTeamsPage() {
   const [sectionFilter, setSectionFilter] = useState("all");
 
   // Pagination
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE_OPTIONS = [10, 25, 50, 75, 100];
+  const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, feeFilter, sectionFilter]);
+  }, [search, statusFilter, feeFilter, sectionFilter, pageSize]);
 
   useEffect(() => {
     fetchTeams();
@@ -496,11 +497,11 @@ export default function AdminTeamsPage() {
   const hasActiveFilters =
     query || statusFilter !== "all" || feeFilter !== "all" || sectionFilter !== "all";
 
-  const totalPages = Math.max(1, Math.ceil(filteredTeams.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredTeams.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginatedTeams = filteredTeams.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
   );
 
   function clearFilters() {
@@ -515,51 +516,68 @@ export default function AdminTeamsPage() {
 
   const paginationBar =
     filteredTeams.length > 0 ? (
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <p className="rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/40">
-          Showing {(currentPage - 1) * PAGE_SIZE + 1}–
-          {Math.min(currentPage * PAGE_SIZE, filteredTeams.length)} of{" "}
-          {filteredTeams.length} team{filteredTeams.length === 1 ? "" : "s"}
-        </p>
-
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-              aria-label="Previous page"
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPage(p)}
-                className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${
-                  p === currentPage
-                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30"
-                    : "border border-emerald-200 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
-                }`}
-              >
-                {p}
-              </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+          <span className="whitespace-nowrap">Per page</span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-bold text-zinc-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
             ))}
+          </select>
+        </label>
 
-            <button
-              type="button"
-              onClick={() => setPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-              aria-label="Next page"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <p className="rounded-full bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/40">
+            Showing {(currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, filteredTeams.length)} of{" "}
+            {filteredTeams.length} team{filteredTeams.length === 1 ? "" : "s"}
+          </p>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPage(p)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition ${
+                    p === currentPage
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30"
+                      : "border border-emerald-200 bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-white text-emerald-600 shadow-sm transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                aria-label="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     ) : null;
 

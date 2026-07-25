@@ -81,6 +81,8 @@ export async function GET() {
       activeTeams,
       qualifiedTeams,
       entryFeeUploaded,
+      entryFeeVerified,
+      entryFeePaidList,
       totalPlayers,
       totalCaptains,
       totalMatches,
@@ -97,6 +99,8 @@ export async function GET() {
         `count(*[_type == "team" && status in ["qualified_main", "qualified_loser", "final_eight"]])`
       ),
       writeClient.fetch(`count(*[_type == "team" && defined(entryFeeImage.asset)])`),
+      writeClient.fetch(`count(*[_type == "team" && entryFeeVerified == true])`),
+      writeClient.fetch(`*[_type == "team"]{ "paid": coalesce(entryFeePaid, 0) }`),
       writeClient.fetch(`count(*[_type == "player"])`),
       writeClient.fetch(`count(*[_type == "captain"])`),
       writeClient.fetch(`count(*[_type == "match"])`),
@@ -105,6 +109,11 @@ export async function GET() {
       writeClient.fetch(`count(*[_type == "match" && status == "completed"])`),
       writeClient.fetch(`*[_type == "team"]{ status, section }`),
     ]);
+
+    const totalEntryFeePaid = (entryFeePaidList || []).reduce(
+      (sum, t) => sum + Number(t.paid || 0),
+      0
+    );
 
     const teamStatusChart = buildStatusChart(teams || []);
     const sectionChart = buildSectionChart(teams || []);
@@ -122,6 +131,8 @@ export async function GET() {
       activeTeams,
       qualifiedTeams,
       entryFeeUploaded,
+      entryFeeVerified,
+      totalEntryFeePaid,
       totalPlayers,
       totalCaptains,
       totalMatches,

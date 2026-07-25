@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Users,
-  Clock,
-  BadgeCheck,
-  Zap,
-  Receipt,
-  UserCircle2,
-  CalendarDays,
-  Medal,
-} from "lucide-react";
+import { Users, Clock, Zap, Receipt, Medal } from "lucide-react";
 
 const ACCENTS = {
   emerald: {
@@ -30,18 +21,6 @@ const ACCENTS = {
     value: "text-teal-700 dark:text-teal-300",
     ring: "ring-teal-100 dark:ring-teal-900/40",
   },
-  sky: {
-    wrap: "from-sky-500/15 via-white to-white dark:from-sky-500/20 dark:via-zinc-950 dark:to-zinc-950",
-    icon: "bg-sky-600 text-white shadow-sky-600/30",
-    value: "text-sky-700 dark:text-sky-300",
-    ring: "ring-sky-100 dark:ring-sky-900/40",
-  },
-  zinc: {
-    wrap: "from-zinc-500/10 via-white to-white dark:from-zinc-500/20 dark:via-zinc-950 dark:to-zinc-950",
-    icon: "bg-zinc-700 text-white shadow-zinc-700/20",
-    value: "text-zinc-800 dark:text-zinc-100",
-    ring: "ring-zinc-100 dark:ring-zinc-800",
-  },
 };
 
 function StatCard({ label, value, sublabel, accent = "emerald", icon: Icon }) {
@@ -49,24 +28,26 @@ function StatCard({ label, value, sublabel, accent = "emerald", icon: Icon }) {
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border border-zinc-200/80 bg-gradient-to-br p-3 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 ${a.wrap} ${a.ring}`}
+      className={`group relative min-w-0 overflow-hidden rounded-lg border border-zinc-200/80 bg-gradient-to-br px-2.5 py-2 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 ${a.wrap} ${a.ring}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className={`text-2xl font-black tracking-tight tabular-nums ${a.value}`}>
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="min-w-0">
+          <p className={`truncate text-base font-black tracking-tight tabular-nums ${a.value}`}>
             {value ?? 0}
           </p>
-          <p className="mt-0.5 text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-800 dark:text-zinc-100">
             {label}
           </p>
           {sublabel && (
-            <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{sublabel}</p>
+            <p className="mt-0.5 truncate text-[9px] text-zinc-500 dark:text-zinc-400">
+              {sublabel}
+            </p>
           )}
         </div>
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-md ${a.icon}`}
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md shadow-sm ${a.icon}`}
         >
-          <Icon size={15} />
+          <Icon size={12} />
         </span>
       </div>
     </div>
@@ -92,13 +73,6 @@ export default function AdminStatsCards({ stats }) {
       icon: Clock,
     },
     {
-      label: "Approved",
-      value: stats.approvedTeams,
-      sublabel: "Ready to play",
-      accent: "sky",
-      icon: BadgeCheck,
-    },
-    {
       label: "Active",
       value: stats.activeTeams,
       sublabel: "In tournament",
@@ -106,25 +80,11 @@ export default function AdminStatsCards({ stats }) {
       icon: Zap,
     },
     {
-      label: "Entry Fees",
-      value: stats.entryFeeUploaded,
-      sublabel: "Receipts uploaded",
+      label: "Total Entry Fee",
+      value: `Rs. ${Number(stats.totalEntryFeePaid || 0).toLocaleString()}`,
+      sublabel: `${stats.entryFeeVerified || 0} verified · ${stats.entryFeeUploaded || 0} receipts`,
       accent: "amber",
       icon: Receipt,
-    },
-    {
-      label: "Captains",
-      value: stats.totalCaptains,
-      sublabel: `${stats.totalPlayers || 0} players`,
-      accent: "sky",
-      icon: UserCircle2,
-    },
-    {
-      label: "Matches",
-      value: stats.totalMatches,
-      sublabel: `${stats.completedMatches || 0} completed`,
-      accent: "zinc",
-      icon: CalendarDays,
     },
     {
       label: "Qualified",
@@ -136,7 +96,7 @@ export default function AdminStatsCards({ stats }) {
   ];
 
   return (
-    <div className="mb-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
       {cards.map((card) => (
         <StatCard key={card.label} {...card} />
       ))}
