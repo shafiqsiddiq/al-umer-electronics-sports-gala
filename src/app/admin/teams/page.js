@@ -5,13 +5,21 @@ import Image from "next/image";
 import TeamViewModal from "@/components/TeamViewModal";
 import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS } from "@/lib/tournament-logic";
-
-const ENTRY_FEE_TOTAL = 5000;
 import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2, FileSpreadsheet, UserPlus } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 import { generateWelcomePost } from "@/lib/welcome-post";
 import { downloadExcel } from "@/lib/export-excel";
+
+const ENTRY_FEE_TOTAL = 5000;
+
+const RECEIVED_BY_OPTIONS = [
+  "Usman Umer",
+  "Amir Sohail",
+  "Amir Umer",
+  "Babar Umer",
+  "Shafiq Siddiq",
+];
 
 const STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200/40 dark:border-amber-900/20",
@@ -247,6 +255,7 @@ export default function AdminTeamsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [feeFilter, setFeeFilter] = useState("all");
   const [sectionFilter, setSectionFilter] = useState("all");
+  const [receivedByFilter, setReceivedByFilter] = useState("all");
 
   // Pagination
   const PAGE_SIZE_OPTIONS = [10, 25, 50, 75, 100];
@@ -255,7 +264,7 @@ export default function AdminTeamsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, feeFilter, sectionFilter, pageSize]);
+  }, [search, statusFilter, feeFilter, sectionFilter, receivedByFilter, pageSize]);
 
   useEffect(() => {
     fetchTeams();
@@ -503,11 +512,27 @@ export default function AdminTeamsPage() {
     if (feeFilter !== "all" && feeStatusOf(team) !== feeFilter) return false;
     if (sectionFilter !== "all" && (team.section || "unassigned") !== sectionFilter)
       return false;
+    if (receivedByFilter !== "all") {
+      if (receivedByFilter === "unassigned") {
+        if (team.entryFeeReceivedBy) return false;
+      } else if (team.entryFeeReceivedBy !== receivedByFilter) {
+        return false;
+      }
+    }
     return true;
   });
 
   const hasActiveFilters =
-    query || statusFilter !== "all" || feeFilter !== "all" || sectionFilter !== "all";
+    query ||
+    statusFilter !== "all" ||
+    feeFilter !== "all" ||
+    sectionFilter !== "all" ||
+    receivedByFilter !== "all";
+
+  const receivedByTotalPaid =
+    receivedByFilter !== "all" && receivedByFilter !== "unassigned"
+      ? filteredTeams.reduce((sum, t) => sum + Number(t.entryFeePaid || 0), 0)
+      : 0;
 
   const totalPages = Math.max(1, Math.ceil(filteredTeams.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -521,6 +546,7 @@ export default function AdminTeamsPage() {
     setStatusFilter("all");
     setFeeFilter("all");
     setSectionFilter("all");
+    setReceivedByFilter("all");
   }
 
   function exportTeamsToExcel() {
@@ -731,6 +757,31 @@ export default function AdminTeamsPage() {
             </div>
           </div>
 
+          <div className="w-full lg:w-auto">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400 lg:hidden">
+              Received By
+            </p>
+            <div className="relative">
+              <select
+                value={receivedByFilter}
+                onChange={(e) => setReceivedByFilter(e.target.value)}
+                className={selectClass}
+              >
+                <option value="all">All Received By</option>
+                {RECEIVED_BY_OPTIONS.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+                <option value="unassigned">Not set</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600"
+              />
+            </div>
+          </div>
+
           {hasActiveFilters && (
             <button
               type="button"
@@ -761,6 +812,22 @@ export default function AdminTeamsPage() {
           </button>
         </div>
       </div>
+
+      {receivedByFilter !== "all" && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-2.5 text-sm dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+            {receivedByFilter === "unassigned" ? "Not set" : receivedByFilter}
+          </span>
+          <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800">
+            {filteredTeams.length} entr{filteredTeams.length === 1 ? "y" : "ies"}
+          </span>
+          {receivedByFilter !== "unassigned" && (
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              Total collected: Rs. {receivedByTotalPaid.toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Desktop view table */}
       <div className="hidden md:block overflow-visible rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
