@@ -7,10 +7,11 @@ import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS } from "@/lib/tournament-logic";
 
 const ENTRY_FEE_TOTAL = 5000;
-import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2 } from "lucide-react";
+import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 import { generateWelcomePost } from "@/lib/welcome-post";
+import { downloadExcel } from "@/lib/export-excel";
 
 const STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200/40 dark:border-amber-900/20",
@@ -511,6 +512,39 @@ export default function AdminTeamsPage() {
     setSectionFilter("all");
   }
 
+  function exportTeamsToExcel() {
+    if (!teams.length) {
+      toast("No teams to export", "error");
+      return;
+    }
+
+    const rows = teams.map((team, index) => {
+      const paid = Number(team.entryFeePaid || 0);
+      let feeStatus = "Not uploaded";
+      if (team.entryFeeVerified) feeStatus = "Verified";
+      else if (team.entryFeeRejected && !team.entryFeeImageUrl) feeStatus = "Rejected";
+      else if (paid < ENTRY_FEE_TOTAL) feeStatus = "Pending";
+      else if (team.entryFeeImageUrl) feeStatus = "Pending";
+
+      return {
+        "#": index + 1,
+        "Team Name": team.name || "",
+        "Captain": team.captain?.name || "",
+        "WhatsApp": team.captain?.whatsapp || "",
+        "Phone": team.captain?.phone || "",
+        "Group": team.section || "Unassigned",
+        "Status": team.status || "",
+        "Paid (Rs)": paid,
+        "Due (Rs)": Math.max(0, ENTRY_FEE_TOTAL - paid),
+        "Received By": team.entryFeeReceivedBy || "",
+        "Entry Fee Status": feeStatus,
+      };
+    });
+
+    downloadExcel(rows, `teams-export-${new Date().toISOString().slice(0, 10)}`, "Teams");
+    toast(`Exported ${rows.length} teams to Excel`, "success");
+  }
+
   const selectClass =
     "w-full min-w-0 appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-9 text-sm font-medium text-zinc-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 lg:w-auto";
 
@@ -696,6 +730,15 @@ export default function AdminTeamsPage() {
               Clear Filters
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={exportTeamsToExcel}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50 lg:w-auto"
+          >
+            <FileSpreadsheet size={14} />
+            Export to Excel
+          </button>
         </div>
       </div>
 

@@ -13,9 +13,11 @@ import {
   Banknote,
   Hourglass,
   BarChart3,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
+import { downloadExcel } from "@/lib/export-excel";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -444,6 +446,48 @@ export default function ExpensesPage() {
     }
   }
 
+  function exportMainExpenses() {
+    if (!expenses.length) {
+      toast("No main expenses to export", "error");
+      return;
+    }
+    const rows = expenses.map((e, i) => ({
+      "#": i + 1,
+      "Expense Name": e.name || "",
+      Date: e.date ? new Date(e.date).toLocaleDateString() : "",
+      "Total Cost (Rs)": Number(e.totalCost || 0),
+      "Advance (Rs)": Number(e.advance || 0),
+      "Pending (Rs)": Number(e.pendingAmount || 0),
+      Notes: e.notes || "",
+    }));
+    downloadExcel(
+      rows,
+      `main-expenses-${new Date().toISOString().slice(0, 10)}`,
+      "Main Expenses"
+    );
+    toast(`Exported ${rows.length} main expenses`, "success");
+  }
+
+  function exportExtraExpenses() {
+    if (!extras.length) {
+      toast("No extra expenses to export", "error");
+      return;
+    }
+    const rows = extras.map((e, i) => ({
+      "#": i + 1,
+      "Expense Name": e.name || "",
+      "Amount (Rs)": Number(e.amount || 0),
+      Note: e.notes || "",
+      Date: e.date ? new Date(e.date).toLocaleDateString() : "",
+    }));
+    downloadExcel(
+      rows,
+      `extra-expenses-${new Date().toISOString().slice(0, 10)}`,
+      "Extra Expenses"
+    );
+    toast(`Exported ${rows.length} extra expenses`, "success");
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm text-zinc-500">
@@ -513,10 +557,18 @@ export default function ExpensesPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="border-b border-zinc-100 px-3 py-2.5 dark:border-zinc-800">
+          <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 dark:border-zinc-800">
             <h2 className="text-sm font-bold text-zinc-900 dark:text-white">
               Main Expenses
             </h2>
+            <button
+              type="button"
+              onClick={exportMainExpenses}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
+            >
+              <FileSpreadsheet size={13} />
+              Export to Excel
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed text-left text-sm">
@@ -606,14 +658,24 @@ export default function ExpensesPage() {
               </span>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={openCreateExtra}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-sky-500"
-          >
-            <Plus size={13} />
-            Add Extra
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={exportExtraExpenses}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-bold text-sky-700 transition hover:bg-sky-100 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300"
+            >
+              <FileSpreadsheet size={13} />
+              Export to Excel
+            </button>
+            <button
+              type="button"
+              onClick={openCreateExtra}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-sky-500"
+            >
+              <Plus size={13} />
+              Add Extra
+            </button>
+          </div>
         </div>
 
         {extras.length === 0 ? (
