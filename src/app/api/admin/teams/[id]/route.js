@@ -8,7 +8,7 @@ const TEAM_QUERY = `*[_type == "team" && _id == $id][0]{
   "entryFeeImageUrl": entryFeeImage.asset->url,
   "playerCount": count(players),
   "captain": captain->{
-    _id, name, fatherName, cnic, email, whatsapp, phone,
+    _id, name, fatherName, cnic, villageOrCity, email, whatsapp, phone,
     "profilePictureUrl": profilePicture.asset->url,
     "cnicImageUrl": cnicImage.asset->url
   },
@@ -50,12 +50,17 @@ async function parsePatchBody(request) {
       status: get("status"),
       newPassword: get("newPassword"),
       whatsapp: get("whatsapp"),
+      captainName: get("captainName"),
+      fatherName: get("fatherName"),
+      cnic: get("cnic"),
+      villageOrCity: get("villageOrCity"),
       entryFeePaid: get("entryFeePaid"),
       entryFeeReceivedBy:
         formData.get("entryFeeReceivedBy") == null
           ? undefined
           : String(formData.get("entryFeeReceivedBy")),
       profilePicture: formData.get("profilePicture"),
+      entryFeeImage: formData.get("entryFeeImage"),
     };
   }
 
@@ -78,9 +83,14 @@ export async function PATCH(request, { params }) {
     status,
     newPassword,
     whatsapp,
+    captainName,
+    fatherName,
+    cnic,
+    villageOrCity,
     entryFeePaid,
     entryFeeReceivedBy,
     profilePicture,
+    entryFeeImage,
   } = body;
 
   if (action === "changePassword") {
@@ -175,15 +185,23 @@ export async function PATCH(request, { params }) {
 
   const hasProfilePicture =
     profilePicture && typeof profilePicture === "object" && profilePicture.size > 0;
+  const hasEntryFeeImage =
+    entryFeeImage && typeof entryFeeImage === "object" && entryFeeImage.size > 0;
 
   if (
     name !== undefined ||
     section !== undefined ||
     status !== undefined ||
     whatsapp !== undefined ||
+    captainName !== undefined ||
+    fatherName !== undefined ||
+    cnic !== undefined ||
+    villageOrCity !== undefined ||
     entryFeePaid !== undefined ||
     entryFeeReceivedBy !== undefined ||
-    hasProfilePicture
+    newPassword !== undefined ||
+    hasProfilePicture ||
+    hasEntryFeeImage
   ) {
     const team = await writeClient.fetch(
       `*[_type == "team" && _id == $id][0]{ _id, "captainId": captain._ref }`,
@@ -204,13 +222,39 @@ export async function PATCH(request, { params }) {
     }
 
     const needsCaptainUpdate =
-      whatsapp !== undefined || hasProfilePicture;
+      whatsapp !== undefined ||
+      captainName !== undefined ||
+      fatherName !== undefined ||
+      cnic !== undefined ||
+      villageOrCity !== undefined ||
+      newPassword !== undefined ||
+      hasProfilePicture;
 
     if (!team.captainId && needsCaptainUpdate) {
       return NextResponse.json({ error: "Team has no captain" }, { status: 400 });
     }
 
     const captainUpdates = {};
+
+    if (captainName !== undefined) {
+      const trimmed = String(captainName).trim();
+      if (!trimmed) {
+        return NextResponse.json({ error: "Captain name is required" }, { status: 400 });
+      }
+      captainUpdates.name = trimmed;
+    }
+
+    if (fatherName !== undefined) {
+      captainUpdates.fatherName = String(fatherName).trim();
+    }
+
+    if (cnic !== undefined) {
+      captainUpdates.cnic = String(cnic).trim();
+    }
+
+    if (villageOrCity !== undefined) {
+      captainUpdates.villageOrCity = String(villageOrCity).trim();
+    }
 
     if (whatsapp !== undefined) {
       const digits = String(whatsapp).replace(/\D/g, "");
@@ -232,6 +276,16 @@ export async function PATCH(request, { params }) {
       }
       captainUpdates.whatsapp = digits;
       captainUpdates.phone = digits;
+    }
+
+    if (newPassword) {
+      if (String(newPassword).length < 6) {
+        return NextResponse.json(
+          { error: "Password must be at least 6 characters" },
+          { status: 400 }
+        );
+      }
+      captainUpdates.passwordHash = await bcrypt.hash(String(newPassword), 10);
     }
 
     if (hasProfilePicture) {
@@ -266,7 +320,7 @@ export async function PATCH(request, { params }) {
         }`,
         { id }
       );
-      if (!feeCheck?.entryFeeVerified) {
+      if (!feeCheck?.entryFeeVerified && !hasEntryFeeImage) {
         return NextResponse.json(
           { error: "Cannot set status to active until entry fee is verified by admin" },
           { status: 400 }
@@ -281,6 +335,17 @@ export async function PATCH(request, { params }) {
     if (entryFeePaid !== undefined) updates.entryFeePaid = Number(entryFeePaid);
     if (entryFeeReceivedBy !== undefined) {
       updates.entryFeeReceivedBy = String(entryFeeReceivedBy).trim();
+    }
+
+    if (hasEntryFeeImage) {
+      const asset = await writeClient.assets.upload("image", entryFeeImage, {
+        filename: `team-entry-fee-${id}.jpg`,
+      });
+      updates.entryFeeImage = {
+        _type: "image",
+        asset: { _type: "reference", _ref: asset._id },
+      };
+      updates.entryFeeRejected = false;
     }
 
     if (Object.keys(updates).length > 0) {

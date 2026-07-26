@@ -7,7 +7,7 @@ import TeamEditModal from "@/components/TeamEditModal";
 import { TOTAL_PLAYER_SLOTS } from "@/lib/tournament-logic";
 
 const ENTRY_FEE_TOTAL = 5000;
-import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2, FileSpreadsheet } from "lucide-react";
+import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2, FileSpreadsheet, UserPlus } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 import { generateWelcomePost } from "@/lib/welcome-post";
@@ -226,6 +226,7 @@ export default function AdminTeamsPage() {
   const [loading, setLoading] = useState(true);
   const [viewTeam, setViewTeam] = useState(null);
   const [editTeam, setEditTeam] = useState(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [loadingTeamId, setLoadingTeamId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [generatingPostId, setGeneratingPostId] = useState(null);
@@ -416,8 +417,18 @@ export default function AdminTeamsPage() {
   }
 
   function handleTeamSaved(updatedTeam) {
-    setTeams((prev) =>
-      prev.map((t) =>
+    setTeams((prev) => {
+      const exists = prev.some((t) => t._id === updatedTeam._id);
+      if (!exists) {
+        return [
+          {
+            ...updatedTeam,
+            playerCount: updatedTeam.players?.length ?? 0,
+          },
+          ...prev,
+        ];
+      }
+      return prev.map((t) =>
         t._id === updatedTeam._id
           ? {
               ...t,
@@ -438,8 +449,8 @@ export default function AdminTeamsPage() {
                 : t.captain,
             }
           : t
-      )
-    );
+      );
+    });
   }
 
   function feeStatusOf(team) {
@@ -730,6 +741,15 @@ export default function AdminTeamsPage() {
               Clear Filters
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => setShowRegisterModal(true)}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 lg:w-auto"
+          >
+            <UserPlus size={14} />
+            Register Team
+          </button>
 
           <button
             type="button"
@@ -1027,9 +1047,20 @@ export default function AdminTeamsPage() {
       {paginationBar && <div className="mt-4 md:hidden">{paginationBar}</div>}
 
       {viewTeam && <TeamViewModal team={viewTeam} onClose={() => setViewTeam(null)} />}
+      {showRegisterModal && (
+        <TeamEditModal
+          mode="create"
+          onClose={() => setShowRegisterModal(false)}
+          onSaved={(team) => {
+            handleTeamSaved(team);
+            setShowRegisterModal(false);
+          }}
+        />
+      )}
       {editTeam && (
         <TeamEditModal
           team={editTeam}
+          mode="edit"
           onClose={() => setEditTeam(null)}
           onSaved={handleTeamSaved}
         />
