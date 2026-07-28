@@ -1,38 +1,58 @@
 /**
- * Generate a welcome registration post for a team and download as PNG.
- * Canvas: 1080×1600 — tall portrait so nothing clips.
+ * Welcome post — final Sports Gala design match.
+ * White brand + 3D gold SPORTS GALA | photo + green shields | dark green card + values
  */
 
 const W = 1080;
 const H = 1600;
 const GOLD = "#d4af37";
-const GOLD_LIGHT = "#f5e6a3";
+const GOLD_LIGHT = "#ffe9a0";
+const GOLD_DEEP = "#8a6a0a";
 const GREEN = "#1a9b4a";
-const GREEN_DARK = "#0d5c2e";
-const SAFE = 48; // edge padding so content never clips
+const GREEN_DARK = "#0a3d28";
+const CARD_BG = "#062e22";
+const SAFE = 40;
 
 function loadImage(src, { cors = false } = {}) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     if (cors) img.crossOrigin = "anonymous";
+    img.decoding = "async";
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+    img.onerror = () => reject(new Error(`Failed to load: ${src}`));
     img.src = src;
   });
 }
 
 async function loadProfileImage(url) {
-  if (!url) return null;
-  try {
-    // Same-origin proxy avoids canvas CORS taint from Sanity CDN
-    const proxy = `/api/image-proxy?url=${encodeURIComponent(url)}`;
-    return await loadImage(proxy);
-  } catch {
+  if (!url || typeof url !== "string") return null;
+  const fromBlob = async (src) => {
+    const res = await fetch(src);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
     try {
-      return await loadImage(url, { cors: true });
-    } catch {
-      return null;
+      const img = await loadImage(objectUrl);
+      if (img.decode) await img.decode().catch(() => {});
+      return img;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
     }
+  };
+  try {
+    return await fromBlob(`/api/image-proxy?url=${encodeURIComponent(url)}`);
+  } catch {
+    /* continue */
+  }
+  try {
+    return await loadImage(url, { cors: true });
+  } catch {
+    /* continue */
+  }
+  try {
+    return await fromBlob(url);
+  } catch {
+    return null;
   }
 }
 
@@ -47,7 +67,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function fitText(ctx, text, maxWidth, maxSize, minSize = 28) {
+function fitText(ctx, text, maxWidth, maxSize, minSize = 20) {
   let size = maxSize;
   ctx.font = `900 ${size}px Arial Black, Impact, Arial, sans-serif`;
   while (size > minSize && ctx.measureText(text).width > maxWidth) {
@@ -74,17 +94,55 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
+function goldFill(ctx, x0, y0, x1, y1) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, GOLD_DEEP);
+  g.addColorStop(0.3, GOLD);
+  g.addColorStop(0.5, GOLD_LIGHT);
+  g.addColorStop(0.7, GOLD);
+  g.addColorStop(1, GOLD_DEEP);
+  return g;
+}
+
+function drawGold3DText(ctx, text, x, y, size, maxWidth) {
+  let s = size;
+  ctx.font = `900 ${s}px Arial Black, Impact, Arial, sans-serif`;
+  while (s > 28 && ctx.measureText(text).width > maxWidth) {
+    s -= 2;
+    ctx.font = `900 ${s}px Arial Black, Impact, Arial, sans-serif`;
+  }
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let i = 8; i >= 1; i--) {
+    ctx.fillStyle = `rgba(50,35,0,${0.3 + i * 0.05})`;
+    ctx.fillText(text, x + i * 0.9, y + i * 1.1);
+  }
+  ctx.lineWidth = Math.max(2, s * 0.04);
+  ctx.strokeStyle = "rgba(40,25,0,0.9)";
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = goldFill(ctx, x - 280, y - s / 2, x + 280, y + s / 2);
+  ctx.fillText(text, x, y);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x - 400, y - s * 0.5, 800, s * 0.32);
+  ctx.clip();
+  ctx.fillStyle = "rgba(255,255,255,0.32)";
+  ctx.fillText(text, x, y);
+  ctx.restore();
+  return s;
+}
+
 function drawConfetti(ctx) {
-  const colors = [GOLD, GOLD_LIGHT, "#ffffff", "#2ecc71", "#f1c40f", "#ff6b6b", "#74b9ff"];
-  for (let i = 0; i < 120; i++) {
+  const colors = [GOLD, GOLD_LIGHT, "#fff", "#2ecc71", "#f1c40f"];
+  for (let i = 0; i < 70; i++) {
     const x = Math.random() * W;
-    const y = Math.random() * (H * 0.42);
-    const s = 4 + Math.random() * 10;
+    const y = 40 + Math.random() * (H * 0.45);
+    const s = 2 + Math.random() * 5;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(Math.random() * Math.PI);
+    ctx.globalAlpha = 0.35 + Math.random() * 0.45;
     ctx.fillStyle = colors[i % colors.length];
-    ctx.globalAlpha = 0.5 + Math.random() * 0.4;
     if (i % 3 === 0) {
       ctx.beginPath();
       ctx.arc(0, 0, s / 2, 0, Math.PI * 2);
@@ -94,178 +152,269 @@ function drawConfetti(ctx) {
     }
     ctx.restore();
   }
+  ctx.globalAlpha = 1;
 }
 
-/** Firework burst — big celebration spark at (cx, cy) */
-function drawFirework(ctx, cx, cy, radius = 70) {
-  const colors = [GOLD, GOLD_LIGHT, "#ffffff", "#2ecc71", "#ffd700", "#ff6b6b"];
-  const rays = 16;
-  for (let i = 0; i < rays; i++) {
-    const angle = (i / rays) * Math.PI * 2;
-    const len = radius * (0.55 + (i % 3) * 0.15);
-    const g = ctx.createLinearGradient(
-      cx,
-      cy,
-      cx + Math.cos(angle) * len,
-      cy + Math.sin(angle) * len
-    );
-    g.addColorStop(0, "#ffffff");
+function drawFirework(ctx, cx, cy, radius = 55) {
+  const colors = [GOLD, GOLD_LIGHT, "#fff", "#2ecc71", "#ffd700"];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const len = radius * (0.5 + (i % 3) * 0.18);
+    const g = ctx.createLinearGradient(cx, cy, cx + Math.cos(a) * len, cy + Math.sin(a) * len);
+    g.addColorStop(0, "#fff");
     g.addColorStop(0.4, colors[i % colors.length]);
     g.addColorStop(1, "rgba(0,0,0,0)");
     ctx.strokeStyle = g;
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(angle) * 8, cy + Math.sin(angle) * 8);
-    ctx.lineTo(cx + Math.cos(angle) * len, cy + Math.sin(angle) * len);
+    ctx.moveTo(cx + Math.cos(a) * 4, cy + Math.sin(a) * 4);
+    ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len);
     ctx.stroke();
-
-    // tip spark
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.beginPath();
-    ctx.arc(
-      cx + Math.cos(angle) * len,
-      cy + Math.sin(angle) * len,
-      4,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
   }
-  // center glow
-  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 22);
-  glow.addColorStop(0, "rgba(255,255,255,0.95)");
-  glow.addColorStop(0.5, "rgba(245,230,163,0.7)");
-  glow.addColorStop(1, "rgba(212,175,55,0)");
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(cx, cy, 22, 0, Math.PI * 2);
-  ctx.fill();
 }
 
-/** Party popper aiming outward from side */
-function drawPartyPopper(ctx, x, y, facingRight = true) {
-  const dir = facingRight ? 1 : -1;
+function drawBat(ctx, x, y, scale = 1, angle = -0.4) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(dir, 1);
-  ctx.rotate(-0.35);
+  ctx.rotate(angle);
+  ctx.scale(scale, scale);
+  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  ctx.shadowBlur = 8;
+  const blade = ctx.createLinearGradient(-12, -60, 12, 20);
+  blade.addColorStop(0, "#f5e0b0");
+  blade.addColorStop(1, "#c4893a");
+  ctx.fillStyle = blade;
+  roundRect(ctx, -12, -62, 24, 85, 6);
+  ctx.fill();
+  ctx.fillStyle = "#1a1a1a";
+  roundRect(ctx, -7, 20, 14, 42, 3);
+  ctx.fill();
+  ctx.restore();
+}
 
-  // cone body
-  ctx.fillStyle = GREEN;
+function drawBall(ctx, x, y, r = 22) {
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.4)";
+  ctx.shadowBlur = 8;
+  const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r);
+  g.addColorStop(0, "#ff6b5a");
+  g.addColorStop(0.5, "#c0392b");
+  g.addColorStop(1, "#4a100c");
+  ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(55, -22);
-  ctx.lineTo(55, 22);
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = GOLD_LIGHT;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.72, -0.9, 0.9);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.72, Math.PI - 0.9, Math.PI + 0.9);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Green shield with gold stripes + star (final design) */
+function drawGreenShield(ctx, cx, cy, scale = 1, mirror = false) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (mirror) ctx.scale(-1, 1);
+  ctx.scale(scale, scale);
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 14;
+
+  // Shield outline
+  ctx.beginPath();
+  ctx.moveTo(8, -95);
+  ctx.lineTo(72, -88);
+  ctx.quadraticCurveTo(95, -40, 88, 20);
+  ctx.quadraticCurveTo(78, 70, 40, 100);
+  ctx.lineTo(8, 110);
+  ctx.closePath();
+  const sg = ctx.createLinearGradient(8, -95, 90, 110);
+  sg.addColorStop(0, "#0d5c38");
+  sg.addColorStop(0.5, "#0a3d28");
+  sg.addColorStop(1, "#062818");
+  ctx.fillStyle = sg;
+  ctx.fill();
+  ctx.strokeStyle = goldFill(ctx, 8, -95, 90, 110);
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Inner gold stripes (facing circle)
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < 5; i++) {
+    const sy = -70 + i * 28;
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(18, sy);
+    ctx.lineTo(58, sy + 4);
+    ctx.stroke();
+  }
+
+  // Gold star at tip
+  ctx.fillStyle = GOLD_LIGHT;
+  ctx.beginPath();
+  const sx = 42;
+  const sy = 88;
+  for (let j = 0; j < 5; j++) {
+    const a = (j * 4 * Math.PI) / 5 - Math.PI / 2;
+    const px = sx + Math.cos(a) * 14;
+    const py = sy + Math.sin(a) * 14;
+    if (j === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = GOLD;
+  ctx.restore();
+}
+
+function drawPhoto(ctx, img, cx, cy, size, letter) {
+  const r = size / 2;
+
+  // Glow ring
+  const glow = ctx.createRadialGradient(cx, cy, r * 0.7, cx, cy, r * 1.35);
+  glow.addColorStop(0, "rgba(255,233,160,0.4)");
+  glow.addColorStop(0.5, "rgba(212,175,55,0.15)");
+  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 1.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 14, 0, Math.PI * 2);
+  ctx.strokeStyle = goldFill(ctx, cx - r, cy - r, cx + r, cy + r);
+  ctx.lineWidth = 16;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 4, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(0,0,0,0.4)";
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // gold rim
-  ctx.fillStyle = GOLD;
   ctx.beginPath();
-  ctx.ellipse(55, 0, 8, 24, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = GOLD_LIGHT;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
 
-  // streamers shooting out
-  const streamColors = [GOLD, "#ff6b6b", "#74b9ff", "#2ecc71", GOLD_LIGHT, "#ffffff"];
-  for (let i = 0; i < 10; i++) {
-    const angle = -0.9 + i * 0.2;
-    const len = 55 + (i % 4) * 18;
-    ctx.strokeStyle = streamColors[i % streamColors.length];
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(62, Math.sin(angle) * 8);
-    ctx.quadraticCurveTo(
-      62 + len * 0.45,
-      Math.sin(angle) * 40,
-      62 + len,
-      Math.sin(angle * 1.2) * 55
-    );
-    ctx.stroke();
-
-    // confetti bits on streamers
-    ctx.fillStyle = streamColors[(i + 2) % streamColors.length];
-    ctx.beginPath();
-    ctx.arc(62 + len * 0.7, Math.sin(angle) * 35, 5, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  if (img && img.width > 0) {
+    const scale = Math.max(size / img.width, size / img.height);
+    const dw = img.width * scale;
+    const dh = img.height * scale;
+    ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+  } else {
+    const g = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+    g.addColorStop(0, GREEN_DARK);
+    g.addColorStop(1, GREEN);
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, size, size);
+    ctx.fillStyle = GOLD_LIGHT;
+    ctx.font = "900 110px Arial Black, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(letter, cx, cy);
   }
   ctx.restore();
 }
 
-/** Balloon cluster */
-function drawBalloons(ctx, x, y) {
-  const balloons = [
-    { dx: 0, dy: 0, color: "#e74c3c", size: 28 },
-    { dx: 34, dy: 8, color: "#3498db", size: 24 },
-    { dx: -30, dy: 12, color: GOLD, size: 26 },
-  ];
-  for (const b of balloons) {
-    const bx = x + b.dx;
-    const by = y + b.dy;
-    // string
-    ctx.strokeStyle = "rgba(255,255,255,0.55)";
-    ctx.lineWidth = 1.5;
+function drawLogoCircle(ctx, logo, cx, cy, size = 70) {
+  const r = size / 2;
+  ctx.save();
+  ctx.shadowColor = "rgba(255,255,255,0.5)";
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  ctx.clip();
+  if (logo) ctx.drawImage(logo, cx - r, cy - r, size, size);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+  ctx.strokeStyle = GOLD;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+}
+
+function drawCalendarIcon(ctx, x, y, s = 18) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = GOLD;
+  ctx.fillStyle = GOLD;
+  ctx.lineWidth = 2;
+  roundRect(ctx, -s / 2, -s / 2 + 2, s, s - 2, 3);
+  ctx.stroke();
+  ctx.fillRect(-s / 2, -s / 2 + 2, s, 5);
+  ctx.strokeStyle = GOLD_LIGHT;
+  ctx.beginPath();
+  ctx.moveTo(-4, -s / 2);
+  ctx.lineTo(-4, -s / 2 + 6);
+  ctx.moveTo(4, -s / 2);
+  ctx.lineTo(4, -s / 2 + 6);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawValueIcon(ctx, cx, cy, type) {
+  const r = 22;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = GOLD;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(212,175,55,0.12)";
+  ctx.fill();
+
+  ctx.fillStyle = GOLD_LIGHT;
+  ctx.strokeStyle = GOLD_LIGHT;
+  ctx.lineWidth = 1.8;
+
+  if (type === "unity") {
+    // three people dots
+    for (const dx of [-8, 0, 8]) {
+      ctx.beginPath();
+      ctx.arc(cx + dx, cy - 5, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + dx, cy + 6, 5, Math.PI, 0);
+      ctx.stroke();
+    }
+  } else if (type === "respect") {
+    // simple trophy cup
     ctx.beginPath();
-    ctx.moveTo(bx, by + b.size);
-    ctx.quadraticCurveTo(bx + 8, by + b.size + 40, bx - 4, by + b.size + 70);
-    ctx.stroke();
-    // balloon
-    const g = ctx.createRadialGradient(bx - 6, by - 6, 4, bx, by, b.size);
-    g.addColorStop(0, "#ffffff");
-    g.addColorStop(0.35, b.color);
-    g.addColorStop(1, b.color);
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(bx, by, b.size * 0.78, b.size, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // knot
-    ctx.fillStyle = b.color;
-    ctx.beginPath();
-    ctx.moveTo(bx - 5, by + b.size - 2);
-    ctx.lineTo(bx + 5, by + b.size - 2);
-    ctx.lineTo(bx, by + b.size + 8);
+    ctx.moveTo(cx - 7, cy - 6);
+    ctx.lineTo(cx + 7, cy - 6);
+    ctx.lineTo(cx + 5, cy + 4);
+    ctx.lineTo(cx - 5, cy + 4);
     ctx.closePath();
     ctx.fill();
-  }
-}
-
-/** Big celebration icons around the header / profile area */
-function drawCelebrationIcons(ctx) {
-  // Top corners (above banner)
-  drawFirework(ctx, 95, 88, 78);
-  drawFirework(ctx, W - 90, 95, 72);
-  // Flanking profile
-  drawPartyPopper(ctx, 55, 540, true);
-  drawFirework(ctx, 100, 450, 48);
-  drawPartyPopper(ctx, W - 55, 540, false);
-  drawFirework(ctx, W - 100, 450, 52);
-}
-
-/** Balloons drawn beside the brand banner so they stay visible */
-function drawBannerSideBalloons(ctx, bannerY, bannerH) {
-  const midY = bannerY + bannerH / 2 - 10;
-  drawBalloons(ctx, 58, midY);
-  drawBalloons(ctx, W - 58, midY);
-}
-
-function drawStars(ctx, cx, y, count = 5, size = 10) {
-  ctx.fillStyle = GOLD;
-  const gap = 28;
-  const startX = cx - ((count - 1) * gap) / 2;
-  for (let i = 0; i < count; i++) {
-    const x = startX + i * gap;
+    ctx.fillRect(cx - 2, cy + 4, 4, 5);
+    ctx.fillRect(cx - 6, cy + 9, 12, 3);
+  } else {
+    // star
     ctx.beginPath();
     for (let j = 0; j < 5; j++) {
-      const angle = (j * 4 * Math.PI) / 5 - Math.PI / 2;
-      const px = x + Math.cos(angle) * size;
-      const py = y + Math.sin(angle) * size;
+      const a = (j * 4 * Math.PI) / 5 - Math.PI / 2;
+      const px = cx + Math.cos(a) * 9;
+      const py = cy + Math.sin(a) * 9;
       if (j === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
@@ -274,96 +423,19 @@ function drawStars(ctx, cx, y, count = 5, size = 10) {
   }
 }
 
-function drawRibbon(ctx, text, y) {
-  const rw = Math.min(700, W - SAFE * 2 - 40);
-  const rh = 54;
-  const rx = (W - rw) / 2;
-
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.45)";
-  ctx.shadowBlur = 16;
-  ctx.shadowOffsetY = 6;
-
-  // Ribbon body
-  ctx.fillStyle = GREEN;
-  ctx.beginPath();
-  ctx.moveTo(rx - 28, y);
-  ctx.lineTo(rx, y - 4);
-  ctx.lineTo(rx + rw, y - 4);
-  ctx.lineTo(rx + rw + 28, y);
-  ctx.lineTo(rx + rw, y + rh);
-  ctx.lineTo(rx, y + rh);
-  ctx.closePath();
-  ctx.fill();
-
-  // Gold edge
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.restore();
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 24px Arial, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, W / 2, y + rh / 2 - 2);
-
-  // Side stars
-  ctx.fillStyle = GOLD_LIGHT;
-  ctx.font = "20px Arial";
-  ctx.fillText("★", rx + 40, y + rh / 2 - 2);
-  ctx.fillText("★", rx + rw - 40, y + rh / 2 - 2);
-}
-
-function drawCover(ctx, img, x, y, size) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-
-  if (img) {
-    const scale = Math.max(size / img.width, size / img.height);
-    const dw = img.width * scale;
-    const dh = img.height * scale;
-    ctx.drawImage(img, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
-  } else {
-    const g = ctx.createLinearGradient(x, y, x + size, y + size);
-    g.addColorStop(0, GREEN_DARK);
-    g.addColorStop(1, GREEN);
-    ctx.fillStyle = g;
-    ctx.fillRect(x, y, size, size);
-  }
-  ctx.restore();
-
-  // Gold ring
-  ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2 + 5, 0, Math.PI * 2);
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 12;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(x + size / 2, y + size / 2, size / 2 - 2, 0, Math.PI * 2);
-  ctx.strokeStyle = GOLD_LIGHT;
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-}
-
 /**
  * @param {{ name: string, captainName?: string, profilePictureUrl?: string, captain?: object }} team
- * @returns {Promise<{ filename: string, blob: Blob, url: string }>}
  */
 export async function generateWelcomePost(team) {
   const teamName = (team.name || "TEAM").trim().toUpperCase();
   const captainName = (team.captainName || team.captain?.name || "—").trim().toUpperCase();
+  const displayName = (team.name || teamName).trim();
   const photoUrl = team.profilePictureUrl || team.captain?.profilePictureUrl || "";
 
-  const [bg, trophy, logo, profile] = await Promise.all([
+  const [bg, logo, profile] = await Promise.all([
     loadImage("/cricket_stadium.png").catch(() =>
       loadImage("/cricket_stadium_desktop.png").catch(() => null)
     ),
-    loadImage("/cricket_trophy.png").catch(() => null),
     loadImage("/al_umer_electronics_logo.png").catch(() => null),
     loadProfileImage(photoUrl),
   ]);
@@ -373,190 +445,216 @@ export async function generateWelcomePost(team) {
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background
+  // —— Background ——
   if (bg) {
-    const scale = Math.max(W / bg.width, H / bg.height);
+    const scale = Math.max(W / bg.width, H / bg.height) * 1.1;
     const dw = bg.width * scale;
     const dh = bg.height * scale;
-    ctx.drawImage(bg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.drawImage(bg, (W - dw) / 2, H - dh + 20, dw, dh);
   } else {
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, "#0a2f1a");
-    g.addColorStop(0.5, "#14532d");
-    g.addColorStop(1, "#052e16");
+    g.addColorStop(0, "#0a1a2e");
+    g.addColorStop(1, "#051510");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   }
 
-  const overlay = ctx.createLinearGradient(0, 0, 0, H);
-  overlay.addColorStop(0, "rgba(0,0,0,0.55)");
-  overlay.addColorStop(0.35, "rgba(0,20,10,0.45)");
-  overlay.addColorStop(0.7, "rgba(0,0,0,0.65)");
-  overlay.addColorStop(1, "rgba(0,0,0,0.8)");
-  ctx.fillStyle = overlay;
+  const grade = ctx.createLinearGradient(0, 0, 0, H);
+  grade.addColorStop(0, "rgba(0,0,0,0.55)");
+  grade.addColorStop(0.3, "rgba(0,0,0,0.35)");
+  grade.addColorStop(0.55, "rgba(0,20,12,0.3)");
+  grade.addColorStop(0.8, "rgba(0,0,0,0.4)");
+  grade.addColorStop(1, "rgba(0,0,0,0.55)");
+  ctx.fillStyle = grade;
   ctx.fillRect(0, 0, W, H);
 
   drawConfetti(ctx);
-  drawCelebrationIcons(ctx);
+  drawFirework(ctx, 100, 90, 65);
+  drawFirework(ctx, W - 100, 85, 60);
 
-  // Trophy
-  let cursorY = SAFE;
-  if (trophy) {
-    const tw = 120;
-    const th = (trophy.height / trophy.width) * tw;
-    ctx.drawImage(trophy, (W - tw) / 2, cursorY, tw, th);
-    cursorY += th + 12;
-  }
-
-  // Brand banner — large, with side gutters for balloons
-  const bannerH = 96;
-  const bannerPadX = 118;
-  roundRect(ctx, bannerPadX, cursorY, W - bannerPadX * 2, bannerH, 14);
-  ctx.fillStyle = "rgba(0,0,0,0.9)";
-  ctx.fill();
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 5;
-  ctx.stroke();
-  roundRect(ctx, bannerPadX + 7, cursorY + 7, W - bannerPadX * 2 - 14, bannerH - 14, 10);
-  ctx.strokeStyle = "rgba(212,175,55,0.4)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  if (logo) {
-    ctx.drawImage(logo, bannerPadX + 18, cursorY + 14, 68, 68);
-  }
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 40px Arial Black, Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("AL UMER ELECTRONICS", W / 2 + (logo ? 16 : 0), cursorY + bannerH / 2);
 
-  // Balloons on both sides of banner (drawn after so they stay visible)
-  drawBannerSideBalloons(ctx, cursorY, bannerH);
-
-  cursorY += bannerH + 30;
-  ctx.fillStyle = "#2ecc71";
-  ctx.font = "bold 32px Arial Black, Arial, sans-serif";
-  ctx.fillText("SPORTS GALA – SEASON 3", W / 2, cursorY);
-  cursorY += 30;
-  drawStars(ctx, W / 2, cursorY, 5, 12);
-  cursorY += 38;
-
-  // Profile — large hero circle (fully inside canvas + gold ring)
-  const photoSize = 420;
-  const photoX = (W - photoSize) / 2;
-  const photoY = cursorY + 8;
-  drawCover(ctx, profile, photoX, photoY, photoSize);
-
-  if (!profile) {
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "900 110px Arial Black, Arial, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(teamName.charAt(0) || "T", W / 2, photoY + photoSize / 2);
+  // —— Logo ——
+  let y = 55;
+  if (logo) {
+    drawLogoCircle(ctx, logo, W / 2, y + 35, 70);
+    y += 82;
   }
 
-  let y = photoY + photoSize + 72;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-
-  ctx.shadowColor = "rgba(0,0,0,0.6)";
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = GOLD;
-  ctx.font = "900 58px Arial Black, Impact, Arial, sans-serif";
-  ctx.fillText("WELCOME", W / 2, y);
+  // —— AL UMER / ELECTRONICS (white) ——
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 36px Arial Black, Arial, sans-serif";
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 6;
+  ctx.fillText("AL UMER", W / 2, y);
+  y += 38;
+  ctx.font = "900 32px Arial Black, Arial, sans-serif";
+  ctx.fillText("ELECTRONICS", W / 2, y);
   ctx.shadowBlur = 0;
 
-  y += 58;
-  const nameSize = fitText(ctx, teamName, W - SAFE * 2, 72, 32);
-  ctx.font = `900 ${nameSize}px Arial Black, Impact, Arial, sans-serif`;
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.fillText(teamName, W / 2 + 3, y + 3);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(teamName, W / 2, y);
+  // —— SPORTS GALA (3D gold) ——
+  y += 48;
+  drawGold3DText(ctx, "SPORTS GALA", W / 2, y, 64, W - 80);
 
-  y += 36;
-  drawRibbon(ctx, "OFFICIALLY REGISTERED TEAM", y);
-  y += 80;
-
-  const capW = Math.min(640, W - SAFE * 2);
-  const capH = 60;
-  const capX = (W - capW) / 2;
-  roundRect(ctx, capX, y, capW, capH, 14);
-  ctx.fillStyle = "rgba(0,0,0,0.75)";
-  ctx.fill();
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
-  const capLabel = "CAPTAIN: ";
-  let capFont = 24;
-  ctx.font = `bold ${capFont}px Arial, sans-serif`;
-  while (capFont > 14 && ctx.measureText(capLabel + captainName).width > capW - 40) {
-    capFont -= 1;
-    ctx.font = `bold ${capFont}px Arial, sans-serif`;
-  }
-  const labelW = ctx.measureText(capLabel).width;
-  const nameW = ctx.measureText(captainName).width;
-  const start = W / 2 - (labelW + nameW) / 2;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "left";
-  ctx.fillStyle = GOLD;
-  ctx.fillText(capLabel, start, y + capH / 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(captainName, start + labelW, y + capH / 2);
-
-  y += capH + 24;
-
-  const msgW = W - SAFE * 2;
-  const msgX = SAFE;
-  const msgPad = 24;
-  ctx.font = "21px Arial, sans-serif";
-  const message = `We are delighted to welcome ${team.name || teamName} to AL Umer Electronics Sports Gala – Season 3. Wishing the team great success, sportsmanship, and an unforgettable tournament.`;
-  const lines = wrapText(ctx, message, msgW - msgPad * 2);
-  const msgH = lines.length * 30 + 84;
-
-  roundRect(ctx, msgX, y, msgW, msgH, 16);
-  ctx.fillStyle = "rgba(0,0,0,0.7)";
-  ctx.fill();
+  // —— SEASON 3 with gold lines ——
+  y += 48;
   ctx.strokeStyle = GOLD;
   ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - 200, y);
+  ctx.lineTo(W / 2 - 70, y);
+  ctx.moveTo(W / 2 + 70, y);
+  ctx.lineTo(W / 2 + 200, y);
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 26px Arial, sans-serif";
+  ctx.fillText("SEASON 3", W / 2, y);
+
+  // —— Photo ——
+  y += 40;
+  const photoSize = 400;
+  const photoCy = y + photoSize / 2;
+
+  drawGreenShield(ctx, 100, photoCy, 0.92, false);
+  drawGreenShield(ctx, W - 100, photoCy, 0.92, true);
+  drawPhoto(ctx, profile, W / 2, photoCy, photoSize, teamName.charAt(0) || "T");
+
+  // Bats + balls at base of circle
+  const baseY = photoCy + photoSize / 2;
+  drawBall(ctx, 220, baseY - 8, 24);
+  drawBall(ctx, W - 220, baseY - 8, 24);
+  drawBat(ctx, 175, baseY + 18, 0.55, -1.15);
+  drawBat(ctx, W - 175, baseY + 18, 0.55, 1.15);
+
+  // —— Dark green info card ——
+  const cardX = SAFE + 16;
+  const cardW = W - SAFE * 2 - 32;
+  const pad = 28;
+  ctx.font = "17px Arial, sans-serif";
+  const msg = `We are delighted to welcome ${displayName} to AL Umer Electronics Sports Gala – Season 3. Wishing great success & sportsmanship!`;
+  const msgLines = wrapText(ctx, msg, cardW - pad * 2).slice(0, 3);
+
+  const cardH =
+    36 + 52 + 40 + 36 + 30 + msgLines.length * 24 + 28 + 38 + 38 + 88 + 28;
+  const cardTop = baseY + 36;
+  const cardY = Math.min(cardTop, H - SAFE - 56 - cardH);
+
+  // Card with double gold border + corner accents
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = 22;
+  roundRect(ctx, cardX, cardY, cardW, cardH, 16);
+  ctx.fillStyle = "rgba(6,46,34,0.94)";
+  ctx.fill();
+  ctx.restore();
+
+  roundRect(ctx, cardX, cardY, cardW, cardH, 16);
+  ctx.strokeStyle = GOLD;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  roundRect(ctx, cardX + 6, cardY + 6, cardW - 12, cardH - 12, 12);
+  ctx.strokeStyle = "rgba(255,233,160,0.35)";
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
+  // Corner diamonds
+  for (const [cx, cy] of [
+    [cardX + 18, cardY + 18],
+    [cardX + cardW - 18, cardY + 18],
+    [cardX + 18, cardY + cardH - 18],
+    [cardX + cardW - 18, cardY + cardH - 18],
+  ]) {
+    ctx.fillStyle = GOLD;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 5);
+    ctx.lineTo(cx + 5, cy);
+    ctx.lineTo(cx, cy + 5);
+    ctx.lineTo(cx - 5, cy);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  let cy = cardY + 36;
+  ctx.fillStyle = goldFill(ctx, W / 2 - 160, cy - 24, W / 2 + 160, cy + 24);
+  ctx.font = "900 42px Arial Black, Arial, sans-serif";
+  ctx.fillText("★  WELCOME  ★", W / 2, cy);
+
+  cy += 52;
+  const nSize = fitText(ctx, teamName, cardW - pad * 2, 46, 22);
+  ctx.font = `900 ${nSize}px Arial Black, Impact, Arial, sans-serif`;
   ctx.fillStyle = "#ffffff";
-  ctx.font = "21px Arial, sans-serif";
-  ctx.textAlign = "center";
+  ctx.fillText(teamName, W / 2, cy);
+
+  cy += 40;
+  const pillW = 340;
+  const pillH = 30;
+  roundRect(ctx, (W - pillW) / 2, cy - pillH / 2, pillW, pillH, 15);
+  ctx.fillStyle = GREEN;
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 14px Arial, sans-serif";
+  ctx.fillText("OFFICIALLY REGISTERED TEAM", W / 2, cy);
+
+  cy += 36;
+  ctx.fillStyle = GOLD_LIGHT;
+  ctx.font = "bold 20px Arial, sans-serif";
+  ctx.fillText(`CAPTAIN: ${captainName}`, W / 2, cy);
+
+  cy += 30;
+  ctx.font = "17px Arial, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.textBaseline = "top";
-  lines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, y + msgPad + i * 30);
+  msgLines.forEach((line, i) => {
+    ctx.fillText(line, W / 2, cy + i * 24);
   });
+  ctx.textBaseline = "middle";
+  cy += msgLines.length * 24 + 28;
 
   ctx.fillStyle = GOLD;
   ctx.font = "italic 700 28px Georgia, 'Times New Roman', serif";
-  ctx.fillText("Best of luck!", W / 2, y + msgH - 40);
+  ctx.fillText("★  Best of luck!  ★", W / 2, cy);
 
-  y += msgH + 32;
-
-  ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = GREEN;
-  ctx.font = "bold 18px Arial, sans-serif";
-  ctx.fillText("SEE YOU ON", W / 2, y);
-  ctx.fillStyle = GOLD;
-  ctx.font = "900 36px Arial Black, Arial, sans-serif";
-  ctx.fillText("7TH AUGUST 2026", W / 2, y + 40);
-
-  // Footer — always inside safe area
-  const footerY = H - SAFE - 48;
-  const fw = W - SAFE * 2 - 40;
-  roundRect(ctx, (W - fw) / 2, footerY, fw, 40, 20);
-  ctx.fillStyle = GREEN;
-  ctx.fill();
+  cy += 38;
+  drawCalendarIcon(ctx, W / 2 - 110, cy, 20);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 15px Arial, sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText("AL UMER ELECTRONICS SPORTS GALA – SEASON 3", W / 2, footerY + 20);
-  drawStars(ctx, W / 2, H - SAFE + 4, 5, 6);
+  ctx.font = "bold 22px Arial, sans-serif";
+  ctx.fillText("7TH AUGUST 2026", W / 2 + 12, cy);
+
+  // Values row — inside card
+  cy += 44;
+  const values = [
+    { type: "unity", title: "UNITY", sub: "ON THE FIELD" },
+    { type: "respect", title: "RESPECT", sub: "EVERYONE" },
+    { type: "passion", title: "PASSION", sub: "IN OUR HEARTS" },
+  ];
+  const gap = cardW / 3;
+  values.forEach((v, i) => {
+    const vx = cardX + gap * i + gap / 2;
+    drawValueIcon(ctx, vx, cy, v.type);
+    ctx.fillStyle = GOLD_LIGHT;
+    ctx.font = "bold 12px Arial Black, Arial, sans-serif";
+    ctx.fillText(v.title, vx, cy + 28);
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.font = "10px Arial, sans-serif";
+    ctx.fillText(v.sub, vx, cy + 42);
+  });
+
+  // —— Footer trapezoid plaque ——
+  const fy = H - SAFE - 48;
+  const fw = 520;
+  const fh = 42;
+  ctx.beginPath();
+  ctx.moveTo((W - fw) / 2 + 20, fy);
+  ctx.lineTo((W + fw) / 2 - 20, fy);
+  ctx.lineTo((W + fw) / 2, fy + fh);
+  ctx.lineTo((W - fw) / 2, fy + fh);
+  ctx.closePath();
+  ctx.fillStyle = goldFill(ctx, (W - fw) / 2, fy, (W + fw) / 2, fy + fh);
+  ctx.fill();
+  ctx.fillStyle = "#1a1200";
+  ctx.font = "bold 28px Arial Black, Arial, sans-serif";
+  ctx.fillText("AL UMER ELECTRONICS", W / 2, fy + fh / 2);
 
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -569,7 +667,6 @@ export async function generateWelcomePost(team) {
   const safeName = teamName.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "team";
   const filename = `welcome-${safeName}.png`;
   const objectUrl = URL.createObjectURL(blob);
-
   const a = document.createElement("a");
   a.href = objectUrl;
   a.download = filename;

@@ -312,13 +312,28 @@ export default function AdminTeamsPage() {
   async function handleGeneratePost(team) {
     setGeneratingPostId(team._id);
     try {
+      // Fresh details so captain profile URL is always present
+      const res = await fetch(`/api/admin/teams/${team._id}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load team");
+      const fullTeam = data.team || team;
+      const photoUrl =
+        fullTeam?.captain?.profilePictureUrl ||
+        team.captain?.profilePictureUrl ||
+        "";
+
       await generateWelcomePost({
-        name: team.name,
-        captainName: team.captain?.name,
-        profilePictureUrl: team.captain?.profilePictureUrl,
-        captain: team.captain,
+        name: fullTeam?.name || team.name,
+        captainName: fullTeam?.captain?.name || team.captain?.name,
+        profilePictureUrl: photoUrl,
+        captain: fullTeam?.captain || team.captain,
       });
-      toast(`Welcome post downloaded for ${team.name}`, "success");
+      toast(
+        photoUrl
+          ? `Welcome post downloaded for ${fullTeam?.name || team.name}`
+          : `Post downloaded — add captain photo for ${fullTeam?.name || team.name} to show in frame`,
+        photoUrl ? "success" : "error"
+      );
     } catch (err) {
       console.error(err);
       toast(err.message || "Failed to generate post", "error");
