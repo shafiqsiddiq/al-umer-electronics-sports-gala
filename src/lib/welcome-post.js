@@ -373,54 +373,77 @@ function drawCalendarIcon(ctx, x, y, s = 18) {
   ctx.restore();
 }
 
-function drawValueIcon(ctx, cx, cy, type) {
-  const r = 22;
+function drawValueIcon(ctx, cx, cy, type, size = 56) {
+  const r = size / 2;
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 8;
+
+  // Solid gold circle badge
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 2;
+  ctx.fillStyle = goldFill(ctx, cx - r, cy - r, cx + r, cy + r);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = GOLD_LIGHT;
+  ctx.lineWidth = 3;
   ctx.stroke();
-  ctx.fillStyle = "rgba(212,175,55,0.12)";
+
+  // Dark inner plate for contrast
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 6, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(8,40,30,0.92)";
   ctx.fill();
 
   ctx.fillStyle = GOLD_LIGHT;
   ctx.strokeStyle = GOLD_LIGHT;
-  ctx.lineWidth = 1.8;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
 
   if (type === "unity") {
-    // three people dots
-    for (const dx of [-8, 0, 8]) {
+    // 3 people — clear filled shapes
+    const heads = [-12, 0, 12];
+    for (const dx of heads) {
       ctx.beginPath();
-      ctx.arc(cx + dx, cy - 5, 3.5, 0, Math.PI * 2);
+      ctx.arc(cx + dx, cy - 8, 5.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx + dx, cy + 6, 5, Math.PI, 0);
-      ctx.stroke();
+      ctx.ellipse(cx + dx, cy + 8, 8, 7, 0, Math.PI, 0);
+      ctx.fill();
     }
   } else if (type === "respect") {
-    // simple trophy cup
+    // Trophy
     ctx.beginPath();
-    ctx.moveTo(cx - 7, cy - 6);
-    ctx.lineTo(cx + 7, cy - 6);
-    ctx.lineTo(cx + 5, cy + 4);
-    ctx.lineTo(cx - 5, cy + 4);
+    ctx.moveTo(cx - 11, cy - 10);
+    ctx.lineTo(cx + 11, cy - 10);
+    ctx.quadraticCurveTo(cx + 13, cy + 2, cx, cy + 8);
+    ctx.quadraticCurveTo(cx - 13, cy + 2, cx - 11, cy - 10);
     ctx.closePath();
     ctx.fill();
-    ctx.fillRect(cx - 2, cy + 4, 4, 5);
-    ctx.fillRect(cx - 6, cy + 9, 12, 3);
+    // handles
+    ctx.beginPath();
+    ctx.arc(cx - 11, cy - 2, 6, Math.PI * 0.2, Math.PI * 1.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx + 11, cy - 2, 6, -Math.PI * 0.2, Math.PI * 0.8, true);
+    ctx.stroke();
+    ctx.fillRect(cx - 3, cy + 8, 6, 6);
+    ctx.fillRect(cx - 10, cy + 14, 20, 4);
   } else {
-    // star
+    // Star — larger & filled
     ctx.beginPath();
     for (let j = 0; j < 5; j++) {
       const a = (j * 4 * Math.PI) / 5 - Math.PI / 2;
-      const px = cx + Math.cos(a) * 9;
-      const py = cy + Math.sin(a) * 9;
+      const px = cx + Math.cos(a) * 14;
+      const py = cy + Math.sin(a) * 14;
       if (j === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     }
     ctx.closePath();
     ctx.fill();
   }
+  ctx.restore();
 }
 
 /**
@@ -536,7 +559,7 @@ export async function generateWelcomePost(team) {
   const msgLines = wrapText(ctx, msg, cardW - pad * 2).slice(0, 3);
 
   const cardH =
-    36 + 52 + 40 + 36 + 30 + msgLines.length * 24 + 28 + 38 + 38 + 88 + 28;
+    36 + 52 + 40 + 36 + 30 + msgLines.length * 24 + 28 + 38 + 38 + 120 + 28;
   const cardTop = baseY + 36;
   const cardY = Math.min(cardTop, H - SAFE - 56 - cardH);
 
@@ -621,23 +644,25 @@ export async function generateWelcomePost(team) {
   ctx.font = "bold 22px Arial, sans-serif";
   ctx.fillText("7TH AUGUST 2026", W / 2 + 12, cy);
 
-  // Values row — inside card
-  cy += 44;
+  // Values row — large sharp icons + clear labels
+  cy += 50;
   const values = [
     { type: "unity", title: "UNITY", sub: "ON THE FIELD" },
     { type: "respect", title: "RESPECT", sub: "EVERYONE" },
     { type: "passion", title: "PASSION", sub: "IN OUR HEARTS" },
   ];
   const gap = cardW / 3;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
   values.forEach((v, i) => {
     const vx = cardX + gap * i + gap / 2;
-    drawValueIcon(ctx, vx, cy, v.type);
+    drawValueIcon(ctx, vx, cy, v.type, 58);
     ctx.fillStyle = GOLD_LIGHT;
-    ctx.font = "bold 12px Arial Black, Arial, sans-serif";
-    ctx.fillText(v.title, vx, cy + 28);
-    ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.font = "10px Arial, sans-serif";
-    ctx.fillText(v.sub, vx, cy + 42);
+    ctx.font = "900 16px Arial Black, Arial, sans-serif";
+    ctx.fillText(v.title, vx, cy + 44);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 13px Arial, sans-serif";
+    ctx.fillText(v.sub, vx, cy + 62);
   });
 
   // —— Footer trapezoid plaque ——
