@@ -331,27 +331,35 @@ function drawPhoto(ctx, img, cx, cy, size, letter) {
 }
 
 function drawLogoCircle(ctx, logo, cx, cy, size = 70) {
-  const r = size / 2;
+  // Rounded white badge — shows full rectangular logo (contain fit)
+  const w = size * 1.35;
+  const h = size;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+
   ctx.save();
-  ctx.shadowColor = "rgba(255,255,255,0.5)";
-  ctx.shadowBlur = 20;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 14;
+  roundRect(ctx, x - 4, y - 4, w + 8, h + 8, 14);
+  ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.shadowBlur = 0;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = "#fff";
-  ctx.fill();
-  ctx.clip();
-  if (logo) ctx.drawImage(logo, cx - r, cy - r, size, size);
-  ctx.restore();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 1, 0, Math.PI * 2);
+
+  roundRect(ctx, x - 4, y - 4, w + 8, h + 8, 14);
   ctx.strokeStyle = GOLD;
   ctx.lineWidth = 2.5;
   ctx.stroke();
+
+  if (logo && logo.width > 0) {
+    const pad = 8;
+    const maxW = w - pad * 2;
+    const maxH = h - pad * 2;
+    const scale = Math.min(maxW / logo.width, maxH / logo.height);
+    const dw = logo.width * scale;
+    const dh = logo.height * scale;
+    ctx.drawImage(logo, cx - dw / 2, cy - dh / 2, dw, dh);
+  }
+  ctx.restore();
 }
 
 function drawCalendarIcon(ctx, x, y, s = 18) {
@@ -459,7 +467,9 @@ export async function generateWelcomePost(team) {
     loadImage("/cricket_stadium.png").catch(() =>
       loadImage("/cricket_stadium_desktop.png").catch(() => null)
     ),
-    loadImage("/al_umer_electronics_logo.png").catch(() => null),
+    loadImage("/al_umer_electronics_logo_v2.png").catch(() =>
+      loadImage("/al_umer_electronics_logo.png").catch(() => null)
+    ),
     loadProfileImage(photoUrl),
   ]);
 
@@ -499,25 +509,18 @@ export async function generateWelcomePost(team) {
   ctx.textBaseline = "middle";
 
   // —— Logo ——
-  let y = 55;
+  let y = 48;
   if (logo) {
-    drawLogoCircle(ctx, logo, W / 2, y + 35, 70);
-    y += 82;
+    drawLogoCircle(ctx, logo, W / 2, y + 42, 88);
+    y += 140; // more space below logo
   }
 
-  // —— AL UMER / ELECTRONICS (white) ——
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 36px Arial Black, Arial, sans-serif";
-  ctx.shadowColor = "rgba(0,0,0,0.5)";
-  ctx.shadowBlur = 6;
-  ctx.fillText("AL UMER", W / 2, y);
-  y += 38;
-  ctx.font = "900 32px Arial Black, Arial, sans-serif";
-  ctx.fillText("ELECTRONICS", W / 2, y);
-  ctx.shadowBlur = 0;
+  // —— AL UMER ELECTRONICS (same 3D gold as SPORTS GALA, 60px) ——
+  const brand = "AL UMER ELECTRONICS";
+  drawGold3DText(ctx, brand, W / 2, y, 60, W - SAFE * 2);
 
   // —— SPORTS GALA (3D gold) ——
-  y += 48;
+  y += 72;
   drawGold3DText(ctx, "SPORTS GALA", W / 2, y, 64, W - 80);
 
   // —— SEASON 3 with gold lines ——
@@ -543,12 +546,12 @@ export async function generateWelcomePost(team) {
   drawGreenShield(ctx, W - 100, photoCy, 0.92, true);
   drawPhoto(ctx, profile, W / 2, photoCy, photoSize, teamName.charAt(0) || "T");
 
-  // Bats + balls at base of circle
+  // Bats + balls — extra space below photo ring
   const baseY = photoCy + photoSize / 2;
-  drawBall(ctx, 220, baseY - 8, 24);
-  drawBall(ctx, W - 220, baseY - 8, 24);
-  drawBat(ctx, 175, baseY + 18, 0.55, -1.15);
-  drawBat(ctx, W - 175, baseY + 18, 0.55, 1.15);
+  drawBall(ctx, 220, baseY + 36, 24);
+  drawBall(ctx, W - 220, baseY + 36, 24);
+  drawBat(ctx, 175, baseY + 62, 0.55, -1.15);
+  drawBat(ctx, W - 175, baseY + 62, 0.55, 1.15);
 
   // —— Dark green info card ——
   const cardX = SAFE + 16;
@@ -559,8 +562,8 @@ export async function generateWelcomePost(team) {
   const msgLines = wrapText(ctx, msg, cardW - pad * 2).slice(0, 3);
 
   const cardH =
-    36 + 52 + 40 + 36 + 30 + msgLines.length * 24 + 28 + 38 + 38 + 120 + 28;
-  const cardTop = baseY + 36;
+    36 + 56 + 58 + 52 + 34 + msgLines.length * 24 + 28 + 38 + 38 + 142 + 28;
+  const cardTop = baseY + 88;
   const cardY = Math.min(cardTop, H - SAFE - 56 - cardH);
 
   // Card with double gold border + corner accents
@@ -603,13 +606,13 @@ export async function generateWelcomePost(team) {
   ctx.font = "900 42px Arial Black, Arial, sans-serif";
   ctx.fillText("★  WELCOME  ★", W / 2, cy);
 
-  cy += 52;
+  cy += 56;
   const nSize = fitText(ctx, teamName, cardW - pad * 2, 46, 22);
   ctx.font = `900 ${nSize}px Arial Black, Impact, Arial, sans-serif`;
   ctx.fillStyle = "#ffffff";
   ctx.fillText(teamName, W / 2, cy);
 
-  cy += 40;
+  cy += 58;
   const pillW = 340;
   const pillH = 30;
   roundRect(ctx, (W - pillW) / 2, cy - pillH / 2, pillW, pillH, 15);
@@ -619,12 +622,12 @@ export async function generateWelcomePost(team) {
   ctx.font = "bold 14px Arial, sans-serif";
   ctx.fillText("OFFICIALLY REGISTERED TEAM", W / 2, cy);
 
-  cy += 36;
+  cy += 52;
   ctx.fillStyle = GOLD_LIGHT;
   ctx.font = "bold 20px Arial, sans-serif";
   ctx.fillText(`CAPTAIN: ${captainName}`, W / 2, cy);
 
-  cy += 30;
+  cy += 34;
   ctx.font = "17px Arial, sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.textBaseline = "top";
@@ -644,8 +647,8 @@ export async function generateWelcomePost(team) {
   ctx.font = "bold 22px Arial, sans-serif";
   ctx.fillText("7TH AUGUST 2026", W / 2 + 12, cy);
 
-  // Values row — large sharp icons + clear labels
-  cy += 50;
+  // Values row — extra space above icons
+  cy += 72;
   const values = [
     { type: "unity", title: "UNITY", sub: "ON THE FIELD" },
     { type: "respect", title: "RESPECT", sub: "EVERYONE" },
