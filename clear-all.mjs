@@ -2,12 +2,14 @@ import { createClient } from "@sanity/client";
 
 const client = createClient({
   projectId: "bubodoq1",
-  dataset: "production",
+  dataset: process.env.SANITY_DATASET || "development",
   apiVersion: "2024-01-01",
   useCdn: false,
   token:
     "skKCBPX9mGj0F0ZOFik5hf1IG7gAB35O2JdL1ucWD2ma5kTof82DEfhMUcbiOOEpuOMReOrbFb29XRdbmXJceN3VAOlJBzdANfxWuYY5IL1Ph7rECKdB3tJFewL8ujt2Gd0q8n6myufyhua5ecQBgFA1tfTYN2d1WMRlWNvZsy58gwWERrqN",
 });
+
+console.log(`Clearing dataset: ${client.config().dataset}`);
 
 const BATCH = 50;
 

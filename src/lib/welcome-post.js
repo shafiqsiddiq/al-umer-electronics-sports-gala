@@ -455,11 +455,12 @@ function drawValueIcon(ctx, cx, cy, type, size = 56) {
 }
 
 /**
- * @param {{ name: string, captainName?: string, profilePictureUrl?: string, captain?: object }} team
+ * @param {{ name: string, captainName?: string, sponsorName?: string, profilePictureUrl?: string, captain?: object }} team
  */
 export async function generateWelcomePost(team) {
   const teamName = (team.name || "TEAM").trim().toUpperCase();
   const captainName = (team.captainName || team.captain?.name || "—").trim().toUpperCase();
+  const sponsorName = (team.sponsorName || "").trim().toUpperCase();
   const displayName = (team.name || teamName).trim();
   const photoUrl = team.profilePictureUrl || team.captain?.profilePictureUrl || "";
 
@@ -562,7 +563,18 @@ export async function generateWelcomePost(team) {
   const msgLines = wrapText(ctx, msg, cardW - pad * 2).slice(0, 3);
 
   const cardH =
-    36 + 56 + 58 + 52 + 34 + msgLines.length * 24 + 28 + 38 + 38 + 142 + 28;
+    36 +
+    56 +
+    58 +
+    52 +
+    34 +
+    (sponsorName ? 30 : 0) +
+    msgLines.length * 24 +
+    28 +
+    38 +
+    38 +
+    142 +
+    28;
   const cardTop = baseY + 88;
   const cardY = Math.min(cardTop, H - SAFE - 56 - cardH);
 
@@ -626,6 +638,13 @@ export async function generateWelcomePost(team) {
   ctx.fillStyle = GOLD_LIGHT;
   ctx.font = "bold 20px Arial, sans-serif";
   ctx.fillText(`CAPTAIN: ${captainName}`, W / 2, cy);
+
+  if (sponsorName) {
+    cy += 30;
+    ctx.fillStyle = "rgba(255,233,160,0.92)";
+    ctx.font = "bold 17px Arial, sans-serif";
+    ctx.fillText(`SPONSOR: ${sponsorName}`, W / 2, cy);
+  }
 
   cy += 34;
   ctx.font = "17px Arial, sans-serif";

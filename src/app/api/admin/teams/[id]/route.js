@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
+import { isValidVillage } from "@/lib/villages";
 
 const TEAM_QUERY = `*[_type == "team" && _id == $id][0]{
-  _id, name, section, status, wins, losses, points, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
+  _id, name, sponsorName, village, section, status, wins, losses, points, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
   "entryFeeImageUrl": entryFeeImage.asset->url,
   "playerCount": count(players),
   "captain": captain->{
@@ -46,6 +47,14 @@ async function parsePatchBody(request) {
     return {
       action: get("action"),
       name: get("name"),
+      sponsorName:
+        formData.get("sponsorName") == null
+          ? undefined
+          : String(formData.get("sponsorName")),
+      village:
+        formData.get("village") == null
+          ? undefined
+          : String(formData.get("village")),
       section: get("section"),
       status: get("status"),
       newPassword: get("newPassword"),
@@ -79,6 +88,8 @@ export async function PATCH(request, { params }) {
   const {
     action,
     name,
+    sponsorName,
+    village,
     section,
     status,
     newPassword,
@@ -190,6 +201,8 @@ export async function PATCH(request, { params }) {
 
   if (
     name !== undefined ||
+    sponsorName !== undefined ||
+    village !== undefined ||
     section !== undefined ||
     status !== undefined ||
     whatsapp !== undefined ||
@@ -330,7 +343,21 @@ export async function PATCH(request, { params }) {
 
     const updates = {};
     if (name !== undefined) updates.name = name;
-    if (section !== undefined) updates.section = section;
+    if (sponsorName !== undefined) updates.sponsorName = String(sponsorName).trim();
+    if (village !== undefined) {
+      const trimmedVillage = String(village).trim();
+      if (trimmedVillage && !isValidVillage(trimmedVillage)) {
+        return NextResponse.json(
+          { error: "Please select a valid village from the list" },
+          { status: 400 }
+        );
+      }
+      updates.village = trimmedVillage;
+    }
+    if (section !== undefined) {
+      updates.section = section;
+      updates.newEntry = section === "knockout";
+    }
     if (status !== undefined) updates.status = status;
     if (entryFeePaid !== undefined) updates.entryFeePaid = Number(entryFeePaid);
     if (entryFeeReceivedBy !== undefined) {

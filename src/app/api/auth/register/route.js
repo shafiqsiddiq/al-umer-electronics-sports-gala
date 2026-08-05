@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { writeClient } from "@/lib/sanity";
 import { createToken } from "@/lib/auth";
+import { resolveTeamSection } from "@/lib/tournament-logic";
+import { isValidVillage } from "@/lib/villages";
 
 function safeFilename(prefix, value, ext = "jpg") {
   const slug = String(value || "file").replace(/[^a-z0-9]/gi, "").slice(0, 40) || "file";
@@ -23,11 +25,20 @@ export async function POST(request) {
     const whatsapp = formData.get("whatsapp");
     const password = formData.get("password");
     const teamName = formData.get("teamName");
+    const sponsorName = String(formData.get("sponsorName") || "").trim();
+    const village = String(formData.get("village") || "").trim();
     const profilePicture = formData.get("profilePicture");
     const entryFeeImage = formData.get("entryFeeImage");
 
     if (!captainName || !whatsapp || !password || !teamName) {
       return NextResponse.json({ error: "All required fields must be filled" }, { status: 400 });
+    }
+
+    if (!isValidVillage(village)) {
+      return NextResponse.json(
+        { error: "Please select a valid village from the list" },
+        { status: 400 }
+      );
     }
 
     const digits = String(whatsapp).replace(/\D/g, "");
@@ -66,6 +77,9 @@ export async function POST(request) {
     const teamId = `team.${crypto.randomUUID()}`;
     const captainId = `captain.${crypto.randomUUID()}`;
 
+    const existingTeamCount = await writeClient.fetch(`count(*[_type == "team"])`);
+    const { section, newEntry } = resolveTeamSection(existingTeamCount);
+
     const [passwordHash, profileAsset, entryFeeAsset] = await Promise.all([
       bcrypt.hash(password, 8),
       uploadImage(profilePicture, safeFilename("captain-profile", digits)),
@@ -80,7 +94,10 @@ export async function POST(request) {
         _id: teamId,
         _type: "team",
         name: teamName,
-        section: "unassigned",
+        ...(sponsorName ? { sponsorName } : {}),
+        village,
+        section,
+        newEntry,
         status: "pending",
         players: [],
         wins: 0,

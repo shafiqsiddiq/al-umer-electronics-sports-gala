@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Camera } from "lucide-react";
 import { compressImage } from "@/lib/compress-image";
+import { VILLAGES } from "@/lib/villages";
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending" },
@@ -20,6 +21,7 @@ const SECTION_OPTIONS = [
   { value: "A", label: "Group A" },
   { value: "B", label: "Group B" },
   { value: "C", label: "Group C" },
+  { value: "knockout", label: "Knockout" },
 ];
 
 const RECEIVED_BY_OPTIONS = [
@@ -37,6 +39,8 @@ const inputClass =
 
 const emptyForm = {
   name: "",
+  sponsorName: "",
+  village: "",
   captainName: "",
   section: "unassigned",
   status: "pending",
@@ -67,6 +71,8 @@ export default function TeamEditModal({ team, mode = "edit", onClose, onSaved })
 
     setForm({
       name: team.name || "",
+      sponsorName: team.sponsorName || "",
+      village: team.village || "",
       captainName: team.captain?.name || "",
       section: team.section || "unassigned",
       status: team.status || "pending",
@@ -143,6 +149,8 @@ export default function TeamEditModal({ team, mode = "edit", onClose, onSaved })
 
       if (isCreate) {
         formData.append("teamName", form.name.trim());
+        formData.append("sponsorName", form.sponsorName.trim());
+        formData.append("village", form.village.trim());
         formData.append("captainName", form.captainName.trim());
         formData.append("whatsapp", form.whatsapp);
         formData.append("password", form.password);
@@ -168,6 +176,8 @@ export default function TeamEditModal({ team, mode = "edit", onClose, onSaved })
         onClose();
       } else {
         formData.append("name", form.name.trim());
+        formData.append("sponsorName", form.sponsorName.trim());
+        formData.append("village", form.village.trim());
         formData.append("captainName", form.captainName.trim());
         formData.append("section", form.section);
         formData.append("status", form.status);
@@ -299,6 +309,40 @@ export default function TeamEditModal({ team, mode = "edit", onClose, onSaved })
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className={inputClass}
                   />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">
+                    Team Sponsor{" "}
+                    <span className="font-normal text-zinc-400">(optional)</span>
+                  </label>
+                  <input
+                    value={form.sponsorName}
+                    onChange={(e) =>
+                      setForm({ ...form, sponsorName: e.target.value })
+                    }
+                    className={inputClass}
+                    placeholder="Sponsor name (if any)"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-sm font-medium">Village</label>
+                  <select
+                    value={form.village}
+                    onChange={(e) =>
+                      setForm({ ...form, village: e.target.value })
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">Select village</option>
+                    {VILLAGES.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                    {form.village && !VILLAGES.includes(form.village) && (
+                      <option value={form.village}>{form.village}</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">Group</label>

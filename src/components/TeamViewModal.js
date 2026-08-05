@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  MapPin,
 } from "lucide-react";
 
 function Avatar({ src, alt, size = 40, ring = false }) {
@@ -102,6 +103,7 @@ function DocThumb({ src, label, onOpen }) {
 
 function sectionLabel(section) {
   if (!section || section === "unassigned") return "Unassigned";
+  if (section === "knockout") return "Knockout";
   if (["A", "B", "C"].includes(section)) return `Group ${section}`;
   return String(section).replace(/_/g, " ");
 }
@@ -169,6 +171,16 @@ export default function TeamViewModal({ team, onClose }) {
                 <p className="text-sm text-emerald-50/90">
                   {team.captain?.name || "—"} · Captain
                 </p>
+                {team.sponsorName ? (
+                  <p className="mt-0.5 text-xs text-emerald-100/80">
+                    Sponsor: {team.sponsorName}
+                  </p>
+                ) : null}
+                {team.village ? (
+                  <p className="mt-0.5 text-xs text-emerald-100/80">
+                    Village: {team.village}
+                  </p>
+                ) : null}
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                     {sectionLabel(team.section)}
@@ -223,6 +235,9 @@ export default function TeamViewModal({ team, onClose }) {
               <div className="space-y-2.5">
                 <InfoRow icon={Phone} label="WhatsApp" value={whatsapp} />
                 <InfoRow icon={Mail} label="Email" value={team.captain?.email} />
+                {team.village ? (
+                  <InfoRow icon={MapPin} label="Village" value={team.village} />
+                ) : null}
               </div>
             </section>
 

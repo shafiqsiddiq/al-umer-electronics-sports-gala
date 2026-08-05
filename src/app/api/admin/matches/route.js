@@ -19,8 +19,28 @@ export async function GET(request) {
 
   query += ` | order(section asc, round asc, matchNumber asc) {
     _id, section, round, matchNumber, bracketType, status,
-    team1Score, team2Score, venue,
-    team1->{ _id, name }, team2->{ _id, name }, winner->{ _id, name }
+    team1Score, team2Score, venue, scheduledAt,
+    team1->{
+      _id, name,
+      captain->{
+        _id, name,
+        "profilePictureUrl": profilePicture.asset->url
+      }
+    },
+    team2->{
+      _id, name,
+      captain->{
+        _id, name,
+        "profilePictureUrl": profilePicture.asset->url
+      }
+    },
+    winner->{
+      _id, name,
+      captain->{
+        _id, name,
+        "profilePictureUrl": profilePicture.asset->url
+      }
+    }
   }`;
 
   const matches = await writeClient.fetch(query, { statuses: statusFilter?.split(",") });

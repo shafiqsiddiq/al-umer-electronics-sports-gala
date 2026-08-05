@@ -71,7 +71,12 @@ export default function AdminDashboard() {
 
       if (!res.ok) throw new Error(data.error || "Failed to generate losers bracket");
 
-      toast("Generated " + data.matchesCreated + " loser bracket matches!", "success");
+      const ab = data.created?.loserAb?.matchesCreated ?? 0;
+      const ko = data.created?.knockout?.matchesCreated ?? 0;
+      toast(
+        `Second-chance pools ready — Loser AB: ${ab || "—"} matches, Knockout: ${ko || "—"}.`,
+        "success"
+      );
       setConfirmLosers(false);
       await loadStats();
     } catch (err) {
@@ -87,8 +92,8 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/tournament/generate-final-eight", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate Final 8");
-      toast(`Final 8 generated! ${data.matchesCreated} matches created.`, "success");
+      if (!res.ok) throw new Error(data.error || "Failed to generate Top 16");
+      toast(`Top 16 generated! ${data.matchesCreated} matches created.`, "success");
       await loadStats();
     } catch (err) {
       toast(err.message, "error");
@@ -118,15 +123,15 @@ export default function AdminDashboard() {
       tone: "from-emerald-500 to-teal-600 shadow-emerald-500/25",
     },
     {
-      label: "Generate Loser Pool",
-      desc: "Second Chance · R1 losers bracket",
+      label: "Generate Loser AB / Knockout",
+      desc: "A+B losers pool + C knockout (when R1 done)",
       icon: ShieldAlert,
       onClick: () => setConfirmLosers(true),
       tone: "from-amber-500 to-orange-600 shadow-amber-500/25",
     },
     {
-      label: "Generate Final 8",
-      desc: "Super 8 quarter-finals onward",
+      label: "Generate Top 16",
+      desc: "R16 → quarters → semis → final",
       icon: Medal,
       onClick: () => setConfirmFinalEight(true),
       tone: "from-sky-500 to-teal-600 shadow-sky-500/25",
@@ -281,9 +286,9 @@ export default function AdminDashboard() {
 
       <ConfirmModal
         isOpen={confirmLosers}
-        title="Generate Loser Pool"
-        message="Are you sure you want to generate the Second Chance (Loser) bracket matches? This requires all Round 1 matches to be completed."
-        confirmText="Generate Losers"
+        title="Generate Loser AB / Knockout"
+        message="Generates Loser AB (after A+B Round 1) and/or Knockout Group (after C Round 1). Existing matches in those pools will be replaced."
+        confirmText="Generate Pools"
         cancelText="Cancel"
         onConfirm={executeGenerateLosers}
         onCancel={() => setConfirmLosers(false)}
@@ -293,9 +298,9 @@ export default function AdminDashboard() {
 
       <ConfirmModal
         isOpen={confirmFinalEight}
-        title="Generate Final 8 Fixtures"
-        message="Are you sure you want to generate Final 8 fixtures from the qualified teams?"
-        confirmText="Generate Final 8"
+        title="Generate Top 16 Fixtures"
+        message="Generate Top 16 fixtures from 16 qualified teams (4+4+4 from groups + 2 Loser AB + 2 Knockout)?"
+        confirmText="Generate Top 16"
         cancelText="Cancel"
         onConfirm={executeGenerateFinalEight}
         onCancel={() => setConfirmFinalEight(false)}

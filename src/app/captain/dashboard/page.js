@@ -170,9 +170,11 @@ export default function CaptainDashboard() {
   const sectionLabel =
     !team.section || team.section === "unassigned"
       ? "Unassigned"
-      : ["A", "B", "C"].includes(team.section)
-        ? `Group ${team.section}`
-        : team.section;
+      : team.section === "knockout"
+        ? "Knockout"
+        : ["A", "B", "C"].includes(team.section)
+          ? `Group ${team.section}`
+          : team.section;
 
   return (
     <div className="relative flex w-full flex-col gap-3 lg:h-[calc(100vh-7.5rem)] lg:overflow-hidden">

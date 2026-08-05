@@ -5,8 +5,10 @@ import { Trophy, Users } from "lucide-react";
 import {
   SECTIONS,
   MAIN_QUALIFIERS_PER_SECTION,
-  FINAL_EIGHT,
+  TOP_SIXTEEN,
   LOSER_QUALIFIERS,
+  LOSER_AB_QUALIFIERS,
+  KNOCKOUT_QUALIFIERS,
 } from "@/lib/tournament-logic";
 
 export default function AdminBracketsPage() {
@@ -27,8 +29,8 @@ export default function AdminBracketsPage() {
     );
   }
 
-  const top8 = summary.top8?.teams || [];
-  const emptySlots = Math.max(0, (summary.top8?.capacity || FINAL_EIGHT) - top8.length);
+  const top8 = summary.top8?.teams || summary.top16?.teams || [];
+  const emptySlots = Math.max(0, (summary.top8?.capacity || TOP_SIXTEEN) - top8.length);
 
   return (
     <div>
@@ -71,56 +73,35 @@ export default function AdminBracketsPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-          <h2 className="mb-3 font-semibold">Second Chance / Loser Pool</h2>
+          <h2 className="mb-3 font-semibold">Loser AB</h2>
           <p className="mb-1 text-xs text-zinc-400">
-            Only Round 1 losers from Groups A, B, C enter this pool.
+            Group A+B Round 1 losers (16) → 2 Top 16 spots
           </p>
           <p className="text-sm text-zinc-500">
-            Loser Pool: {summary.loserBracket?.pool || 0}
+            Pool: {summary.loserAb?.pool || 0}/16
           </p>
           <p className="text-sm text-zinc-500">
-            Qualified: {summary.loserBracket?.qualified || 0}/{LOSER_QUALIFIERS}
+            Qualifiers target: {LOSER_AB_QUALIFIERS}
           </p>
-          {(summary.loserBracket?.poolTeams || []).length > 0 && (
-            <ul className="mt-3 max-h-56 space-y-1.5 overflow-y-auto border-t border-zinc-100 pt-3 dark:border-zinc-800">
-              {summary.loserBracket.poolTeams.map((team) => (
-                <li
-                  key={team._id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-sm dark:bg-amber-950/40"
-                >
-                  <span className="truncate font-medium text-amber-900 dark:text-amber-200">
-                    {team.name}
-                  </span>
-                  <span className="shrink-0 text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400">
-                    Sec {team.fromSection}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(summary.loserBracket?.qualifiedTeams || []).length > 0 && (
-            <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Qualified from loser pool
-              </p>
-              <ul className="space-y-1.5">
-                {summary.loserBracket.qualifiedTeams.map((team) => (
-                  <li
-                    key={team._id}
-                    className="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-sm font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                  >
-                    {team.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
 
         <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+          <h2 className="mb-3 font-semibold">Knockout Group</h2>
+          <p className="mb-1 text-xs text-zinc-400">
+            Group C Round 1 losers (8) + optional new entries → 2 Top 16 spots
+          </p>
+          <p className="text-sm text-zinc-500">
+            Pool: {summary.knockout?.pool || 0}
+          </p>
+          <p className="text-sm text-zinc-500">
+            Qualifiers target: {KNOCKOUT_QUALIFIERS} (total second-chance {LOSER_QUALIFIERS})
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700 lg:col-span-2">
           <h2 className="mb-3 font-semibold">Final Stage</h2>
           <p className="text-sm text-zinc-500">
-            Teams: {summary.finalEight?.teams || 0}/{FINAL_EIGHT}
+            Teams: {summary.finalEight?.teams || 0}/{TOP_SIXTEEN}
           </p>
           <p className="text-sm text-zinc-500">
             Matches: {summary.finalEight?.matches || 0}
@@ -128,7 +109,7 @@ export default function AdminBracketsPage() {
         </div>
       </div>
 
-      {/* Top 8 Pool */}
+      {/* Top 16 Pool */}
       <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50/80 to-white dark:border-emerald-900/50 dark:from-emerald-950/30 dark:to-zinc-950">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 px-5 py-4 dark:border-emerald-900/40">
           <div className="flex items-center gap-3">
@@ -136,15 +117,15 @@ export default function AdminBracketsPage() {
               <Trophy size={20} />
             </span>
             <div>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Top 8 Pool</h2>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Top 16 Pool</h2>
               <p className="text-sm text-zinc-500">
-                Teams appear here as they qualify from each group (2 per group + 2 from loser pool)
+                4 per group A/B/C + 2 Loser AB + 2 Knockout
               </p>
             </div>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-600/10 px-3 py-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
             <Users size={14} />
-            {top8.length}/{FINAL_EIGHT} filled
+            {top8.length}/{TOP_SIXTEEN} filled
           </div>
         </div>
 

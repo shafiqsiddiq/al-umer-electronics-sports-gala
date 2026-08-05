@@ -30,6 +30,18 @@ const GROUP_META = {
     soft: "from-sky-50 to-emerald-50/40 dark:from-sky-950/40 dark:to-emerald-950/20",
     border: "border-sky-200 dark:border-sky-900/50",
   },
+  loser_ab: {
+    title: "Loser AB",
+    tone: "from-amber-500 to-orange-600",
+    soft: "from-amber-50 to-orange-50/40 dark:from-amber-950/40 dark:to-orange-950/20",
+    border: "border-amber-200 dark:border-amber-900/50",
+  },
+  knockout: {
+    title: "Knockout Group",
+    tone: "from-violet-500 to-fuchsia-600",
+    soft: "from-violet-50 to-fuchsia-50/40 dark:from-violet-950/40 dark:to-fuchsia-950/20",
+    border: "border-violet-200 dark:border-violet-900/50",
+  },
   loser: {
     title: "Second Chance",
     tone: "from-amber-500 to-orange-600",
@@ -37,7 +49,7 @@ const GROUP_META = {
     border: "border-amber-200 dark:border-amber-900/50",
   },
   final: {
-    title: "Final Stage",
+    title: "Top 16 / Final",
     tone: "from-zinc-700 to-emerald-700",
     soft: "from-zinc-50 to-emerald-50/40 dark:from-zinc-900 dark:to-emerald-950/20",
     border: "border-zinc-200 dark:border-zinc-700",
@@ -45,13 +57,20 @@ const GROUP_META = {
 };
 
 function groupKey(section) {
-  if (section === "loser" || section === "final") return section;
+  if (
+    section === "loser" ||
+    section === "loser_ab" ||
+    section === "knockout" ||
+    section === "final"
+  ) {
+    return section;
+  }
   return section;
 }
 
 export default function FixturesClient({ matches }) {
   const tabs = useMemo(() => {
-    const order = ["A", "B", "C", "loser", "final"];
+    const order = ["A", "B", "C", "loser_ab", "knockout", "loser", "final"];
     const present = new Set(matches.map((m) => groupKey(m.section)));
     return order.filter((k) => present.has(k));
   }, [matches]);
@@ -63,6 +82,11 @@ export default function FixturesClient({ matches }) {
     return matches
       .filter((m) => groupKey(m.section) === active)
       .filter((m) => (statusFilter === "all" ? true : m.status === statusFilter))
+      // Groups only play to Round 2 under the new Top-16 flow
+      .filter((m) => {
+        if (["A", "B", "C"].includes(active) && Number(m.round) >= 3) return false;
+        return true;
+      })
       .sort(
         (a, b) =>
           a.round - b.round || a.matchNumber - b.matchNumber

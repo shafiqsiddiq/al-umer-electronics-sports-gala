@@ -24,6 +24,7 @@ const SECTION_COLORS = {
   A: "#10b981",
   B: "#0d9488",
   C: "#0284c7",
+  knockout: "#8b5cf6",
   unassigned: "#71717a",
 };
 
@@ -31,6 +32,7 @@ const SECTION_LABELS = {
   A: "Group A",
   B: "Group B",
   C: "Group C",
+  knockout: "Knockout",
   unassigned: "Unassigned",
 };
 
@@ -54,7 +56,7 @@ function buildStatusChart(teams) {
 }
 
 function buildSectionChart(teams) {
-  const counts = { A: 0, B: 0, C: 0, unassigned: 0 };
+  const counts = { A: 0, B: 0, C: 0, knockout: 0, unassigned: 0 };
   for (const team of teams) {
     const key = counts[team.section] !== undefined ? team.section : "unassigned";
     counts[key] = (counts[key] || 0) + 1;

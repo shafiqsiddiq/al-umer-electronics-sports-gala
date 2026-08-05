@@ -1,25 +1,58 @@
 /**
- * Tournament structure:
- * 48 teams -> 3 groups (A,B,C) x 16 teams
- * Group R1: 16 -> 8 (8 losers to loser bracket)
- * Group R2: 8 -> 4
- * Group R3: 4 -> 2 qualifiers
- * Loser bracket: 24 teams
- *   R1: 12 matches (24 -> 12)
- *   R2: 6 matches  (12 -> 6)
- *   R3: 3 matches  (6 -> 3)
- *   Lucky draw among final 3: 1 bye to Super 8; other 2 play; winner also to Super 8
- * Final / Super 8: 8 teams (quarter -> semi -> final)
+ * Tournament structure (Season 3):
+ * 48 teams → Groups A, B, C × 16
+ *
+ * Group main:
+ *   R1: 16 → 8
+ *   R2: 8 → 4 qualifiers each → Top 16
+ *
+ * After A+B Round 1 complete:
+ *   Loser AB: 16 R1 losers (A+B) → 16→8→4→2 → 2 to Top 16
+ *
+ * After C Round 1 complete:
+ *   Knockout Group: 8 C R1 losers (+ optional new-entry teams)
+ *   → reduce to 2 → Top 16
+ *
+ * Top 16: 4+4+4+2+2 = 16
+ *   R16 → QF → SF → Final
  */
 
 export const SECTIONS = ["A", "B", "C"];
 export const TEAMS_PER_SECTION = 16;
 export const TOTAL_TEAMS = 48;
-export const MAIN_QUALIFIERS_PER_SECTION = 2; // 2 winners from round 3
-export const LOSER_QUALIFIERS = 2; 
-export const FINAL_EIGHT = 8; // Quarter finals
+export const MAIN_QUALIFIERS_PER_SECTION = 4;
+export const LOSER_AB_EXPECTED = 16; // A+B R1 losers
+export const LOSER_AB_QUALIFIERS = 2;
+export const KNOCKOUT_BASE_EXPECTED = 8; // C R1 losers
+export const KNOCKOUT_QUALIFIERS = 2;
+export const LOSER_QUALIFIERS = LOSER_AB_QUALIFIERS + KNOCKOUT_QUALIFIERS; // 4 total
+export const TOP_SIXTEEN = 16;
+/** @deprecated use TOP_SIXTEEN — kept as alias for older imports */
+export const FINAL_EIGHT = TOP_SIXTEEN;
 
-// Squads have been removed; captain registers the team alone
+export const SECTION_LOSER_AB = "loser_ab";
+export const SECTION_KNOCKOUT = "knockout";
+export const SECTION_FINAL = "final";
+
+/**
+ * Teams after the main 48 (A/B/C) go into Knockout as new entries.
+ * @param {number} existingTeamCount
+ * @param {string} [requestedSection]
+ */
+export function resolveTeamSection(existingTeamCount, requestedSection) {
+  const requested = String(requestedSection || "").trim();
+  if (requested && requested !== "unassigned") {
+    return {
+      section: requested,
+      newEntry: requested === SECTION_KNOCKOUT,
+    };
+  }
+  if (Number(existingTeamCount) >= TOTAL_TEAMS) {
+    return { section: SECTION_KNOCKOUT, newEntry: true };
+  }
+  return { section: "unassigned", newEntry: false };
+}
+
 export const MAIN_PLAYERS = 0;
 export const RESERVED_PLAYERS = 0;
 export const ADDITIONAL_MAIN_PLAYERS = 0;
@@ -57,7 +90,10 @@ export function assignTeamsToSections(teams) {
   const shuffled = shuffleArray(teams);
   const assignments = {};
   SECTIONS.forEach((section, idx) => {
-    assignments[section] = shuffled.slice(idx * TEAMS_PER_SECTION, (idx + 1) * TEAMS_PER_SECTION);
+    assignments[section] = shuffled.slice(
+      idx * TEAMS_PER_SECTION,
+      (idx + 1) * TEAMS_PER_SECTION
+    );
   });
   return assignments;
 }
@@ -74,9 +110,8 @@ export function generateKnockoutPairings(teams) {
 
 export function buildSectionFixtures(sectionTeams, section) {
   const matches = [];
-  let round1Pairings = generateKnockoutPairings(sectionTeams);
+  const round1Pairings = generateKnockoutPairings(sectionTeams);
 
-  // Round 1
   round1Pairings.forEach((pair, idx) => {
     matches.push({
       section,
@@ -113,19 +148,34 @@ export function buildSectionFixtures(sectionTeams, section) {
   return matches;
 }
 
-export function buildLoserBracketFixtures(loserTeamIds) {
-  if (loserTeamIds.length !== 24) {
-    throw new Error(`Expected 24 loser bracket teams, got ${loserTeamIds.length}`);
+/**
+ * Generic knockout pool: pair teams each round until `qualifiers` winners remain.
+ * Odd counts get a bye — leftover team is seeded into Round 2 Match 1.
+ */
+export function buildReduceToQualifiersFixtures(
+  teamIds,
+  { section, bracketType = "loser", qualifiers = 2 }
+) {
+  if (!Array.isArray(teamIds) || teamIds.length < qualifiers) {
+    throw new Error(
+      `Expected at least ${qualifiers} teams for ${section}, got ${teamIds?.length ?? 0}`
+    );
+  }
+  if (teamIds.length === qualifiers) {
+    return [];
   }
 
   const matches = [];
-  const shuffled = shuffleArray(loserTeamIds);
+  const shuffled = shuffleArray([...teamIds].filter(Boolean));
+  let round = 1;
+  let remaining = shuffled.length;
 
-  // Round 1: 12 matches (24 -> 12)
-  for (let i = 0; i < 12; i++) {
+  // Round 1 with assigned teams
+  const r1Count = Math.floor(remaining / 2);
+  for (let i = 0; i < r1Count; i++) {
     matches.push({
-      section: "loser",
-      bracketType: "loser",
+      section,
+      bracketType,
       round: 1,
       matchNumber: i + 1,
       team1Id: shuffled[i * 2],
@@ -133,61 +183,118 @@ export function buildLoserBracketFixtures(loserTeamIds) {
     });
   }
 
-  // Round 2: 6 matches (12 -> 6)
-  for (let i = 0; i < 6; i++) {
-    matches.push({
-      section: "loser",
-      bracketType: "loser",
-      round: 2,
-      matchNumber: i + 1,
-      team1Id: null,
-      team2Id: null,
-      placeholder: true,
-    });
-  }
+  // Odd team gets a bye into Round 2
+  const byeTeamId = remaining % 2 === 1 ? shuffled[remaining - 1] : null;
+  remaining = r1Count + (byeTeamId ? 1 : 0);
 
-  // Round 3: 3 matches (6 -> 3)
-  for (let i = 0; i < 3; i++) {
-    matches.push({
-      section: "loser",
-      bracketType: "loser",
-      round: 3,
-      matchNumber: i + 1,
-      team1Id: null,
-      team2Id: null,
-      placeholder: true,
-    });
+  while (remaining > qualifiers) {
+    round++;
+    const matchCount = Math.floor(remaining / 2);
+    for (let i = 0; i < matchCount; i++) {
+      const fixture = {
+        section,
+        bracketType,
+        round,
+        matchNumber: i + 1,
+        team1Id: null,
+        team2Id: null,
+        placeholder: true,
+      };
+      // Seed bye into first slot of Round 2 Match 1
+      if (round === 2 && i === 0 && byeTeamId) {
+        fixture.team1Id = byeTeamId;
+      }
+      matches.push(fixture);
+    }
+    remaining = matchCount + (remaining % 2);
   }
 
   return matches;
 }
 
-export function buildFinalEightFixtures(qualifiedTeamIds) {
-  if (qualifiedTeamIds.length !== FINAL_EIGHT) {
-    throw new Error(`Expected ${FINAL_EIGHT} teams for final stage, got ${qualifiedTeamIds.length}`);
+/** Loser AB: 16 teams from Group A+B R1 losers → 2 qualifiers */
+export function buildLoserAbFixtures(loserTeamIds) {
+  if (loserTeamIds.length !== LOSER_AB_EXPECTED) {
+    throw new Error(
+      `Expected ${LOSER_AB_EXPECTED} Loser AB teams, got ${loserTeamIds.length}`
+    );
+  }
+  return buildReduceToQualifiersFixtures(loserTeamIds, {
+    section: SECTION_LOSER_AB,
+    bracketType: "loser",
+    qualifiers: LOSER_AB_QUALIFIERS,
+  });
+}
+
+/**
+ * Knockout Group: Group C R1 losers (8) + optional new-entry team ids → 2 qualifiers
+ */
+export function buildKnockoutGroupFixtures(teamIds) {
+  if (teamIds.length < KNOCKOUT_QUALIFIERS) {
+    throw new Error(
+      `Expected at least ${KNOCKOUT_QUALIFIERS} Knockout teams, got ${teamIds.length}`
+    );
+  }
+  return buildReduceToQualifiersFixtures(teamIds, {
+    section: SECTION_KNOCKOUT,
+    bracketType: "loser",
+    qualifiers: KNOCKOUT_QUALIFIERS,
+  });
+}
+
+/** @deprecated use buildLoserAbFixtures — kept for older callers expecting 24 */
+export function buildLoserBracketFixtures(loserTeamIds) {
+  if (loserTeamIds.length === LOSER_AB_EXPECTED) {
+    return buildLoserAbFixtures(loserTeamIds);
+  }
+  return buildReduceToQualifiersFixtures(loserTeamIds, {
+    section: "loser",
+    bracketType: "loser",
+    qualifiers: 2,
+  });
+}
+
+export function buildTopSixteenFixtures(qualifiedTeamIds) {
+  if (qualifiedTeamIds.length !== TOP_SIXTEEN) {
+    throw new Error(
+      `Expected ${TOP_SIXTEEN} teams for Top 16, got ${qualifiedTeamIds.length}`
+    );
   }
 
   const shuffled = shuffleArray(qualifiedTeamIds);
   const matches = [];
 
-  // Quarter finals
-  for (let i = 0; i < 4; i++) {
+  // Round of 16
+  for (let i = 0; i < 8; i++) {
     matches.push({
-      section: "final",
-      bracketType: "quarter",
+      section: SECTION_FINAL,
+      bracketType: "round16",
       round: 1,
       matchNumber: i + 1,
       team1Id: shuffled[i * 2],
       team2Id: shuffled[i * 2 + 1],
+    });
+  }
+
+  // Quarter finals
+  for (let i = 0; i < 4; i++) {
+    matches.push({
+      section: SECTION_FINAL,
+      bracketType: "quarter",
+      round: 2,
+      matchNumber: i + 1,
+      team1Id: null,
+      team2Id: null,
+      placeholder: true,
     });
   }
 
   // Semi finals
   for (let i = 0; i < 2; i++) {
     matches.push({
-      section: "final",
+      section: SECTION_FINAL,
       bracketType: "semi",
-      round: 2,
+      round: 3,
       matchNumber: i + 1,
       team1Id: null,
       team2Id: null,
@@ -197,9 +304,9 @@ export function buildFinalEightFixtures(qualifiedTeamIds) {
 
   // Final
   matches.push({
-    section: "final",
+    section: SECTION_FINAL,
     bracketType: "final",
-    round: 3,
+    round: 4,
     matchNumber: 1,
     team1Id: null,
     team2Id: null,
@@ -209,33 +316,82 @@ export function buildFinalEightFixtures(qualifiedTeamIds) {
   return matches;
 }
 
-export function getNextMainMatchQuery(section, round, matchNumber) {
-  if (round === 1) {
-    const nextMatchNum = Math.ceil(matchNumber / 2);
-    return { round: 2, matchNumber: nextMatchNum };
+/** @deprecated use buildTopSixteenFixtures */
+export function buildFinalEightFixtures(qualifiedTeamIds) {
+  return buildTopSixteenFixtures(qualifiedTeamIds);
+}
+
+export function getNextMainMatchQuery(_section, round, matchNumber) {
+  const teamsEntering = TEAMS_PER_SECTION / 2 ** (round - 1);
+  const winnersFromRound = teamsEntering / 2;
+  if (winnersFromRound > MAIN_QUALIFIERS_PER_SECTION) {
+    return { round: round + 1, matchNumber: Math.ceil(matchNumber / 2) };
   }
-  if (round === 2) {
-    const nextMatchNum = Math.ceil(matchNumber / 2);
-    return { round: 3, matchNumber: nextMatchNum };
+  return null; // this round's winners qualify to Top 16
+}
+
+/** Next match inside a reduce-to-N pool (even sizes assumed for wiring). */
+export function getPoolNextMatch(round, matchNumber, startingSize, qualifiers = 2) {
+  let size = startingSize;
+  let r = 1;
+  while (size > qualifiers) {
+    const matchCount = Math.floor(size / 2);
+    if (r === round) {
+      const nextSize = matchCount + (size % 2);
+      if (nextSize <= qualifiers) return null;
+      return { round: round + 1, matchNumber: Math.ceil(matchNumber / 2) };
+    }
+    size = matchCount + (size % 2);
+    r++;
   }
   return null;
 }
 
+export function getLoserAbNextMatch(round, matchNumber) {
+  return getPoolNextMatch(round, matchNumber, LOSER_AB_EXPECTED, LOSER_AB_QUALIFIERS);
+}
+
+export function getKnockoutNextMatch(round, matchNumber, startingSize = KNOCKOUT_BASE_EXPECTED) {
+  return getPoolNextMatch(round, matchNumber, startingSize, KNOCKOUT_QUALIFIERS);
+}
+
+/** @deprecated legacy single loser pool (24→2 via lucky draw path) */
 export function getLoserNextMatch(round, matchNumber) {
-  // R1 (12) → R2 (6) → R3 (3). After R3: lucky draw, then R4 playoff for 2nd qualifier.
-  if (round === 1) return { round: 2, matchNumber: Math.ceil(matchNumber / 2) };
-  if (round === 2) return { round: 3, matchNumber: Math.ceil(matchNumber / 2) };
-  if (round === 3) return null; // Lucky draw among 3 winners
-  if (round === 4) return null; // Winner qualifies to Super 8
-  return null;
+  // Prefer Loser AB wiring when called without section
+  return getLoserAbNextMatch(round, matchNumber);
 }
 
 export function getFinalNextMatch(bracketType, matchNumber) {
+  if (bracketType === "round16") {
+    return {
+      bracketType: "quarter",
+      round: 2,
+      matchNumber: Math.ceil(matchNumber / 2),
+    };
+  }
   if (bracketType === "quarter") {
-    return { bracketType: "semi", round: 2, matchNumber: Math.ceil(matchNumber / 2) };
+    return {
+      bracketType: "semi",
+      round: 3,
+      matchNumber: Math.ceil(matchNumber / 2),
+    };
   }
   if (bracketType === "semi") {
-    return { bracketType: "final", round: 3, matchNumber: 1 };
+    return { bracketType: "final", round: 4, matchNumber: 1 };
   }
   return null;
+}
+
+export function isLoserPoolSection(section) {
+  return section === SECTION_LOSER_AB || section === SECTION_KNOCKOUT || section === "loser";
+}
+
+/**
+ * Odd pool round: W winners but next round only has W-1 slots (N matches × 2).
+ * One team needs a spinner bye into the round after next.
+ */
+export function poolRoundNeedsByeSpin(winnerCount, nextRoundMatchCount) {
+  if (!nextRoundMatchCount || winnerCount < 1) return false;
+  const slots = nextRoundMatchCount * 2;
+  return winnerCount === slots + 1;
 }

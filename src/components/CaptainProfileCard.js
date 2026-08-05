@@ -84,9 +84,11 @@ export default function CaptainProfileCard({
   const sectionLabel =
     !team?.section || team.section === "unassigned"
       ? "Unassigned"
-      : ["A", "B", "C"].includes(team.section)
-        ? `Group ${team.section}`
-        : team.section.replace(/_/g, " ");
+      : team.section === "knockout"
+        ? "Knockout"
+        : ["A", "B", "C"].includes(team.section)
+          ? `Group ${team.section}`
+          : team.section.replace(/_/g, " ");
 
   return (
     <div

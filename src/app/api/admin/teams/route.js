@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
+import { resolveTeamSection } from "@/lib/tournament-logic";
+import { isValidVillage } from "@/lib/villages";
 
 function safeFilename(prefix, value, ext = "jpg") {
   const slug =
@@ -26,8 +28,8 @@ export async function GET() {
   }
 
   const teams = await writeClient.fetch(`
-    *[_type == "team"] | order(_createdAt desc) {
-      _id, name, section, status, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
+    *[_type == "team"] | order(coalesce(entryFeePaid, 0) desc, name asc) {
+      _id, name, sponsorName, village, section, status, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
       "playerCount": count(players),
       "entryFeeImageUrl": entryFeeImage.asset->url,
       "captain": captain->{
@@ -54,13 +56,15 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const teamName = String(formData.get("teamName") || "").trim();
+    const sponsorName = String(formData.get("sponsorName") || "").trim();
+    const village = String(formData.get("village") || "").trim();
     const captainName = String(formData.get("captainName") || "").trim();
     const whatsapp = String(formData.get("whatsapp") || "").replace(/\D/g, "");
     const password = String(formData.get("password") || "");
     const fatherName = String(formData.get("fatherName") || "").trim();
     const cnic = String(formData.get("cnic") || "").trim();
     const villageOrCity = String(formData.get("villageOrCity") || "").trim();
-    const section = String(formData.get("section") || "unassigned");
+    const sectionRaw = String(formData.get("section") || "unassigned");
     const status = String(formData.get("status") || "pending");
     const entryFeePaid = Number(formData.get("entryFeePaid") || 0);
     const entryFeeReceivedBy = String(formData.get("entryFeeReceivedBy") || "").trim();
@@ -70,6 +74,13 @@ export async function POST(request) {
     if (!teamName || !captainName || !whatsapp || !password) {
       return NextResponse.json(
         { error: "Team name, captain name, WhatsApp and password are required" },
+        { status: 400 }
+      );
+    }
+
+    if (village && !isValidVillage(village)) {
+      return NextResponse.json(
+        { error: "Please select a valid village from the list" },
         { status: 400 }
       );
     }
@@ -102,7 +113,7 @@ export async function POST(request) {
       );
     }
 
-    const allowedSections = ["unassigned", "A", "B", "C"];
+    const allowedSections = ["unassigned", "A", "B", "C", "knockout"];
     const allowedStatuses = [
       "pending",
       "approved",
@@ -112,7 +123,7 @@ export async function POST(request) {
       "qualified_loser",
       "final_eight",
     ];
-    if (!allowedSections.includes(section)) {
+    if (!allowedSections.includes(sectionRaw)) {
       return NextResponse.json({ error: "Invalid group" }, { status: 400 });
     }
     if (!allowedStatuses.includes(status)) {
@@ -125,7 +136,7 @@ export async function POST(request) {
       typeof entryFeeImage.size === "number" &&
       entryFeeImage.size > 0;
 
-    const [existingWhatsapp, teamExisting] = await Promise.all([
+    const [existingWhatsapp, teamExisting, existingTeamCount] = await Promise.all([
       writeClient.fetch(
         `*[_type == "captain" && (whatsapp == $whatsapp || phone == $whatsapp)][0]._id`,
         { whatsapp }
@@ -133,6 +144,7 @@ export async function POST(request) {
       writeClient.fetch(`*[_type == "team" && name == $teamName][0]._id`, {
         teamName,
       }),
+      writeClient.fetch(`count(*[_type == "team"])`),
     ]);
 
     if (existingWhatsapp) {
@@ -152,6 +164,8 @@ export async function POST(request) {
       );
     }
 
+    const { section, newEntry } = resolveTeamSection(existingTeamCount, sectionRaw);
+
     const teamId = `team.${crypto.randomUUID()}`;
     const captainId = `captain.${crypto.randomUUID()}`;
 
@@ -169,7 +183,10 @@ export async function POST(request) {
         _id: teamId,
         _type: "team",
         name: teamName,
+        ...(sponsorName ? { sponsorName } : {}),
+        ...(village ? { village } : {}),
         section,
+        newEntry,
         status: status === "active" ? "approved" : status,
         players: [],
         wins: 0,
@@ -219,7 +236,7 @@ export async function POST(request) {
 
     const team = await writeClient.fetch(
       `*[_type == "team" && _id == $id][0]{
-        _id, name, section, status, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
+        _id, name, sponsorName, village, section, status, entryFeeVerified, entryFeeRejected, entryFeePaid, entryFeeReceivedBy,
         "playerCount": count(players),
         "entryFeeImageUrl": entryFeeImage.asset->url,
         "captain": captain->{

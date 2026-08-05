@@ -10,8 +10,15 @@ import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
 import { generateWelcomePost } from "@/lib/welcome-post";
 import { downloadExcel } from "@/lib/export-excel";
+import { VILLAGES } from "@/lib/villages";
 
 const ENTRY_FEE_TOTAL = 5000;
+
+function formatTeamSection(section) {
+  if (!section || section === "unassigned") return "Unassigned";
+  if (section === "knockout") return "Knockout";
+  return `Group ${section}`;
+}
 
 const RECEIVED_BY_OPTIONS = [
   "Usman Umer",
@@ -238,6 +245,8 @@ export default function AdminTeamsPage() {
   const [loadingTeamId, setLoadingTeamId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [generatingPostId, setGeneratingPostId] = useState(null);
+  const [generatingAllPosts, setGeneratingAllPosts] = useState(false);
+  const [allPostsProgress, setAllPostsProgress] = useState({ current: 0, total: 0 });
 
   // Reusable modal states
   const [deleteTargetTeam, setDeleteTargetTeam] = useState(null);
@@ -255,6 +264,7 @@ export default function AdminTeamsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [feeFilter, setFeeFilter] = useState("all");
   const [sectionFilter, setSectionFilter] = useState("all");
+  const [villageFilter, setVillageFilter] = useState("all");
   const [receivedByFilter, setReceivedByFilter] = useState("all");
 
   // Pagination
@@ -309,25 +319,32 @@ export default function AdminTeamsPage() {
     }
   }
 
+  async function generateTeamPost(team) {
+    const res = await fetch(`/api/admin/teams/${team._id}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load team");
+    const fullTeam = data.team || team;
+    const photoUrl =
+      fullTeam?.captain?.profilePictureUrl ||
+      team.captain?.profilePictureUrl ||
+      "";
+
+    await generateWelcomePost({
+      name: fullTeam?.name || team.name,
+      captainName: fullTeam?.captain?.name || team.captain?.name,
+      sponsorName: fullTeam?.sponsorName || team.sponsorName || "",
+      profilePictureUrl: photoUrl,
+      captain: fullTeam?.captain || team.captain,
+    });
+
+    return { fullTeam, photoUrl };
+  }
+
   async function handleGeneratePost(team) {
+    if (generatingAllPosts) return;
     setGeneratingPostId(team._id);
     try {
-      // Fresh details so captain profile URL is always present
-      const res = await fetch(`/api/admin/teams/${team._id}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load team");
-      const fullTeam = data.team || team;
-      const photoUrl =
-        fullTeam?.captain?.profilePictureUrl ||
-        team.captain?.profilePictureUrl ||
-        "";
-
-      await generateWelcomePost({
-        name: fullTeam?.name || team.name,
-        captainName: fullTeam?.captain?.name || team.captain?.name,
-        profilePictureUrl: photoUrl,
-        captain: fullTeam?.captain || team.captain,
-      });
+      const { fullTeam, photoUrl } = await generateTeamPost(team);
       toast(
         photoUrl
           ? `Welcome post downloaded for ${fullTeam?.name || team.name}`
@@ -339,6 +356,51 @@ export default function AdminTeamsPage() {
       toast(err.message || "Failed to generate post", "error");
     } finally {
       setGeneratingPostId(null);
+    }
+  }
+
+  async function handleGenerateAllPosts(teamsToGenerate) {
+    const list = teamsToGenerate || [];
+    if (generatingAllPosts || list.length === 0) return;
+
+    setGeneratingAllPosts(true);
+    setAllPostsProgress({ current: 0, total: list.length });
+    let completed = 0;
+    const failed = [];
+
+    try {
+      for (let index = 0; index < list.length; index += 1) {
+        const team = list[index];
+        setGeneratingPostId(team._id);
+        setAllPostsProgress({ current: index + 1, total: list.length });
+
+        try {
+          await generateTeamPost(team);
+          completed += 1;
+        } catch (err) {
+          console.error(`Failed to generate post for ${team.name}`, err);
+          failed.push(team.name);
+        }
+
+        // Give the browser time to start each download before the next one.
+        await new Promise((resolve) => setTimeout(resolve, 450));
+      }
+
+      if (failed.length === 0) {
+        toast(
+          `${completed} filtered team post${completed === 1 ? "" : "s"} downloaded successfully`,
+          "success"
+        );
+      } else {
+        toast(
+          `${completed} posts downloaded; ${failed.length} failed: ${failed.join(", ")}`,
+          "error"
+        );
+      }
+    } finally {
+      setGeneratingPostId(null);
+      setGeneratingAllPosts(false);
+      setAllPostsProgress({ current: 0, total: 0 });
     }
   }
 
@@ -457,6 +519,8 @@ export default function AdminTeamsPage() {
           ? {
               ...t,
               name: updatedTeam.name,
+              sponsorName: updatedTeam.sponsorName,
+              village: updatedTeam.village,
               section: updatedTeam.section,
               status: updatedTeam.status,
               entryFeeImageUrl: updatedTeam.entryFeeImageUrl,
@@ -514,34 +578,50 @@ export default function AdminTeamsPage() {
   }
 
   const query = search.trim().toLowerCase();
-  const filteredTeams = teams.filter((team) => {
-    if (
-      query &&
-      ![team.name, team.captain?.name, team.captain?.whatsapp, team.captain?.phone, team.entryFeeReceivedBy].some((v) =>
-        v?.toLowerCase().includes(query)
-      )
-    ) {
-      return false;
-    }
-    if (statusFilter !== "all" && team.status !== statusFilter) return false;
-    if (feeFilter !== "all" && feeStatusOf(team) !== feeFilter) return false;
-    if (sectionFilter !== "all" && (team.section || "unassigned") !== sectionFilter)
-      return false;
-    if (receivedByFilter !== "all") {
-      if (receivedByFilter === "unassigned") {
-        if (team.entryFeeReceivedBy) return false;
-      } else if (team.entryFeeReceivedBy !== receivedByFilter) {
+  const filteredTeams = teams
+    .filter((team) => {
+      if (
+        query &&
+        ![team.name, team.captain?.name, team.captain?.whatsapp, team.captain?.phone, team.entryFeeReceivedBy].some((v) =>
+          v?.toLowerCase().includes(query)
+        )
+      ) {
         return false;
       }
-    }
-    return true;
-  });
+      if (statusFilter !== "all" && team.status !== statusFilter) return false;
+      if (feeFilter !== "all" && feeStatusOf(team) !== feeFilter) return false;
+      if (sectionFilter !== "all" && (team.section || "unassigned") !== sectionFilter)
+        return false;
+      if (villageFilter !== "all") {
+        if (villageFilter === "unassigned") {
+          if (team.village) return false;
+        } else if (team.village !== villageFilter) {
+          return false;
+        }
+      }
+      if (receivedByFilter !== "all") {
+        if (receivedByFilter === "unassigned") {
+          if (team.entryFeeReceivedBy) return false;
+        } else if (team.entryFeeReceivedBy !== receivedByFilter) {
+          return false;
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const paidDiff = Number(b.entryFeePaid || 0) - Number(a.entryFeePaid || 0);
+      if (paidDiff !== 0) return paidDiff;
+      return String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+        sensitivity: "base",
+      });
+    });
 
   const hasActiveFilters =
     query ||
     statusFilter !== "all" ||
     feeFilter !== "all" ||
     sectionFilter !== "all" ||
+    villageFilter !== "all" ||
     receivedByFilter !== "all";
 
   const receivedByTotalPaid =
@@ -561,6 +641,7 @@ export default function AdminTeamsPage() {
     setStatusFilter("all");
     setFeeFilter("all");
     setSectionFilter("all");
+    setVillageFilter("all");
     setReceivedByFilter("all");
   }
 
@@ -570,7 +651,15 @@ export default function AdminTeamsPage() {
       return;
     }
 
-    const rows = teams.map((team, index) => {
+    const rows = [...teams]
+      .sort((a, b) => {
+        const paidDiff = Number(b.entryFeePaid || 0) - Number(a.entryFeePaid || 0);
+        if (paidDiff !== 0) return paidDiff;
+        return String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+          sensitivity: "base",
+        });
+      })
+      .map((team, index) => {
       const paid = Number(team.entryFeePaid || 0);
       let feeStatus = "Not uploaded";
       if (team.entryFeeVerified) feeStatus = "Verified";
@@ -585,6 +674,7 @@ export default function AdminTeamsPage() {
         "WhatsApp": team.captain?.whatsapp || "",
         "Phone": team.captain?.phone || "",
         "Group": team.section || "Unassigned",
+        "Village": team.village || "",
         "Status": team.status || "",
         "Paid (Rs)": paid,
         "Due (Rs)": Math.max(0, ENTRY_FEE_TOTAL - paid),
@@ -763,7 +853,33 @@ export default function AdminTeamsPage() {
                 <option value="A">Group A</option>
                 <option value="B">Group B</option>
                 <option value="C">Group C</option>
+                <option value="knockout">Knockout</option>
                 <option value="unassigned">Unassigned</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600"
+              />
+            </div>
+          </div>
+
+          <div className="w-full lg:w-auto">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400 lg:hidden">
+              Village
+            </p>
+            <div className="relative">
+              <select
+                value={villageFilter}
+                onChange={(e) => setVillageFilter(e.target.value)}
+                className={selectClass}
+              >
+                <option value="all">All Villages</option>
+                {VILLAGES.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+                <option value="unassigned">Not set</option>
               </select>
               <ChevronDown
                 size={14}
@@ -811,6 +927,7 @@ export default function AdminTeamsPage() {
           <button
             type="button"
             onClick={() => setShowRegisterModal(true)}
+            disabled={generatingAllPosts}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 lg:w-auto"
           >
             <UserPlus size={14} />
@@ -819,7 +936,24 @@ export default function AdminTeamsPage() {
 
           <button
             type="button"
+            onClick={() => handleGenerateAllPosts(filteredTeams)}
+            disabled={generatingAllPosts || filteredTeams.length === 0}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-950/50 lg:w-auto"
+          >
+            {generatingAllPosts ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <ImageDown size={14} />
+            )}
+            {generatingAllPosts
+              ? `Downloading ${allPostsProgress.current}/${allPostsProgress.total}`
+              : `Generate Posts (${filteredTeams.length}) & Download`}
+          </button>
+
+          <button
+            type="button"
             onClick={exportTeamsToExcel}
+            disabled={generatingAllPosts}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50 lg:w-auto"
           >
             <FileSpreadsheet size={14} />
@@ -852,6 +986,7 @@ export default function AdminTeamsPage() {
               <th className="rounded-tl-2xl px-5 py-3.5">Team</th>
               <th className="hidden px-4 py-3.5 xl:table-cell">Phone</th>
               <th className="hidden px-4 py-3.5 xl:table-cell">Group</th>
+              <th className="hidden px-4 py-3.5 lg:table-cell">Village</th>
               <th className="px-4 py-3.5">Paid</th>
               <th className="hidden px-4 py-3.5 lg:table-cell">Received By</th>
               <th className="px-4 py-3.5">Entry Fee</th>
@@ -897,9 +1032,12 @@ export default function AdminTeamsPage() {
                 </td>
                 <td className="hidden px-4 py-3.5 xl:table-cell">
                   <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold capitalize text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                    {!team.section || team.section === "unassigned"
-                      ? "Unassigned"
-                      : `Group ${team.section}`}
+                    {formatTeamSection(team.section)}
+                  </span>
+                </td>
+                <td className="hidden px-4 py-3.5 lg:table-cell">
+                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    {team.village || "—"}
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
@@ -1072,9 +1210,14 @@ export default function AdminTeamsPage() {
               <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
                 <span className="text-zinc-400 dark:text-zinc-500 font-medium">Group</span>
                 <span className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize text-right break-words max-w-[70%]">
-                  {!team.section || team.section === "unassigned"
-                    ? "Unassigned"
-                    : `Group ${team.section}`}
+                  {formatTeamSection(team.section)}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-0.5 border-b border-zinc-100/50 dark:border-zinc-800/30">
+                <span className="text-zinc-400 dark:text-zinc-500 font-medium">Village</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-200 text-right break-words max-w-[70%]">
+                  {team.village || "—"}
                 </span>
               </div>
 

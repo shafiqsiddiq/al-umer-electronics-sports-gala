@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" fill="none">
+  <defs>
+    <linearGradient id="ring" x1="40" y1="20" x2="180" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDE68A"/>
+      <stop offset="0.45" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#0D9488"/>
+    </linearGradient>
+    <linearGradient id="face" x1="70" y1="50" x2="150" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F2924"/>
+      <stop offset="1" stop-color="#06201B"/>
+    </linearGradient>
+    <linearGradient id="plug" x1="88" y1="108" x2="132" y2="158" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFBEB"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <filter id="soft" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- outer metal ring -->
+  <circle cx="110" cy="110" r="98" fill="#0A1412" stroke="url(#ring)" stroke-width="8"/>
+  <circle cx="110" cy="110" r="86" fill="url(#face)" stroke="#14532D" stroke-width="2"/>
+  <!-- power symbol -->
+  <path d="M110 52a42 42 0 1 1-30 12.5" stroke="url(#ring)" stroke-width="9" stroke-linecap="round" filter="url(#soft)"/>
+  <path d="M110 44v30" stroke="url(#ring)" stroke-width="9" stroke-linecap="round"/>
+  <!-- plug body -->
+  <rect x="90" y="112" width="40" height="34" rx="8" fill="url(#plug)"/>
+  <rect x="98" y="100" width="7" height="16" rx="2.5" fill="#F59E0B"/>
+  <rect x="115" y="100" width="7" height="16" rx="2.5" fill="#F59E0B"/>
+  <path d="M102 146h16v14c0 5-3.5 9-8 9s-8-4-8-9v-14z" fill="#D97706"/>
+  <!-- AU monogram -->
+  <text x="110" y="196" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="18" font-weight="900" fill="#FBBF24" letter-spacing="2">AU</text>
+</svg>

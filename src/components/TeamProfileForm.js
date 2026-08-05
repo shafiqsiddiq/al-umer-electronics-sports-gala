@@ -29,9 +29,11 @@ export default function TeamProfileForm({
   const sectionLabel =
     !team?.section || team.section === "unassigned"
       ? "Unassigned"
-      : ["A", "B", "C"].includes(team.section)
-        ? `Group ${team.section}`
-        : String(team.section).replace(/_/g, " ");
+      : team.section === "knockout"
+        ? "Knockout"
+        : ["A", "B", "C"].includes(team.section)
+          ? `Group ${team.section}`
+          : String(team.section).replace(/_/g, " ");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

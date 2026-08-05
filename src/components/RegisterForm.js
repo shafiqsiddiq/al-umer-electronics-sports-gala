@@ -14,7 +14,10 @@ import {
   UploadCloud,
   Eye,
   EyeOff,
+  Handshake,
+  MapPin,
 } from "lucide-react";
+import { VILLAGES } from "@/lib/villages";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -23,6 +26,8 @@ export default function RegisterForm() {
     whatsapp: "",
     password: "",
     teamName: "",
+    sponsorName: "",
+    village: "",
   });
   const [profilePicture, setProfilePicture] = useState(null);
   const [entryFeeImage, setEntryFeeImage] = useState(null);
@@ -53,6 +58,9 @@ export default function RegisterForm() {
     }
     if (!form.teamName || form.teamName.length < 3) {
       newErrors.teamName = "Team Name must be at least 3 characters";
+    }
+    if (!form.village) {
+      newErrors.village = "Please select your village";
     }
     if (!profilePicture) {
       newErrors.profilePicture = "Profile picture is required";
@@ -89,6 +97,10 @@ export default function RegisterForm() {
       formData.append("whatsapp", form.whatsapp);
       formData.append("password", form.password);
       formData.append("teamName", form.teamName);
+      formData.append("village", form.village);
+      if (form.sponsorName?.trim()) {
+        formData.append("sponsorName", form.sponsorName.trim());
+      }
       formData.append("profilePicture", profileOut);
       if (entryOut) formData.append("entryFeeImage", entryOut);
 
@@ -187,6 +199,42 @@ export default function RegisterForm() {
               </div>
               {errors.teamName && (
                 <p className="mt-1 text-xs text-red-500">{errors.teamName}</p>
+              )}
+            </div>
+            <div>
+              <label className={labelClass}>
+                Team Sponsor{" "}
+                <span className="font-normal text-zinc-400">(optional)</span>
+              </label>
+              <div className="relative">
+                <Handshake className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+                <input
+                  value={form.sponsorName}
+                  onChange={(e) => handleChange("sponsorName", e.target.value)}
+                  className={inputClass}
+                  placeholder="Sponsor name (if any)"
+                />
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Village *</label>
+              <div className="relative">
+                <MapPin className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+                <select
+                  value={form.village}
+                  onChange={(e) => handleChange("village", e.target.value)}
+                  className={`${inputClass} appearance-none ${errors.village ? errorInputClass : ""}`}
+                >
+                  <option value="">Select village</option>
+                  {VILLAGES.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {errors.village && (
+                <p className="mt-1 text-xs text-red-500">{errors.village}</p>
               )}
             </div>
             <div className="sm:col-span-2">
