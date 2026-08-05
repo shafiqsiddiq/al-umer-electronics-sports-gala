@@ -24,13 +24,19 @@ import {
   Trash2,
   FileDown,
   ArrowLeftRight,
+  ImageDown,
+  Clock,
 } from "lucide-react";
 import { TOP_SIXTEEN, MAIN_QUALIFIERS_PER_SECTION, TEAMS_PER_SECTION } from "@/lib/tournament-logic";
 import {
   downloadRoundSchedulePdf,
   downloadAllGroupsRound1Pdf,
   MATCH_DURATION_MINUTES,
+  SCHEDULE_START_HOUR,
+  SCHEDULE_START_MINUTE,
+  slotTime,
 } from "@/lib/match-schedule-pdf";
+import { generateMatchPost } from "@/lib/match-post";
 
 /** Match-card design tokens (clean white / green) */
 const CARD_GREEN = "#22C55E";
@@ -123,6 +129,7 @@ export default function AdminScoresPage() {
   const [confirmClearSection, setConfirmClearSection] = useState(null); // "A"|"B"|"C"
   const [clearingSection, setClearingSection] = useState(null);
   const [changeTeamsMatch, setChangeTeamsMatch] = useState(null);
+  const [generatingMatchPostId, setGeneratingMatchPostId] = useState(null);
 
   useEffect(() => {
     fetchMatches();
@@ -452,6 +459,70 @@ export default function AdminScoresPage() {
     } catch (err) {
       toast(err.message || "Failed to create PDF", "error");
     }
+  }
+
+  async function handleGenerateMatchPost(match, roundMatches) {
+    if (!match?.team1 || !match?.team2) {
+      toast("Both teams must be set before generating a post", "error");
+      return;
+    }
+    setGeneratingMatchPostId(match._id);
+    try {
+      const sorted = [...(roundMatches || [])].sort(
+        (a, b) => Number(a.matchNumber) - Number(b.matchNumber)
+      );
+      const idx = Math.max(
+        0,
+        sorted.findIndex((m) => m._id === match._id)
+      );
+      const start = slotTime(
+        SCHEDULE_START_HOUR,
+        SCHEDULE_START_MINUTE,
+        idx * MATCH_DURATION_MINUTES
+      );
+      const end = slotTime(
+        SCHEDULE_START_HOUR,
+        SCHEDULE_START_MINUTE,
+        idx * MATCH_DURATION_MINUTES + MATCH_DURATION_MINUTES
+      );
+      await generateMatchPost({
+        match,
+        startLabel: start.label,
+        endLabel: end.label,
+        timeRange: `${start.label} – ${end.label}`,
+      });
+      toast("Match post downloaded", "success");
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Failed to generate match post", "error");
+    } finally {
+      setGeneratingMatchPostId(null);
+    }
+  }
+
+  function getMatchSlot(match, roundMatches) {
+    const sorted = [...(roundMatches || [])].sort(
+      (a, b) => Number(a.matchNumber) - Number(b.matchNumber)
+    );
+    const idx = Math.max(
+      0,
+      sorted.findIndex((m) => m._id === match._id)
+    );
+    const start = slotTime(
+      SCHEDULE_START_HOUR,
+      SCHEDULE_START_MINUTE,
+      idx * MATCH_DURATION_MINUTES
+    );
+    const end = slotTime(
+      SCHEDULE_START_HOUR,
+      SCHEDULE_START_MINUTE,
+      idx * MATCH_DURATION_MINUTES + MATCH_DURATION_MINUTES
+    );
+    return {
+      startLabel: start.label,
+      endLabel: end.label,
+      timeRange: `${start.label} – ${end.label}`,
+    };
   }
 
   const tabs = [
@@ -1079,6 +1150,11 @@ export default function AdminScoresPage() {
                             ? () => setChangeTeamsMatch(match)
                             : undefined
                         }
+                        slot={getMatchSlot(match, roundMatches)}
+                        generatingPost={generatingMatchPostId === match._id}
+                        onGeneratePost={() =>
+                          handleGenerateMatchPost(match, roundMatches)
+                        }
                       />
                     ))}
                   </div>
@@ -1396,7 +1472,15 @@ function QualifierCard({
   );
 }
 
-function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
+function ScoreUpdateForm({
+  match,
+  updating,
+  onSubmit,
+  onChangeTeams,
+  slot,
+  generatingPost,
+  onGeneratePost,
+}) {
   const [team1Score, setTeam1Score] = useState(match.team1Score || "");
   const [team2Score, setTeam2Score] = useState(match.team2Score || "");
   const [winnerId, setWinnerId] = useState(match.winner?._id || "");
@@ -1466,8 +1550,30 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
         }}
       />
 
-      <div className="relative px-4 pb-3 pt-4 pl-5">
-        <div className="mb-3 flex items-center justify-center gap-2">
+      <div className="relative px-3 pb-3 pt-3 pl-4 sm:px-4 sm:pl-5 sm:pt-4">
+        {/* Time row — full width so badges don't overlap chips */}
+        {(slot?.startLabel || slot?.endLabel) && (
+          <div className="mb-2 flex items-center justify-between gap-2">
+            {slot?.startLabel ? (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-400 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-zinc-900 shadow-sm sm:px-2.5">
+                <Clock size={10} />
+                {slot.startLabel}
+              </span>
+            ) : (
+              <span />
+            )}
+            {slot?.endLabel ? (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-700 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:px-2.5">
+                <Clock size={10} />
+                {slot.endLabel}
+              </span>
+            ) : (
+              <span />
+            )}
+          </div>
+        )}
+
+        <div className="mb-2.5 flex flex-wrap items-center justify-center gap-1.5 sm:mb-3 sm:gap-2">
           <span
             className="rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white"
             style={{ background: CARD_GREEN }}
@@ -1488,24 +1594,36 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
               Change
             </button>
           )}
+          {onGeneratePost && match.team1 && match.team2 && (
+            <button
+              type="button"
+              disabled={generatingPost}
+              onClick={onGeneratePost}
+              className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
+              title="Download VS match post"
+            >
+              <ImageDown size={10} />
+              {generatingPost ? "…" : "Post"}
+            </button>
+          )}
         </div>
 
         <div className="text-center">
           <p
-            className="text-[13px] font-black uppercase tracking-[0.06em] sm:text-[14px]"
+            className="text-[12px] font-black uppercase tracking-[0.04em] sm:text-[14px] sm:tracking-[0.06em]"
             style={{ color: CARD_NAVY }}
           >
             Al Umer Electronics
           </p>
           <p
-            className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.28em]"
+            className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.2em] sm:text-[10px] sm:tracking-[0.28em]"
             style={{ color: CARD_GREEN }}
           >
             Sports Gala S3
           </p>
         </div>
 
-        <div className="relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+        <div className="relative mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-0.5 sm:mt-5 sm:items-center sm:gap-1">
           <TeamAvatar
             name={t1Name}
             captainName={t1Captain}
@@ -1523,10 +1641,10 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
             }
           />
 
-          <div className="relative z-10 flex h-24 w-16 items-center justify-center self-center">
-            <div className="flex h-[3.6rem] w-[3.6rem] items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-100">
+          <div className="relative z-10 flex h-20 w-11 items-center justify-center self-center sm:h-24 sm:w-16">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 sm:h-[3.6rem] sm:w-[3.6rem]">
               <span
-                className="text-lg font-black tracking-tight sm:text-xl"
+                className="text-base font-black tracking-tight sm:text-xl"
                 style={{ color: CARD_GREEN }}
               >
                 VS
@@ -1552,10 +1670,10 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
           />
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
-          <CalendarClock size={12} style={{ color: CARD_GREEN }} />
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-0.5 sm:mt-4">
+          <CalendarClock size={12} className="shrink-0" style={{ color: CARD_GREEN }} />
           <p
-            className="text-[11px] font-semibold tracking-wide"
+            className="max-w-full text-center text-[10px] font-semibold tracking-wide sm:text-[11px]"
             style={{ color: CARD_NAVY }}
           >
             {metaLine}
@@ -1571,13 +1689,13 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
         </div>
       </div>
 
-      <div className="relative px-4 pb-4 pt-1">
+      <div className="relative px-3 pb-4 pt-1 sm:px-4">
         {isCompleted && !isEditing ? (
           <div className="space-y-2">
             {/* Saved scores on card */}
             <div className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 px-2 py-2 ring-1 ring-slate-200">
               <div className="min-w-0 flex-1 text-center">
-                <p className="truncate text-[9px] font-bold uppercase text-slate-400">
+                <p className="line-clamp-2 break-words text-[9px] font-bold uppercase leading-tight text-slate-400">
                   {t1Name}
                 </p>
                 <p
@@ -1587,9 +1705,9 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
                   {match.team1Score || "—"}
                 </p>
               </div>
-              <span className="text-xs font-bold text-slate-300">vs</span>
+              <span className="shrink-0 text-xs font-bold text-slate-300">vs</span>
               <div className="min-w-0 flex-1 text-center">
-                <p className="truncate text-[9px] font-bold uppercase text-slate-400">
+                <p className="line-clamp-2 break-words text-[9px] font-bold uppercase leading-tight text-slate-400">
                   {t2Name}
                 </p>
                 <p
@@ -1629,18 +1747,18 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
               </p>
             )}
 
-            <div className="mx-auto grid w-full max-w-[17rem] grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+            <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:items-center sm:gap-2.5">
               <ScoreField
                 label={t1Name}
                 value={team1Score}
                 onChange={setTeam1Score}
                 active={winnerId === match.team1?._id}
               />
-              <div className="flex flex-col items-center gap-0.5 px-0.5">
+              <div className="flex flex-col items-center gap-0.5 px-0.5 pt-1 sm:pt-0">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-200">
                   <ShieldPlus size={13} className="text-slate-400" />
                 </div>
-                <p className="max-w-[3.75rem] text-center text-[8px] font-medium leading-tight text-slate-400">
+                <p className="w-12 text-center text-[8px] font-medium leading-tight text-slate-400 sm:w-14">
                   {winnerId
                     ? isEditing
                       ? "Save"
@@ -1712,15 +1830,16 @@ function ScoreUpdateForm({ match, updating, onSubmit, onChangeTeams }) {
 function ScoreField({ label, value, onChange, active }) {
   return (
     <div
-      className={`rounded-xl bg-white px-1.5 py-1.5 transition ${
+      className={`min-w-0 rounded-xl bg-white px-2 py-2 transition sm:px-2.5 ${
         active
           ? "shadow-[0_0_0_1.5px_rgba(34,197,94,0.5)]"
           : "shadow-[inset_0_0_0_1px_#e2e8f0]"
       }`}
     >
       <p
-        className="mb-0.5 truncate text-center text-[8px] font-bold uppercase tracking-wide"
+        className="mb-1 line-clamp-2 break-words text-center text-[9px] font-bold uppercase leading-tight tracking-wide sm:text-[10px]"
         style={{ color: CARD_MUTED }}
+        title={label}
       >
         {label}
       </p>
@@ -1728,7 +1847,7 @@ function ScoreField({ label, value, onChange, active }) {
         placeholder="0/0"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-transparent py-0.5 text-center text-sm font-black tabular-nums outline-none placeholder:text-slate-300"
+        className="w-full bg-transparent py-0.5 text-center text-base font-black tabular-nums outline-none placeholder:text-slate-300 sm:text-sm"
         style={{ color: CARD_NAVY }}
       />
     </div>
@@ -1756,13 +1875,13 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
     <Comp
       type={onSelect ? "button" : undefined}
       onClick={onSelect}
-      className={`min-w-0 rounded-xl px-0.5 py-1 transition ${
+      className={`min-w-0 w-full rounded-xl px-0.5 py-1 transition ${
         onSelect ? "cursor-pointer hover:-translate-y-0.5" : ""
       }`}
     >
-      <div className="flex flex-col items-center text-center">
+      <div className="flex w-full flex-col items-center text-center">
         <p
-          className={`mb-2 w-full truncate text-[12px] font-black uppercase tracking-wide ${
+          className={`mb-2 w-full px-0.5 text-[10px] font-black uppercase leading-tight tracking-wide line-clamp-2 break-words sm:text-[12px] ${
             isTbd ? "italic text-slate-300" : ""
           }`}
           style={{ color: isTbd ? undefined : CARD_NAVY }}
@@ -1771,19 +1890,19 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
           {name}
         </p>
 
-        <div className="relative flex flex-col items-center">
-          {/* Soft dashed rings */}
+        <div className="relative flex w-full flex-col items-center">
+          {/* Soft dashed rings — smaller on mobile */}
           <div
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[2.4rem] h-[6.6rem] w-[6.6rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-200"
+            className="pointer-events-none absolute left-1/2 top-[2rem] h-[5.4rem] w-[5.4rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-200 sm:top-[2.4rem] sm:h-[6.6rem] sm:w-[6.6rem]"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[2.4rem] h-[5.7rem] w-[5.7rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-100"
+            className="pointer-events-none absolute left-1/2 top-[2rem] h-[4.7rem] w-[4.7rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-100 sm:top-[2.4rem] sm:h-[5.7rem] sm:w-[5.7rem]"
           />
 
           <div
-            className="relative h-[5.1rem] w-[5.1rem] rounded-full p-[3px]"
+            className="relative h-[4.25rem] w-[4.25rem] rounded-full p-[2.5px] sm:h-[5.1rem] sm:w-[5.1rem] sm:p-[3px]"
             style={{
               background: showWin
                 ? `linear-gradient(135deg, #86efac, ${CARD_GREEN}, #16a34a)`
@@ -1811,7 +1930,7 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
 
           {showWin && (
             <span
-              className="absolute -right-1 top-0 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase text-white shadow"
+              className="absolute right-0 top-0 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase text-white shadow sm:-right-1"
               style={{ background: CARD_GREEN }}
             >
               {isWinner ? "Winner" : "Win"}
@@ -1819,7 +1938,7 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
           )}
 
           <div
-            className="relative z-10 mt-2 max-w-[7.5rem] truncate rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm sm:text-[10px]"
+            className="relative z-10 mt-2 w-full max-w-[9.5rem] rounded-full px-2 py-1 text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-sm line-clamp-2 break-words sm:max-w-[11rem] sm:px-3 sm:text-[10px]"
             style={{
               background: isTbd ? "#94a3b8" : CARD_GREEN,
             }}
