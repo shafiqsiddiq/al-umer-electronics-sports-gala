@@ -88,6 +88,11 @@ export default function Footer() {
                   Open Ban List
                 </Link>
               </li>
+              <li>
+                <Link href="/umpire-panel" className="text-zinc-500 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400 transition-colors">
+                  Umpire Panel
+                </Link>
+              </li>
             </ul>
           </div>
 
