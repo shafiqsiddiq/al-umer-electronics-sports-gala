@@ -110,8 +110,8 @@ function ExpenseBarChart({ totals }) {
       },
       plotOptions: {
         bar: {
-          borderRadius: 3,
-          columnWidth: "7%",
+          borderRadius: 4,
+          columnWidth: "28%",
           distributed: true,
           dataLabels: { position: "top" },
         },
@@ -557,7 +557,7 @@ export default function ExpensesPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 dark:border-zinc-800">
             <h2 className="text-sm font-bold text-zinc-900 dark:text-white">
               Main Expenses
             </h2>
@@ -567,27 +567,91 @@ export default function ExpensesPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300"
             >
               <FileSpreadsheet size={13} />
-              Export to Excel
+              <span className="sm:hidden">Excel</span>
+              <span className="hidden sm:inline">Export to Excel</span>
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left text-sm">
-              <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[14%]" />
-                <col className="w-[16%]" />
-                <col className="w-[16%]" />
-                <col className="w-[16%]" />
-                <col className="w-[10%]" />
-              </colgroup>
+
+          {/* Mobile cards */}
+          <div className="divide-y divide-zinc-100 md:hidden dark:divide-zinc-800">
+            {filtered.map((expense) => {
+              const pending = Number(expense.pendingAmount || 0);
+              return (
+                <div key={expense._id} className="space-y-3 p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm font-bold leading-snug text-zinc-900 dark:text-white">
+                        {expense.name}
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium text-zinc-500">
+                        {expense.date
+                          ? new Date(expense.date).toLocaleDateString()
+                          : "No date"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(expense)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+                        title="Edit"
+                        aria-label="Edit expense"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTarget(expense)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 dark:bg-red-950/40"
+                        title="Delete"
+                        aria-label="Delete expense"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-zinc-50 px-2 py-2 dark:bg-zinc-900/60">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-400">
+                        Total
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-bold tabular-nums leading-tight text-zinc-800 dark:text-zinc-100">
+                        {money(expense.totalCost)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-50 px-2 py-2 dark:bg-emerald-950/30">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-600/80">
+                        Advance
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-bold tabular-nums leading-tight text-emerald-700 dark:text-emerald-300">
+                        {money(expense.advance)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 px-2 py-2 dark:bg-amber-950/30">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-amber-600/80">
+                        Pending
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-bold tabular-nums leading-tight text-amber-700 dark:text-amber-300">
+                        {money(pending)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
                 <tr>
-                  <th className="px-3 py-2 font-semibold">Expense Name</th>
-                  <th className="px-3 py-2 font-semibold">Date</th>
-                  <th className="px-3 py-2 font-semibold">Total</th>
-                  <th className="px-3 py-2 font-semibold">Advance</th>
-                  <th className="px-3 py-2 font-semibold">Pending</th>
-                  <th className="px-3 py-2 text-right font-semibold">Actions</th>
+                  <th className="px-3 py-2.5 font-semibold">Expense Name</th>
+                  <th className="px-3 py-2.5 font-semibold">Date</th>
+                  <th className="px-3 py-2.5 font-semibold">Total</th>
+                  <th className="px-3 py-2.5 font-semibold">Advance</th>
+                  <th className="px-3 py-2.5 font-semibold">Pending</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -598,24 +662,24 @@ export default function ExpensesPage() {
                       key={expense._id}
                       className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                     >
-                      <td className="truncate px-3 py-2 font-semibold text-zinc-900 dark:text-white">
-                        {expense.name}
+                      <td className="max-w-[220px] px-3 py-2.5 font-semibold text-zinc-900 dark:text-white">
+                        <span className="line-clamp-2">{expense.name}</span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500">
                         {expense.date
                           ? new Date(expense.date).toLocaleDateString()
                           : "—"}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
                         {money(expense.totalCost)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
                         {money(expense.advance)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300">
                         {money(pending)}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
@@ -646,7 +710,7 @@ export default function ExpensesPage() {
 
       {/* Extra Expenses */}
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-3 py-2.5 dark:border-zinc-800">
+        <div className="flex flex-col gap-3 border-b border-zinc-100 px-3 py-3 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-zinc-900 dark:text-white">
               Extra Expenses
@@ -658,19 +722,20 @@ export default function ExpensesPage() {
               </span>
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={exportExtraExpenses}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-bold text-sky-700 transition hover:bg-sky-100 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2 text-xs font-bold text-sky-700 transition hover:bg-sky-100 sm:flex-none dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300"
             >
               <FileSpreadsheet size={13} />
-              Export to Excel
+              <span className="sm:hidden">Excel</span>
+              <span className="hidden sm:inline">Export to Excel</span>
             </button>
             <button
               type="button"
               onClick={openCreateExtra}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-sky-500"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-sky-500 sm:flex-none"
             >
               <Plus size={13} />
               Add Extra
@@ -685,62 +750,106 @@ export default function ExpensesPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-left text-sm">
-              <colgroup>
-                <col className="w-[28%]" />
-                <col className="w-[18%]" />
-                <col className="w-[44%]" />
-                <col className="w-[10%]" />
-              </colgroup>
-              <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
-                <tr>
-                  <th className="px-3 py-2 font-semibold">Expense Name</th>
-                  <th className="px-3 py-2 font-semibold">Amount</th>
-                  <th className="px-3 py-2 font-semibold">Note</th>
-                  <th className="px-3 py-2 text-right font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {extras.map((item) => (
-                  <tr
-                    key={item._id}
-                    className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
-                  >
-                    <td className="truncate px-3 py-2 font-semibold text-zinc-900 dark:text-white">
-                      {item.name}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-xs font-bold tabular-nums text-sky-700 dark:text-sky-300">
+          <>
+            {/* Mobile cards */}
+            <div className="divide-y divide-zinc-100 md:hidden dark:divide-zinc-800">
+              {extras.map((item) => (
+                <div key={item._id} className="space-y-2.5 p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm font-bold leading-snug text-zinc-900 dark:text-white">
+                        {item.name}
+                      </p>
+                      {item.notes ? (
+                        <p className="mt-1 break-words text-[11px] leading-relaxed text-zinc-500">
+                          {item.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditExtra(item)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+                        title="Edit"
+                        aria-label="Edit extra expense"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteExtraTarget(item)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition hover:bg-red-100 dark:bg-red-950/40"
+                        title="Delete"
+                        aria-label="Delete extra expense"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="inline-flex rounded-lg bg-sky-50 px-2.5 py-1.5 dark:bg-sky-950/30">
+                    <p className="text-sm font-bold tabular-nums text-sky-700 dark:text-sky-300">
                       {money(item.amount)}
-                    </td>
-                    <td className="truncate px-3 py-2 text-xs text-zinc-500">
-                      {item.notes || "—"}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openEditExtra(item)}
-                          className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
-                          title="Edit"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteExtraTarget(item)}
-                          className="rounded-md p-1.5 text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/30"
-                          title="Delete"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead className="border-b border-zinc-100 bg-zinc-50/80 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
+                  <tr>
+                    <th className="px-3 py-2.5 font-semibold">Expense Name</th>
+                    <th className="px-3 py-2.5 font-semibold">Amount</th>
+                    <th className="px-3 py-2.5 font-semibold">Note</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {extras.map((item) => (
+                    <tr
+                      key={item._id}
+                      className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+                    >
+                      <td className="max-w-[200px] px-3 py-2.5 font-semibold text-zinc-900 dark:text-white">
+                        <span className="line-clamp-2">{item.name}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs font-bold tabular-nums text-sky-700 dark:text-sky-300">
+                        {money(item.amount)}
+                      </td>
+                      <td className="max-w-[240px] px-3 py-2.5 text-xs text-zinc-500">
+                        <span className="line-clamp-2">{item.notes || "—"}</span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditExtra(item)}
+                            className="rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
+                            title="Edit"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteExtraTarget(item)}
+                            className="rounded-md p-1.5 text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/30"
+                            title="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
