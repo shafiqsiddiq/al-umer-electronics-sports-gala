@@ -37,6 +37,7 @@ import {
   slotTime,
 } from "@/lib/match-schedule-pdf";
 import { generateMatchPost } from "@/lib/match-post";
+import { generateTop4Post } from "@/lib/top4-post";
 
 /** Match-card design tokens (clean white / green) */
 const CARD_GREEN = "#22C55E";
@@ -130,6 +131,7 @@ export default function AdminScoresPage() {
   const [clearingSection, setClearingSection] = useState(null);
   const [changeTeamsMatch, setChangeTeamsMatch] = useState(null);
   const [generatingMatchPostId, setGeneratingMatchPostId] = useState(null);
+  const [generatingTop4, setGeneratingTop4] = useState(false);
 
   useEffect(() => {
     fetchMatches();
@@ -634,6 +636,36 @@ export default function AdminScoresPage() {
     return uniqueFromMatches.slice(0, MAIN_QUALIFIERS_PER_SECTION);
   })();
   const groupTop4Empty = Math.max(0, MAIN_QUALIFIERS_PER_SECTION - groupTop4.length);
+
+  async function handleGenerateTop4Post() {
+    if (!["A", "B", "C"].includes(activeTab)) return;
+    if (groupTop4.length === 0) {
+      toast("No Top 4 teams yet — complete Round 2 matches first", "error");
+      return;
+    }
+    setGeneratingTop4(true);
+    try {
+      await generateTop4Post({
+        group: activeTab,
+        teams: groupTop4.map((t) => ({
+          ...t,
+          captain: {
+            ...t.captain,
+            name: t.captain?.name || "",
+            profilePictureUrl:
+              t.captain?.profilePictureUrl ||
+              teamPortrait(t.name, t.captain?.name || ""),
+          },
+        })),
+      });
+      toast(`Group ${activeTab} Top 4 post downloaded`, "success");
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Failed to generate Top 4 post", "error");
+    } finally {
+      setGeneratingTop4(false);
+    }
+  }
 
   const knockoutR1Matches = matches.filter(
     (m) => m.section === "knockout" && Number(m.round) === 1
@@ -1165,20 +1197,31 @@ export default function AdminScoresPage() {
 
               {/* Groups A/B/C: Top 4 qualifiers (no Round 3) */}
               {["A", "B", "C"].includes(activeTab) && (
-                <div className="rounded-[1.5rem] border border-emerald-100 bg-gradient-to-b from-emerald-50/60 to-white p-4 shadow-sm">
-                  <div className="mb-3 flex items-center gap-3">
-                    <h2 className="text-base font-black tracking-tight text-zinc-800 dark:text-zinc-100">
+                <div className="rounded-[1.5rem] border border-emerald-200/80 bg-gradient-to-b from-emerald-50/80 via-white to-white p-4 shadow-sm sm:p-5">
+                  <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                    <h2 className="text-base font-black tracking-tight text-zinc-800 dark:text-zinc-100 sm:text-lg">
                       Group {activeTab} · Top 4
                     </h2>
                     <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-bold text-white">
                       {groupTop4.length}/{MAIN_QUALIFIERS_PER_SECTION} qualified
                     </span>
-                    <div className="h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent" />
+                    <div className="hidden h-px flex-1 bg-gradient-to-r from-emerald-200 to-transparent sm:block" />
+                    <button
+                      type="button"
+                      disabled={generatingTop4 || groupTop4.length === 0}
+                      onClick={handleGenerateTop4Post}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto"
+                    >
+                      <ImageDown size={14} />
+                      {generatingTop4
+                        ? "Generating…"
+                        : "Generate Top 4 Post"}
+                    </button>
                   </div>
-                  <p className="mb-3 text-xs text-zinc-500">
+                  <p className="mb-4 text-xs text-zinc-500">
                     Round 2 winners advance straight to Top 16 — no Round 3.
                   </p>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
                     {groupTop4.map((team, i) => (
                       <QualifierCard
                         key={team._id}
@@ -1356,14 +1399,14 @@ function QualifierCard({
 
   if (empty) {
     return (
-      <div className="relative flex min-h-[210px] flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-emerald-200 bg-gradient-to-b from-emerald-50/40 to-white px-3 py-5">
+      <div className="relative flex min-h-[280px] flex-col items-center justify-center overflow-hidden rounded-[1.5rem] border border-dashed border-emerald-200 bg-gradient-to-b from-emerald-50/40 to-white px-3 py-6 sm:min-h-[320px]">
         <span
-          className="mb-3 flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white"
+          className="mb-4 flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-white"
           style={{ background: "#94a3b8" }}
         >
           #{rank}
         </span>
-        <div className="mb-3 h-16 w-16 rounded-full border-2 border-dashed border-slate-200 bg-slate-50" />
+        <div className="mb-4 h-24 w-24 rounded-full border-2 border-dashed border-slate-200 bg-slate-50 sm:h-28 sm:w-28" />
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
           Waiting R2
         </p>
@@ -1372,8 +1415,7 @@ function QualifierCard({
   }
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-[1.5rem] border border-emerald-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
-      {/* Soft green wash */}
+    <div className="relative flex min-h-[280px] flex-col overflow-hidden rounded-[1.5rem] border border-emerald-200 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.07)] sm:min-h-[320px]">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -1383,7 +1425,7 @@ function QualifierCard({
         }}
       />
 
-      <div className="relative px-3 pb-3.5 pt-3">
+      <div className="relative flex flex-1 flex-col px-3 pb-4 pt-3">
         <div className="flex items-center justify-between gap-2">
           <span
             className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-black text-white shadow-md"
@@ -1392,14 +1434,14 @@ function QualifierCard({
             #{rank}
           </span>
           <span
-            className="rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white"
+            className="rounded-md px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-white"
             style={{ background: CARD_NAVY }}
           >
             Top 16
           </span>
         </div>
 
-        <div className="mt-3 flex flex-col items-center text-center">
+        <div className="mt-2 flex flex-1 flex-col items-center text-center">
           <p
             className="text-[8px] font-bold uppercase tracking-[0.28em]"
             style={{ color: CARD_GREEN }}
@@ -1407,23 +1449,28 @@ function QualifierCard({
             Al Umer · Gala S3
           </p>
           <p
-            className="mt-1 w-full truncate text-[13px] font-black uppercase tracking-wide"
+            className="mt-1 line-clamp-2 w-full px-0.5 text-[12px] font-black uppercase leading-tight tracking-wide sm:text-[13px]"
             style={{ color: CARD_NAVY }}
             title={teamName}
           >
             {teamName}
           </p>
 
-          <div className="relative mt-3">
+          {/* Larger portrait + dashed rings */}
+          <div className="relative mt-3 flex h-[7.5rem] w-[7.5rem] items-center justify-center sm:mt-4 sm:h-[8.75rem] sm:w-[8.75rem]">
             <div
               aria-hidden
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[5.6rem] w-[5.6rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-emerald-200"
+              className="pointer-events-none absolute inset-0 rounded-full border-2 border-dashed border-emerald-300/70"
             />
             <div
-              className="relative h-[4.6rem] w-[4.6rem] rounded-full p-[3px]"
+              aria-hidden
+              className="pointer-events-none absolute inset-2 rounded-full border border-dashed border-emerald-200/80"
+            />
+            <div
+              className="relative h-[5.75rem] w-[5.75rem] rounded-full p-[3px] sm:h-[6.75rem] sm:w-[6.75rem]"
               style={{
                 background: `linear-gradient(135deg, #86efac, ${CARD_GREEN}, #16a34a)`,
-                boxShadow: "0 8px 20px rgba(34,197,94,0.3)",
+                boxShadow: "0 8px 22px rgba(34,197,94,0.32)",
               }}
             >
               <div className="h-full w-full overflow-hidden rounded-full bg-slate-100 ring-2 ring-white">
@@ -1438,7 +1485,7 @@ function QualifierCard({
           </div>
 
           <span
-            className="mt-2.5 rounded-full px-2.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white"
+            className="mt-3 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-wide text-white sm:mt-3.5"
             style={{ background: CARD_GREEN }}
           >
             Qualified
@@ -1446,18 +1493,20 @@ function QualifierCard({
 
           {captainName ? (
             <p
-              className="mt-2 w-full truncate text-[10px] font-bold uppercase tracking-wide"
+              className="mt-2 w-full truncate text-[11px] font-bold uppercase tracking-wide"
               style={{ color: CARD_NAVY }}
             >
               {captainName}
               <span className="ml-1 font-semibold text-slate-400">(C)</span>
             </p>
           ) : (
-            <p className="mt-2 text-[10px] font-medium text-slate-400">Captain TBA</p>
+            <p className="mt-2 text-[10px] font-medium text-slate-400">
+              Captain TBA
+            </p>
           )}
 
-          <div className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5">
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
+          <div className="mt-auto flex flex-wrap items-center justify-center gap-1.5 pt-3">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
               Group {group}
             </span>
             {(wins != null || points != null) && (
