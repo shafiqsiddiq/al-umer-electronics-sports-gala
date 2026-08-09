@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import AdminSidebar from "@/components/AdminSidebar";
+import CricketLoader from "@/components/CricketLoader";
 import { useToast } from "@/context/ToastContext";
 import {
   Shield,
@@ -231,11 +232,7 @@ export default function AdminLayout({ children }) {
   }, []);
 
   if (authState === "loading") {
-    return (
-      <div className="flex min-h-[calc(100vh-120px)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
+    return <CricketLoader fullscreen label="Loading admin…" />;
   }
 
   if (authState === "guest") {

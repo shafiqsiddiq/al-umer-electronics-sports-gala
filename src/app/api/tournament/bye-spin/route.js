@@ -6,6 +6,7 @@ import {
   poolRoundNeedsByeSpin,
   shuffleArray,
 } from "@/lib/tournament-logic";
+import { getPoolBye, setPoolBye, clearPoolBye } from "@/lib/pool-bye";
 
 async function resolveByeSpinForSection(section) {
   if (!isLoserPoolSection(section)) {
@@ -28,7 +29,7 @@ async function resolveByeSpinForSection(section) {
   return { needsSpinner: false, teams: [], section };
 }
 
-async function checkRoundByeSpin(section, fromRound) {
+async function fetchEnteringTeams(section, fromRound) {
   const roundMatches = await writeClient.fetch(
     `*[_type == "match" && section == $section && round == $fromRound] | order(matchNumber asc) {
       _id, status, matchNumber,
@@ -38,20 +39,63 @@ async function checkRoundByeSpin(section, fromRound) {
   );
 
   if (!roundMatches.length) {
-    return { needsSpinner: false, teams: [] };
+    return { allDone: false, winners: [], entering: [], winnerIds: [] };
   }
 
   const allDone = roundMatches.every(
     (m) => m.status === "completed" && m.winner?._id
   );
   if (!allDone) {
-    return { needsSpinner: false, teams: [] };
+    return { allDone: false, winners: [], entering: [], winnerIds: [] };
   }
 
   const winners = roundMatches.map((m) => m.winner).filter(Boolean);
   const winnerIds = winners.map((w) => w._id);
   const playRound = fromRound + 1;
-  const byeRound = fromRound + 2;
+  const joinBye = await getPoolBye(section, playRound);
+
+  let joinByeTeam = null;
+  if (joinBye?.teamId && !winnerIds.includes(joinBye.teamId)) {
+    joinByeTeam = await writeClient.fetch(
+      `*[_type == "team" && _id == $id][0]{ _id, name, captainName }`,
+      { id: joinBye.teamId }
+    );
+  }
+
+  const entering = [...winners, ...(joinByeTeam ? [joinByeTeam] : [])];
+  return {
+    allDone: true,
+    winners,
+    entering,
+    winnerIds,
+    playRound,
+    joinByeTeamId: joinBye?.teamId || null,
+  };
+}
+
+async function checkRoundByeSpin(section, fromRound) {
+  const {
+    allDone,
+    entering,
+    playRound,
+    joinByeTeamId,
+  } = await fetchEnteringTeams(section, fromRound);
+
+  if (!allDone || !entering.length) {
+    return { needsSpinner: false, teams: [] };
+  }
+
+  const enteringIds = entering.map((t) => t._id);
+  const byeRound = playRound + 1;
+
+  // Even count → Generate Round (merge join bye in generate-round). No spinner.
+  if (enteringIds.length % 2 === 0) {
+    return { needsSpinner: false, teams: [] };
+  }
+
+  if (enteringIds.length < 3) {
+    return { needsSpinner: false, teams: [] };
+  }
 
   const playMatches = await writeClient.fetch(
     `*[_type == "match" && section == $section && round == $playRound] | order(matchNumber asc) {
@@ -61,62 +105,93 @@ async function checkRoundByeSpin(section, fromRound) {
     { section, playRound }
   );
 
-  if (!playMatches.length) {
-    return { needsSpinner: false, teams: [] };
-  }
+  const deferredBye = await getPoolBye(section, byeRound);
 
-  if (!poolRoundNeedsByeSpin(winnerIds.length, playMatches.length)) {
-    return { needsSpinner: false, teams: [] };
-  }
-
-  const byeMatches = await writeClient.fetch(
-    `*[_type == "match" && section == $section && round == $byeRound] | order(matchNumber asc) {
-      _id, team1, team2, team1->{ _id, name }, team2->{ _id, name }
-    }`,
-    { section, byeRound }
-  );
-
-  const idsInPlay = new Set(
-    playMatches
-      .flatMap((m) => [m.team1?._ref || m.team1?._id, m.team2?._ref || m.team2?._id])
-      .filter(Boolean)
-  );
-  const idsInBye = new Set(
-    byeMatches
-      .flatMap((m) => [m.team1?._ref || m.team1?._id, m.team2?._ref || m.team2?._id])
-      .filter(Boolean)
-  );
-
-  const byeFromWinners = winnerIds.filter(
-    (id) => idsInBye.has(id) && !idsInPlay.has(id)
-  );
-  const slots = playMatches.length * 2;
-  const inPlayCount = winnerIds.filter((id) => idsInPlay.has(id)).length;
-
-  if (byeFromWinners.length === 1 && inPlayCount === slots) {
-    const byeTeam = winners.find((w) => w._id === byeFromWinners[0]);
-    return {
-      needsSpinner: false,
-      spinDone: true,
-      teams: winners,
-      byeTeam,
-      section,
-      fromRound,
-      playRound,
-      byeRound,
-    };
+  if (playMatches.length) {
+    if (!poolRoundNeedsByeSpin(enteringIds.length, playMatches.length)) {
+      // Play round already sized for even subset — check if bye settled
+      const slots = playMatches.length * 2;
+      const idsInPlay = new Set(
+        playMatches
+          .flatMap((m) => [
+            m.team1?._ref || m.team1?._id,
+            m.team2?._ref || m.team2?._id,
+          ])
+          .filter(Boolean)
+      );
+      const inPlayCount = enteringIds.filter((id) => idsInPlay.has(id)).length;
+      if (deferredBye?.teamId && inPlayCount === slots) {
+        const byeTeam = entering.find((t) => t._id === deferredBye.teamId);
+        return {
+          needsSpinner: false,
+          spinDone: true,
+          teams: entering,
+          byeTeam,
+          section,
+          fromRound,
+          playRound,
+          byeRound,
+        };
+      }
+      return { needsSpinner: false, teams: [] };
+    }
   }
 
   return {
     needsSpinner: true,
     spinDone: false,
-    teams: winners,
+    mode: playMatches.length ? "refill" : "create_play_round",
+    teams: entering,
     section,
     fromRound,
     playRound,
     byeRound,
-    playSlots: slots,
+    playSlots: enteringIds.length - 1,
+    joinByeTeamId,
   };
+}
+
+async function commitPlayRound(section, playRound, playTeams) {
+  const existing = await writeClient.fetch(
+    `*[_type == "match" && section == $section && round == $playRound]{ _id, status, winner }`,
+    { section, playRound }
+  );
+
+  if (existing.some((m) => m.status === "completed" || m.winner)) {
+    throw new Error(
+      "Next round already has results. Reset that round first, then spin again."
+    );
+  }
+
+  if (existing.length) {
+    const ids = existing.map((m) => m._id);
+    for (let i = 0; i < ids.length; i += 50) {
+      const chunk = ids.slice(i, i + 50);
+      const tx = writeClient.transaction();
+      for (const id of chunk) tx.delete(id);
+      await tx.commit();
+    }
+  }
+
+  const matchCount = playTeams.length / 2;
+  for (let i = 0; i < matchCount; i += 40) {
+    const end = Math.min(i + 40, matchCount);
+    const tx = writeClient.transaction();
+    for (let m = i; m < end; m++) {
+      tx.create({
+        _type: "match",
+        section,
+        bracketType: "loser",
+        round: playRound,
+        matchNumber: m + 1,
+        status: "scheduled",
+        team1: { _type: "reference", _ref: playTeams[m * 2] },
+        team2: { _type: "reference", _ref: playTeams[m * 2 + 1] },
+        title: `${section} R${playRound} M${m + 1}`,
+      });
+    }
+    await tx.commit();
+  }
 }
 
 export async function GET(request) {
@@ -151,117 +226,32 @@ export async function POST(request) {
       );
     }
 
-    const winnerIds = status.teams.map((t) => t._id);
-    if (!winnerIds.includes(byeTeamId)) {
+    const enteringIds = status.teams.map((t) => t._id);
+    if (!enteringIds.includes(byeTeamId)) {
       return NextResponse.json(
-        { error: "Bye team must be a winner of this round" },
+        { error: "Bye team must be in the entering pool for this round" },
         { status: 400 }
       );
     }
 
     const playRound = status.playRound;
     const byeRound = status.byeRound;
-
-    const playMatches = await writeClient.fetch(
-      `*[_type == "match" && section == $section && round == $playRound] | order(matchNumber asc) {
-        _id, status, team1, team2
-      }`,
-      { section, playRound }
+    const playTeams = shuffleArray(
+      enteringIds.filter((id) => id !== byeTeamId)
     );
 
-    if (playMatches.some((m) => m.status === "completed" || m.winner)) {
+    if (playTeams.length % 2 !== 0 || playTeams.length < 2) {
       return NextResponse.json(
-        {
-          error:
-            "Next round already has results. Reset that round first, then spin again.",
-        },
+        { error: "Play-round team count invalid after bye" },
         { status: 400 }
       );
     }
 
-    const byeMatches = await writeClient.fetch(
-      `*[_type == "match" && section == $section && round == $byeRound] | order(matchNumber asc) {
-        _id, team1, team2
-      }`,
-      { section, byeRound }
-    );
+    await commitPlayRound(section, playRound, playTeams);
 
-    if (!byeMatches.length) {
-      return NextResponse.json(
-        { error: `No Round ${byeRound} fixtures for bye placement` },
-        { status: 400 }
-      );
-    }
-
-    const playTeams = shuffleArray(winnerIds.filter((id) => id !== byeTeamId));
-    if (playTeams.length !== playMatches.length * 2) {
-      return NextResponse.json(
-        { error: "Play-round team count mismatch" },
-        { status: 400 }
-      );
-    }
-
-    // Clear + refill play round
-    for (let i = 0; i < playMatches.length; i++) {
-      await writeClient
-        .patch(playMatches[i]._id)
-        .set({
-          team1: { _type: "reference", _ref: playTeams[i * 2] },
-          team2: { _type: "reference", _ref: playTeams[i * 2 + 1] },
-        })
-        .commit();
-    }
-
-    // Clear this bye team from play round if somehow still there (handled by set above)
-
-    // Remove bye team from any bye-round slot first, then place in first empty
-    for (const m of byeMatches) {
-      const patch = writeClient.patch(m._id);
-      let changed = false;
-      if (m.team1?._ref === byeTeamId) {
-        patch.unset(["team1"]);
-        changed = true;
-      }
-      if (m.team2?._ref === byeTeamId) {
-        patch.unset(["team2"]);
-        changed = true;
-      }
-      if (changed) await patch.commit();
-    }
-
-    const freshBye = await writeClient.fetch(
-      `*[_type == "match" && section == $section && round == $byeRound] | order(matchNumber asc) {
-        _id, team1, team2
-      }`,
-      { section, byeRound }
-    );
-
-    let placed = false;
-    for (const m of freshBye) {
-      if (!m.team1) {
-        await writeClient
-          .patch(m._id)
-          .set({ team1: { _type: "reference", _ref: byeTeamId } })
-          .commit();
-        placed = true;
-        break;
-      }
-      if (!m.team2) {
-        await writeClient
-          .patch(m._id)
-          .set({ team2: { _type: "reference", _ref: byeTeamId } })
-          .commit();
-        placed = true;
-        break;
-      }
-    }
-
-    if (!placed) {
-      return NextResponse.json(
-        { error: `No empty slot in Round ${byeRound} for bye` },
-        { status: 400 }
-      );
-    }
+    // Opening / deferred bye into playRound is consumed by this spin
+    await clearPoolBye(section, playRound);
+    await setPoolBye(section, byeRound, byeTeamId, Number(fromRound));
 
     const byeTeam = status.teams.find((t) => t._id === byeTeamId);
 
@@ -271,6 +261,7 @@ export async function POST(request) {
       playRound,
       byeRound,
       playTeams: playTeams.length,
+      matchesCreated: playTeams.length / 2,
     });
   } catch (error) {
     console.error("Bye spin error:", error);

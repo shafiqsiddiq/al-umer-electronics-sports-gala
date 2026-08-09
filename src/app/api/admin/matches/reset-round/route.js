@@ -5,12 +5,17 @@ import {
   SECTION_LOSER_AB,
   SECTION_KNOCKOUT,
 } from "@/lib/tournament-logic";
+import { clearSectionPoolByes, clearPoolBye } from "@/lib/pool-bye";
 
 /**
  * Reset a section round and every later round in that section.
  * Clears scores/winners, undoes W/L/pts, and unfills later-round team slots.
  *
- * Body: { section: "A"|"B"|"C"|"loser_ab"|"knockout"|"final"|"loser", round: number }
+ * Body: {
+ *   section: "A"|"B"|"C"|"loser_ab"|"knockout"|"final"|"loser",
+ *   round: number,
+ *   deleteFixtures?: boolean  // delete matches from this round onward (Clear fixtures)
+ * }
  */
 export async function POST(request) {
   const session = await getAdminSession();
@@ -22,6 +27,7 @@ export async function POST(request) {
     const body = await request.json();
     const section = String(body.section || "").trim();
     const round = Number(body.round);
+    const deleteFixtures = !!body.deleteFixtures;
 
     if (!section || !Number.isFinite(round) || round < 1) {
       return NextResponse.json(
@@ -53,6 +59,83 @@ export async function POST(request) {
         { error: "No matches found for this round" },
         { status: 404 }
       );
+    }
+
+    // Loser AB / Knockout Round 1 Reset → delete all fixtures so Generate button returns
+    // OR explicit Clear fixtures for Round 2+ (groups / pools)
+    const isPoolSection =
+      section === "loser_ab" ||
+      section === "loser" ||
+      section === "knockout";
+    const shouldDelete =
+      deleteFixtures || (isPoolSection && round === 1);
+
+    if (shouldDelete) {
+      const affectedTeamIds = new Set();
+      for (const match of matches) {
+        const winnerId = match.winner?._ref || match.winner?._id || null;
+        const loserId = match.loser?._ref || match.loser?._id || null;
+        if (winnerId && loserId) {
+          await undoMatchStats(winnerId, loserId);
+          affectedTeamIds.add(winnerId);
+          affectedTeamIds.add(loserId);
+        } else if (winnerId) {
+          await undoWinnerOnly(winnerId);
+          affectedTeamIds.add(winnerId);
+        }
+      }
+
+      let deleted = 0;
+      if (isPoolSection && round === 1) {
+        if (section === "knockout") {
+          deleted += await deleteSectionMatches(SECTION_KNOCKOUT);
+          await clearSectionPoolByes(SECTION_KNOCKOUT);
+        } else {
+          deleted += await deleteSectionMatches(SECTION_LOSER_AB);
+          deleted += await deleteSectionMatches("loser");
+          await clearSectionPoolByes(SECTION_LOSER_AB);
+          await clearSectionPoolByes("loser");
+        }
+      } else {
+        // Delete only this round and later (keep earlier rounds)
+        const ids = matches.map((m) => m._id);
+        for (let i = 0; i < ids.length; i += 50) {
+          const chunk = ids.slice(i, i + 50);
+          const delTx = writeClient.transaction();
+          for (const id of chunk) delTx.delete(id);
+          await delTx.commit();
+        }
+        deleted = ids.length;
+        if (isPoolSection) {
+          const poolSec =
+            section === "knockout" ? SECTION_KNOCKOUT : SECTION_LOSER_AB;
+          // Clear byes into deleted rounds and later
+          const maxRound = Math.max(
+            ...matches.map((m) => Number(m.round) || 0),
+            round
+          );
+          for (let r = round; r <= maxRound + 2; r++) {
+            await clearPoolBye(poolSec, r);
+          }
+        }
+      }
+
+      for (const teamId of affectedTeamIds) {
+        await recomputeTeamStatus(teamId);
+      }
+
+      if (["A", "B", "C"].includes(section) && round <= 2) {
+        await clearSectionMainQualifiers(section);
+      }
+
+      return NextResponse.json({
+        success: true,
+        deletedFixtures: true,
+        deletedPoolMatches: deleted,
+        clearedResults: affectedTeamIds.size,
+        clearedSlots: 0,
+        affectedTeams: affectedTeamIds.size,
+      });
     }
 
     const affectedTeamIds = new Set();

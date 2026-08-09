@@ -20,6 +20,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  try {
   const sections = {};
   for (const s of ["A", "B", "C"]) {
     const [sectionTeams, matches, qualifiedTeams] = await Promise.all([
@@ -177,4 +178,17 @@ export async function GET() {
       capacity: TOP_SIXTEEN,
     },
   });
+  } catch (err) {
+    console.error("brackets GET failed:", err);
+    return NextResponse.json(
+      {
+        error:
+          err?.cause?.code === "SELF_SIGNED_CERT_IN_CHAIN" ||
+          /self-signed certificate/i.test(String(err?.message || err?.cause || ""))
+            ? "Sanity SSL blocked (self-signed cert). Set SANITY_INSECURE_TLS=1 in .env.local and restart npm run dev."
+            : err.message || "Failed to load brackets",
+      },
+      { status: 500 }
+    );
+  }
 }

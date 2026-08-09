@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useToast } from "@/context/ToastContext";
 import LuckyDrawSpinner from "@/components/LuckyDrawSpinner";
 import ChampionCard from "@/components/ChampionCard";
 import ConfirmModal from "@/components/ConfirmModal";
 import ChangeMatchTeamsModal from "@/components/ChangeMatchTeamsModal";
+import CricketLoader from "@/components/CricketLoader";
 import {
   Trophy,
   ShieldAlert,
@@ -26,8 +28,20 @@ import {
   ArrowLeftRight,
   ImageDown,
   Clock,
+  Radio,
 } from "lucide-react";
-import { TOP_SIXTEEN, MAIN_QUALIFIERS_PER_SECTION, TEAMS_PER_SECTION } from "@/lib/tournament-logic";
+import {
+  TOP_SIXTEEN,
+  MAIN_QUALIFIERS_PER_SECTION,
+  TEAMS_PER_SECTION,
+  LOSER_AB_EXPECTED,
+  LOSER_AB_QUALIFIERS,
+  KNOCKOUT_QUALIFIERS,
+  KNOCKOUT_BASE_EXPECTED,
+  knockoutRoundSizeLabel,
+  expectedR1MatchCount,
+  expectedR1PlayingCount,
+} from "@/lib/tournament-logic";
 import {
   downloadRoundSchedulePdf,
   downloadAllGroupsRound1Pdf,
@@ -43,6 +57,41 @@ import { generateTop4Post } from "@/lib/top4-post";
 const CARD_GREEN = "#22C55E";
 const CARD_NAVY = "#0F172A";
 const CARD_MUTED = "#64748B";
+
+const SCORES_TAB_KEY = "admin-scores-active-tab";
+const SCORES_TAB_IDS = [
+  "A",
+  "B",
+  "C",
+  "loser_ab",
+  "knockout",
+  "top8",
+  "final",
+];
+
+function readStoredScoresTab() {
+  if (typeof window === "undefined") return "A";
+  try {
+    const saved = window.localStorage.getItem(SCORES_TAB_KEY);
+    if (SCORES_TAB_IDS.includes(saved)) return saved;
+  } catch {
+    /* ignore */
+  }
+  return "A";
+}
+
+function scoresTabLabel(tabId) {
+  const labels = {
+    A: "Group A",
+    B: "Group B",
+    C: "Group C",
+    loser_ab: "Loser AB",
+    knockout: "Knockout Group",
+    top8: "Top 16",
+    final: "Final Stage",
+  };
+  return labels[tabId] || tabId;
+}
 
 /** Fallback portrait pool when captain has no profile photo */
 const CAPTAIN_AVATARS = [
@@ -113,6 +162,9 @@ export default function AdminScoresPage() {
     byeRound: null,
   });
   const [activeTab, setActiveTab] = useState("A");
+  const [tabHydrated, setTabHydrated] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [switchingTabLabel, setSwitchingTabLabel] = useState(null);
   const [top8, setTop8] = useState({ teams: [], count: 0, capacity: TOP_SIXTEEN });
   const [loserPoolTeams, setLoserPoolTeams] = useState([]);
   const [loserAbPoolTeams, setLoserAbPoolTeams] = useState([]);
@@ -122,10 +174,12 @@ export default function AdminScoresPage() {
     B: [],
     C: [],
   });
-  const [resetTarget, setResetTarget] = useState(null); // { section, round, label }
+  const [resetTarget, setResetTarget] = useState(null); // { section, round, label, deleteFixtures? }
   const [resetting, setResetting] = useState(false);
   const [regeneratingKnockout, setRegeneratingKnockout] = useState(false);
+  const [regeneratingLoserAb, setRegeneratingLoserAb] = useState(false);
   const [generatingSection, setGeneratingSection] = useState(null); // "A"|"B"|"C"
+  const [generatingRound, setGeneratingRound] = useState(null); // { section, round }
   const [confirmGenerateSection, setConfirmGenerateSection] = useState(null); // "A"|"B"|"C"
   const [confirmClearSection, setConfirmClearSection] = useState(null); // "A"|"B"|"C"
   const [clearingSection, setClearingSection] = useState(null);
@@ -134,16 +188,47 @@ export default function AdminScoresPage() {
   const [generatingTop4, setGeneratingTop4] = useState(false);
 
   useEffect(() => {
-    fetchMatches();
-    checkLuckyDraw();
-    fetchTop8();
+    const stored = readStoredScoresTab();
+    setActiveTab(stored);
+    setTabHydrated(true);
+    setSwitchingTabLabel(`Opening ${scoresTabLabel(stored)}…`);
+
+    Promise.all([fetchMatches(), checkLuckyDraw(), fetchTop8()])
+      .catch(() => {})
+      .finally(() => {
+        setPageLoading(false);
+        window.setTimeout(() => setSwitchingTabLabel(null), 320);
+      });
   }, []);
+
+  useEffect(() => {
+    if (!tabHydrated) return;
+    try {
+      window.localStorage.setItem(SCORES_TAB_KEY, activeTab);
+    } catch {
+      /* ignore */
+    }
+  }, [activeTab, tabHydrated]);
 
   useEffect(() => {
     if (activeTab === "knockout" || activeTab === "loser_ab") {
       checkByeSpin(activeTab === "loser_ab" ? "loser_ab" : "knockout");
     }
   }, [activeTab]);
+
+  function switchTab(tabId, tabLabel) {
+    if (tabId === activeTab || switchingTabLabel || pageLoading) return;
+    setSwitchingTabLabel(tabLabel || scoresTabLabel(tabId));
+    window.setTimeout(() => {
+      setActiveTab(tabId);
+      try {
+        window.localStorage.setItem(SCORES_TAB_KEY, tabId);
+      } catch {
+        /* ignore */
+      }
+      window.setTimeout(() => setSwitchingTabLabel(null), 280);
+    }, 220);
+  }
 
   async function checkLuckyDraw() {
     try {
@@ -179,7 +264,9 @@ export default function AdminScoresPage() {
   async function fetchTop8() {
     try {
       const res = await fetch("/api/admin/brackets");
-      const data = await res.json();
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!res.ok) throw new Error(data.error || "Failed to load brackets");
       if (data.top8) setTop8(data.top8);
       else if (data.top16) setTop8(data.top16);
       setLoserPoolTeams(data.loserBracket?.poolTeams || []);
@@ -192,6 +279,7 @@ export default function AdminScoresPage() {
       });
     } catch (err) {
       console.error(err);
+      toast(err.message || "Failed to load brackets", "error");
     }
   }
 
@@ -241,9 +329,19 @@ export default function AdminScoresPage() {
   }
 
   async function fetchMatches() {
-    const res = await fetch("/api/admin/matches?status=scheduled,live,completed");
-    const data = await res.json();
-    setMatches(data.matches || []);
+    try {
+      const res = await fetch(
+        "/api/admin/matches?status=scheduled,live,completed"
+      );
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      if (!res.ok) throw new Error(data.error || "Failed to load matches");
+      setMatches(data.matches || []);
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Failed to load matches", "error");
+      setMatches([]);
+    }
   }
 
   async function updateScore(matchId, form) {
@@ -291,32 +389,41 @@ export default function AdminScoresPage() {
 
   async function confirmResetRound() {
     if (!resetTarget) return;
+    const target = resetTarget;
     setResetting(true);
     try {
       const res = await fetch("/api/admin/matches/reset-round", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          section: resetTarget.section,
-          round: resetTarget.round,
+          section: target.section,
+          round: target.round,
+          deleteFixtures: !!target.deleteFixtures,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to reset round");
-      toast(
-        `${resetTarget.label} reset — scores cleared${
-          data.deletedPoolMatches
-            ? ` · ${data.deletedPoolMatches} pool matches removed`
-            : ""
-        }.`,
-        "success"
-      );
+      if (data.deletedFixtures) {
+        toast(
+          `${target.label} fixtures cleared (${data.deletedPoolMatches || 0} matches deleted). Ab Generate Round fixtures dabao.`,
+          "success"
+        );
+      } else {
+        toast(
+          `${target.label} reset — scores cleared${
+            data.deletedPoolMatches
+              ? ` · ${data.deletedPoolMatches} pool matches removed`
+              : ""
+          }.`,
+          "success"
+        );
+      }
       setResetTarget(null);
       await fetchMatches();
       await fetchTop8();
       await checkLuckyDraw();
-      if (resetTarget.section === "knockout" || resetTarget.section === "loser_ab") {
-        await checkByeSpin(resetTarget.section);
+      if (target.section === "knockout" || target.section === "loser_ab") {
+        await checkByeSpin(target.section);
       }
     } catch (err) {
       toast(err.message, "error");
@@ -339,7 +446,7 @@ export default function AdminScoresPage() {
       if (ko?.skipped) {
         toast(ko.reason || "Knockout fixtures unchanged", "error");
       } else {
-        const expectedR1 = Math.floor((ko?.teams || 0) / 2);
+        const expectedR1 = expectedR1MatchCount(ko?.teams || 0);
         if (ko?.round1Matches !== expectedR1) {
           toast(
             `Rebuild incomplete: ${ko?.teams} teams but only ${ko?.round1Matches} Round 1 matches (need ${expectedR1}).`,
@@ -347,7 +454,8 @@ export default function AdminScoresPage() {
           );
         } else {
           toast(
-            `Knockout rebuilt — ${ko?.teams} teams · ${ko?.round1Matches} Round 1 matches (all paired)`,
+            `Knockout rebuilt — ${ko?.teams} teams · ${ko?.round1Matches} Round 1 matches` +
+              (ko?.openingBye ? " (+ 1 opening bye → R2)" : ""),
             "success"
           );
         }
@@ -359,6 +467,35 @@ export default function AdminScoresPage() {
       toast(err.message, "error");
     } finally {
       setRegeneratingKnockout(false);
+    }
+  }
+
+  async function regenerateLoserAbFixtures() {
+    setRegeneratingLoserAb(true);
+    try {
+      const res = await fetch("/api/tournament/generate-losers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pool: "loser_ab", force: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate Loser AB");
+      const lab = data.created?.loserAb;
+      if (lab?.skipped) {
+        toast(lab.reason || "Loser AB fixtures unchanged", "error");
+      } else {
+        toast(
+          `Loser AB ready — Group A losers ${lab?.fromA ?? "?"} + Group B losers ${lab?.fromB ?? "?"} = ${lab?.teams} teams · ${lab?.round1Matches} Round 1 matches`,
+          "success"
+        );
+      }
+      await fetchMatches();
+      await fetchTop8();
+      await checkByeSpin("loser_ab");
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setRegeneratingLoserAb(false);
     }
   }
 
@@ -376,7 +513,7 @@ export default function AdminScoresPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate fixtures");
       toast(
-        `Group ${section} fixtures ready — ${data.round1Matches} Round 1 matches (${data.teams} teams)`,
+        `Group ${section} Round 1 ready — ${data.round1Matches} matches (${data.teams} teams). Round 2 Generate se banega.`,
         "success"
       );
       await fetchMatches();
@@ -385,6 +522,32 @@ export default function AdminScoresPage() {
       toast(err.message, "error");
     } finally {
       setGeneratingSection(null);
+    }
+  }
+
+  async function generateNextRound(section, round) {
+    setGeneratingRound({ section, round });
+    try {
+      const res = await fetch("/api/tournament/generate-round", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, round, force: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate round");
+      toast(
+        `Round ${round} ready — ${data.matchesCreated} matches from ${data.teams} winners`,
+        "success"
+      );
+      await fetchMatches();
+      await fetchTop8();
+      if (section === "loser_ab" || section === "knockout") {
+        await checkByeSpin(section);
+      }
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setGeneratingRound(null);
     }
   }
 
@@ -564,22 +727,136 @@ export default function AdminScoresPage() {
     matchesByRound[m.round].push(m);
   });
 
-  if (activeTab === "loser_ab" || activeTab === "knockout") {
-    for (const r of [1, 2, 3]) {
-      if (!matchesByRound[r]) matchesByRound[r] = [];
+  // Always reserve upcoming round slots so Round 2 (etc.) stays visible
+  if (["A", "B", "C"].includes(activeTab)) {
+    if ((matchesByRound[1] || []).length > 0 && !matchesByRound[2]) {
+      matchesByRound[2] = [];
+    }
+  } else if (activeTab === "loser_ab" || activeTab === "knockout") {
+    if (Object.keys(matchesByRound).length === 0) {
+      matchesByRound[1] = [];
+    }
+    if ((matchesByRound[1] || []).length > 0 && !matchesByRound[2]) {
+      matchesByRound[2] = [];
+    }
+    if ((matchesByRound[2] || []).length > 0 && !matchesByRound[3]) {
+      const r2 = matchesByRound[2];
+      const r2Done =
+        r2.length > 0 &&
+        r2.every((m) => m.status === "completed" && m.winner?._id);
+      // Show Round 3 slot once R2 exists (or is ready to generate later)
+      if (r2Done || r2.length > 0) {
+        matchesByRound[3] = matchesByRound[3] || [];
+      }
     }
   }
 
-  const roundKeys = Object.keys(matchesByRound).sort((a, b) => Number(a) - Number(b));
+  const roundKeys = Object.keys(matchesByRound)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(String);
+
+  /** Info for an empty upcoming round — Generate button inside that round section */
+  function getRoundGenerateOffer(roundNum) {
+    const section = activeTab;
+    const poolTabs = ["A", "B", "C", "loser_ab", "knockout"];
+    if (!poolTabs.includes(section)) return null;
+    if (Number(roundNum) < 2) return null;
+    if ((matchesByRound[roundNum] || []).length > 0) return null;
+
+    if (["A", "B", "C"].includes(section) && Number(roundNum) > 2) return null;
+
+    const prevRound = Number(roundNum) - 1;
+    const prevMatches = matchesByRound[prevRound] || [];
+    if (!prevMatches.length) {
+      return {
+        section,
+        round: Number(roundNum),
+        prevRound,
+        ready: false,
+        blocked: false,
+        reason: `Round ${prevRound} fixtures pehle generate karo`,
+      };
+    }
+
+    const completed = prevMatches.filter(
+      (m) => m.status === "completed" && m.winner?._id
+    ).length;
+    const allDone = completed === prevMatches.length;
+    if (!allDone) {
+      return {
+        section,
+        round: Number(roundNum),
+        prevRound,
+        ready: false,
+        blocked: false,
+        winners: completed,
+        total: prevMatches.length,
+        reason: `Round ${prevRound} complete karo (${completed}/${prevMatches.length})`,
+      };
+    }
+
+    const winners = prevMatches.length;
+    if (
+      (section === "loser_ab" || section === "knockout") &&
+      winners <= 2
+    ) {
+      return {
+        section,
+        round: Number(roundNum),
+        prevRound,
+        ready: false,
+        blocked: true,
+        reason: "Winners already qualify — no further round needed",
+      };
+    }
+    if (winners % 2 === 1) {
+      const spinPending =
+        byeSpinInfo.needsSpinner &&
+        byeSpinInfo.section === section &&
+        Number(byeSpinInfo.fromRound) === prevRound;
+      if (spinPending) {
+        return {
+          section,
+          round: Number(roundNum),
+          prevRound,
+          winners,
+          ready: false,
+          blocked: true,
+          reason: "Odd teams — pehle bye spinner chalao",
+        };
+      }
+      // Deferred bye (opening / prior spin) may make entering count even
+      return {
+        section,
+        round: Number(roundNum),
+        prevRound,
+        winners,
+        matches: Math.ceil(winners / 2),
+        ready: true,
+        blocked: false,
+        mayIncludeBye: true,
+      };
+    }
+
+    return {
+      section,
+      round: Number(roundNum),
+      prevRound,
+      winners,
+      matches: winners / 2,
+      ready: true,
+      blocked: false,
+    };
+  }
 
   function loserRoundLabel(round) {
     if (activeTab === "knockout") {
-      const labels = {
-        1: "Round 1 · Knockout start",
-        2: "Round 2 · → 2 Top 16 spots",
-        3: "Round 3",
-      };
-      return labels[Number(round)] || `Round ${round}`;
+      const poolN =
+        knockoutPoolTeams.length ||
+        knockoutFixtureTeamIds.size ||
+        KNOCKOUT_BASE_EXPECTED;
+      return knockoutRoundSizeLabel(poolN, Number(round), KNOCKOUT_QUALIFIERS);
     }
     const labels = {
       1: "Round 1 · 16 → 8",
@@ -637,6 +914,69 @@ export default function AdminScoresPage() {
   })();
   const groupTop4Empty = Math.max(0, MAIN_QUALIFIERS_PER_SECTION - groupTop4.length);
 
+  /** Loser AB / Knockout → Top 16 qualifiers (final round winners) */
+  const poolTopQualifiers = (() => {
+    if (activeTab !== "loser_ab" && activeTab !== "knockout") return [];
+
+    const target =
+      activeTab === "knockout" ? KNOCKOUT_QUALIFIERS : LOSER_AB_QUALIFIERS;
+    const sectionMatches = matches
+      .filter((m) =>
+        activeTab === "loser_ab"
+          ? m.section === "loser_ab" || m.section === "loser"
+          : m.section === "knockout"
+      )
+      .sort((a, b) => a.round - b.round || a.matchNumber - b.matchNumber);
+
+    if (!sectionMatches.length) return [];
+
+    const rounds = [
+      ...new Set(sectionMatches.map((m) => Number(m.round))),
+    ].sort((a, b) => b - a);
+
+    for (const round of rounds) {
+      const roundMatches = sectionMatches.filter(
+        (m) => Number(m.round) === round
+      );
+      const done = roundMatches.filter(
+        (m) => m.status === "completed" && m.winner?._id
+      );
+      // Final qualifier round: exactly `target` matches, all done → `target` winners
+      if (
+        done.length === roundMatches.length &&
+        done.length === target
+      ) {
+        return done
+          .sort((a, b) => a.matchNumber - b.matchNumber)
+          .map((m) => {
+            const w = m.winner;
+            const sideTeam =
+              m.team1?._id === w?._id
+                ? m.team1
+                : m.team2?._id === w?._id
+                  ? m.team2
+                  : null;
+            return {
+              _id: w._id,
+              name: w.name || sideTeam?.name,
+              captain: w.captain || sideTeam?.captain || null,
+              wins: w.wins ?? sideTeam?.wins,
+              points: w.points ?? sideTeam?.points,
+              fromRound: round,
+            };
+          })
+          .filter((t) => t?._id)
+          .slice(0, target);
+      }
+    }
+    return [];
+  })();
+  const poolTopEmpty = Math.max(
+    0,
+    (activeTab === "knockout" ? KNOCKOUT_QUALIFIERS : LOSER_AB_QUALIFIERS) -
+      poolTopQualifiers.length
+  );
+
   async function handleGenerateTop4Post() {
     if (!["A", "B", "C"].includes(activeTab)) return;
     if (groupTop4.length === 0) {
@@ -675,12 +1015,48 @@ export default function AdminScoresPage() {
     if (m.team1?._id) knockoutFixtureTeamIds.add(m.team1._id);
     if (m.team2?._id) knockoutFixtureTeamIds.add(m.team2._id);
   }
+  const knockoutPoolN = knockoutPoolTeams.length;
+  const knockoutExpectedPlaying = expectedR1PlayingCount(knockoutPoolN);
+  const knockoutExpectedR1 = expectedR1MatchCount(knockoutPoolN);
+  const knockoutUncovered = knockoutPoolTeams.filter(
+    (t) => t._id && !knockoutFixtureTeamIds.has(t._id)
+  );
+  const knockoutOpeningByeOk =
+    knockoutPoolN % 2 === 1 &&
+    knockoutFixtureTeamIds.size === knockoutExpectedPlaying &&
+    knockoutR1Matches.length === knockoutExpectedR1 &&
+    knockoutUncovered.length === 1;
+  const knockoutCoverageOk =
+    knockoutFixtureTeamIds.size === 0 ||
+    (knockoutPoolN % 2 === 0 &&
+      knockoutFixtureTeamIds.size === knockoutPoolN &&
+      knockoutR1Matches.length === knockoutExpectedR1) ||
+    knockoutOpeningByeOk;
   const knockoutPoolMismatch =
     activeTab === "knockout" &&
-    knockoutPoolTeams.length > 0 &&
+    knockoutPoolN > 0 &&
     knockoutFixtureTeamIds.size > 0 &&
-    knockoutPoolTeams.some((t) => t._id && !knockoutFixtureTeamIds.has(t._id));
-  const knockoutExpectedR1 = Math.floor(knockoutPoolTeams.length / 2);
+    !knockoutCoverageOk;
+  const knockoutNewEntries = Math.max(
+    0,
+    knockoutPoolN - KNOCKOUT_BASE_EXPECTED
+  );
+
+  const loserAbPoolList =
+    loserAbPoolTeams.length > 0
+      ? loserAbPoolTeams
+      : loserPoolTeams.filter(
+          (t) => t.fromSection === "A" || t.fromSection === "B"
+        );
+  const loserAbFromA = loserAbPoolList.filter((t) => t.fromSection === "A").length;
+  const loserAbFromB = loserAbPoolList.filter((t) => t.fromSection === "B").length;
+  const loserAbR1Matches = matches.filter(
+    (m) =>
+      (m.section === "loser_ab" || m.section === "loser") &&
+      Number(m.round) === 1
+  );
+  const loserAbHasFixtures = loserAbR1Matches.length > 0;
+  const loserAbCanGenerate = loserAbPoolList.length === LOSER_AB_EXPECTED;
 
   const grandFinal = matches.find(
     (m) =>
@@ -711,8 +1087,31 @@ export default function AdminScoresPage() {
       ? top8.count || 0
       : dedupedMatches.length;
 
+  const cricketBusyLabel = pageLoading
+    ? `Loading ${scoresTabLabel(activeTab)}…`
+    : switchingTabLabel
+      ? switchingTabLabel.startsWith("Opening ")
+        ? switchingTabLabel
+        : `Opening ${switchingTabLabel}…`
+      : generatingSection
+        ? `Generating Group ${generatingSection} fixtures…`
+        : generatingRound
+          ? `Generating Round ${generatingRound.round}…`
+          : clearingSection
+            ? `Clearing Group ${clearingSection} fixtures…`
+            : regeneratingLoserAb
+              ? "Generating Loser AB fixtures…"
+              : regeneratingKnockout
+                ? "Rebuilding Knockout fixtures…"
+                : resetting
+                  ? "Resetting round…"
+                  : null;
+
   return (
     <div className="relative w-full space-y-5">
+      {cricketBusyLabel && (
+        <CricketLoader fullscreen label={cricketBusyLabel} />
+      )}
       {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 px-4 py-4 text-white shadow-md dark:border-emerald-800 sm:px-5">
         <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10" />
@@ -753,12 +1152,13 @@ export default function AdminScoresPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => switchTab(tab.id, tab.label)}
+              disabled={Boolean(switchingTabLabel)}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition ${
                 isActive
                   ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25"
                   : "border border-zinc-200 bg-white text-zinc-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-              }`}
+              } disabled:opacity-60`}
             >
               <Icon size={14} />
               {tab.label}
@@ -822,7 +1222,7 @@ export default function AdminScoresPage() {
                       All Groups R1 PDF
                     </button>
                   )}
-                {/* {dedupedMatches.length > 0 && (
+                {dedupedMatches.length > 0 && (
                   <button
                     type="button"
                     disabled={Boolean(clearingSection || generatingSection)}
@@ -834,7 +1234,7 @@ export default function AdminScoresPage() {
                       ? "Clearing…"
                       : "Clear fixtures"}
                   </button>
-                )} */}
+                )}
                 {activeGroupTeams.length === TEAMS_PER_SECTION &&
                   dedupedMatches.length === 0 && (
                     <button
@@ -939,48 +1339,84 @@ export default function AdminScoresPage() {
                     }`}
                   >
                     {activeTab === "knockout"
-                      ? "Group C Round 1 losers (8) + optional new-entry teams → 2 qualify to Top 16"
-                      : "Group A+B Round 1 losers (16) → 16→8→4→2 qualify to Top 16"}
+                      ? `Group C R1 losers (${KNOCKOUT_BASE_EXPECTED} fixed) + new entries (${knockoutNewEntries}) = ${knockoutPoolN || 0} total → reduce to ${KNOCKOUT_QUALIFIERS} Top 16. Pool 8+ chalega; odd count pe bye spinner.`
+                      : `Group A Round 1 losers (${loserAbFromA}) + Group B Round 1 losers (${loserAbFromB}) → need ${LOSER_AB_EXPECTED} → 16→8→4→2 to Top 16`}
                   </p>
                 </div>
-                {activeTab === "knockout" && (
-                  <button
-                    type="button"
-                    disabled={regeneratingKnockout}
-                    onClick={regenerateKnockoutFixtures}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-1.5 text-[11px] font-bold text-violet-700 transition hover:bg-violet-50 disabled:opacity-50 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
-                  >
-                    <RefreshCw
-                      size={12}
-                      className={regeneratingKnockout ? "animate-spin" : ""}
-                    />
-                    {regeneratingKnockout ? "Rebuilding…" : "Rebuild fixtures"}
-                  </button>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeTab === "loser_ab" && (
+                    <button
+                      type="button"
+                      disabled={regeneratingLoserAb || !loserAbCanGenerate}
+                      onClick={regenerateLoserAbFixtures}
+                      title={
+                        loserAbCanGenerate
+                          ? "Generate Loser AB fixtures from A+B Round 1 losers"
+                          : `Need ${LOSER_AB_EXPECTED} A+B Round 1 losers (have ${loserAbPoolList.length})`
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700"
+                    >
+                      <Wand2
+                        size={12}
+                        className={regeneratingLoserAb ? "animate-pulse" : ""}
+                      />
+                      {regeneratingLoserAb
+                        ? "Generating…"
+                        : loserAbHasFixtures
+                          ? "Rebuild fixtures"
+                          : "Generate fixtures"}
+                    </button>
+                  )}
+                  {activeTab === "knockout" && (
+                    <button
+                      type="button"
+                      disabled={regeneratingKnockout}
+                      onClick={regenerateKnockoutFixtures}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-1.5 text-[11px] font-bold text-violet-700 transition hover:bg-violet-50 disabled:opacity-50 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200"
+                    >
+                      <RefreshCw
+                        size={12}
+                        className={regeneratingKnockout ? "animate-spin" : ""}
+                      />
+                      {regeneratingKnockout ? "Rebuilding…" : "Rebuild fixtures"}
+                    </button>
+                  )}
+                </div>
               </div>
+              {activeTab === "loser_ab" && !loserAbCanGenerate && (
+                <p className="mt-2 rounded-lg bg-white/70 px-2.5 py-1.5 text-[11px] font-semibold text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-800/50">
+                  Pool: Group A losers {loserAbFromA} + Group B losers {loserAbFromB} ={" "}
+                  {loserAbPoolList.length}/{LOSER_AB_EXPECTED}. Complete remaining Group A
+                  & B Round 1 matches, then Generate fixtures.
+                </p>
+              )}
+              {activeTab === "knockout" && knockoutOpeningByeOk && (
+                <p className="mt-2 rounded-lg bg-violet-50 px-2.5 py-1.5 text-[11px] font-semibold text-violet-800 ring-1 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-200 dark:ring-violet-800/50">
+                  Odd pool ({knockoutPoolN}): Round 1 has {knockoutExpectedR1} matches
+                  ({knockoutExpectedPlaying} teams).{" "}
+                  {knockoutUncovered[0]?.name || "1 team"} gets opening bye → Round 2.
+                </p>
+              )}
               {activeTab === "knockout" && knockoutPoolMismatch && (
                 <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-800/50">
-                  Pool has {knockoutPoolTeams.length} teams but Round 1 only covers{" "}
-                  {knockoutFixtureTeamIds.size} (expected {knockoutExpectedR1} matches).
-                  Click <span className="font-black">Rebuild fixtures</span> — ye saari{" "}
-                  {knockoutPoolTeams.length} teams ke liye {knockoutExpectedR1} Round 1
-                  matches banayega.
+                  Pool has {knockoutPoolN} teams but Round 1 only covers{" "}
+                  {knockoutFixtureTeamIds.size} playing slots (expected{" "}
+                  {knockoutExpectedPlaying} teams / {knockoutExpectedR1} matches
+                  {knockoutPoolN % 2 === 1 ? " + 1 bye" : ""}). Click{" "}
+                  <span className="font-black">Rebuild fixtures</span> for the full
+                  current pool.
                 </p>
               )}
             </div>
             {(() => {
               const pool =
-                activeTab === "knockout"
-                  ? knockoutPoolTeams
-                  : loserAbPoolTeams.length
-                    ? loserAbPoolTeams
-                    : loserPoolTeams.filter(
-                        (t) => t.fromSection === "A" || t.fromSection === "B"
-                      );
+                activeTab === "knockout" ? knockoutPoolTeams : loserAbPoolList;
               if (pool.length === 0) {
                 return (
                   <p className="px-4 py-5 text-sm text-zinc-500">
-                    No Round 1 losers yet for this pool.
+                    {activeTab === "loser_ab"
+                      ? "No Group A / Group B Round 1 losers yet. Complete those matches first."
+                      : "No Round 1 losers yet for this pool."}
                   </p>
                 );
               }
@@ -1141,6 +1577,41 @@ export default function AdminScoresPage() {
                       PDF
                     </button>
                   )}
+                  {roundMatches.length > 0 && Number(roundKey) >= 2 && (
+                    <button
+                      type="button"
+                      disabled={resetting || Boolean(generatingRound)}
+                      onClick={() =>
+                        setResetTarget({
+                          section: activeTab,
+                          round: Number(roundKey),
+                          label: `${tabs.find((t) => t.id === activeTab)?.label || activeTab} · ${roundLabel}`,
+                          deleteFixtures: true,
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
+                      title="Delete this round's fixtures — Generate Round se dubara banenge"
+                    >
+                      <Trash2 size={12} />
+                      Clear fixtures
+                    </button>
+                  )}
+                  {roundMatches.length > 0 && Number(roundKey) >= 2 && (
+                    <button
+                      type="button"
+                      disabled={Boolean(generatingRound) || resetting}
+                      onClick={() =>
+                        generateNextRound(activeTab, Number(roundKey))
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                      title="Rebuild this round from previous round winners"
+                    >
+                      <Wand2 size={12} />
+                      {generatingRound?.round === Number(roundKey)
+                        ? "Generating…"
+                        : "Generate Round fixtures"}
+                    </button>
+                  )}
                   {roundMatches.length > 0 && (
                     <button
                       type="button"
@@ -1150,6 +1621,10 @@ export default function AdminScoresPage() {
                           section: activeTab,
                           round: Number(roundKey),
                           label: `${tabs.find((t) => t.id === activeTab)?.label || activeTab} · ${roundLabel}`,
+                          deleteFixtures:
+                            Number(roundKey) === 1 &&
+                            (activeTab === "loser_ab" ||
+                              activeTab === "knockout"),
                         })
                       }
                       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
@@ -1157,7 +1632,7 @@ export default function AdminScoresPage() {
                           ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/70"
                           : "border-zinc-200 bg-zinc-50 text-zinc-400 hover:border-rose-200 hover:text-rose-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500"
                       }`}
-                      title="Clear this round and all later rounds in this group"
+                      title="Clear scores for this round (and later rounds)"
                     >
                       <RotateCcw size={12} />
                       Reset
@@ -1166,9 +1641,104 @@ export default function AdminScoresPage() {
                 </div>
 
                 {roundMatches.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/60 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/30">
-                    Waiting for previous round winners…
-                  </div>
+                  (() => {
+                    const offer = getRoundGenerateOffer(Number(roundKey));
+                    const prevRound = Number(roundKey) - 1;
+                    const prevWinners = (matchesByRound[prevRound] || [])
+                      .filter((m) => m.winner?._id)
+                      .map((m) => ({
+                        _id: m.winner._id,
+                        name: m.winner.name,
+                        captainName: m.winner.captain?.name || "",
+                        photoUrl: m.winner.captain?.profilePictureUrl || "",
+                        fromMatch: m.matchNumber,
+                      }));
+
+                    return (
+                      <div className="rounded-2xl border-2 border-dashed border-emerald-300 bg-gradient-to-b from-emerald-50/80 to-white px-4 py-6 dark:border-emerald-800 dark:from-emerald-950/30 dark:to-zinc-950">
+                        <div className="text-center">
+                          <p className="text-sm font-black text-zinc-800 dark:text-zinc-100">
+                            Round {prevRound > 0 ? prevRound : 1} winners → Round{" "}
+                            {roundKey}
+                          </p>
+                          <p className="mx-auto mt-1 max-w-md text-xs text-zinc-500">
+                            {offer?.ready
+                              ? `${prevWinners.length} winners ready — Generate se Round ${roundKey} matches banenge.`
+                              : offer?.reason ||
+                                "Jese jese Round 1 jeetogi, winners yahan Winner badge ke sath dikhenge."}
+                          </p>
+                        </div>
+
+                        {prevWinners.length > 0 ? (
+                          <div className="mx-auto mt-5 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+                            {prevWinners.map((w, i) => (
+                              <div
+                                key={w._id || `${w.name}-${i}`}
+                                className="rounded-2xl border border-emerald-200/80 bg-white px-2 py-3 shadow-sm dark:border-emerald-900/40 dark:bg-zinc-900"
+                              >
+                                <TeamAvatar
+                                  name={w.name}
+                                  captainName={w.captainName}
+                                  photoUrl={w.photoUrl}
+                                  isWinner
+                                />
+                                <p className="mt-1 text-center text-[9px] font-bold uppercase tracking-wide text-emerald-600">
+                                  R{prevRound} M{w.fromMatch}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mx-auto mt-5 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+                            {Array.from({
+                              length:
+                                ["A", "B", "C"].includes(activeTab) &&
+                                Number(roundKey) === 2
+                                  ? 8
+                                  : 4,
+                            }).map((_, i) => (
+                              <div
+                                key={`wait-${i}`}
+                                className="flex flex-col items-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-2 py-4 dark:border-zinc-700 dark:bg-zinc-900/40"
+                              >
+                                <div className="flex h-[4.25rem] w-[4.25rem] items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-400 dark:bg-zinc-800">
+                                  ?
+                                </div>
+                                <p className="mt-2 text-[9px] font-bold uppercase text-zinc-400">
+                                  Waiting
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="mt-5 flex flex-col items-center">
+                          {offer && !offer.blocked && (
+                            <button
+                              type="button"
+                              disabled={
+                                Boolean(generatingRound) || !offer.ready
+                              }
+                              onClick={() =>
+                                generateNextRound(offer.section, offer.round)
+                              }
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-emerald-500/25 transition hover:bg-emerald-700 disabled:opacity-45"
+                            >
+                              <Wand2 size={16} />
+                              {generatingRound?.round === offer.round
+                                ? "Generating…"
+                                : `Generate Round ${offer.round} fixtures`}
+                            </button>
+                          )}
+                          {offer?.blocked && (
+                            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                              {offer.reason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()
                 ) : (
                   <div className="grid gap-3 lg:grid-cols-2">
                     {roundMatches.map((match) => (
@@ -1245,6 +1815,72 @@ export default function AdminScoresPage() {
                   </div>
                 </div>
               )}
+
+              {/* Loser AB / Knockout → Top 16 qualifier cards */}
+              {(activeTab === "loser_ab" || activeTab === "knockout") && (
+                <div
+                  className={`rounded-[1.5rem] border p-4 shadow-sm sm:p-5 ${
+                    activeTab === "knockout"
+                      ? "border-violet-200/80 bg-gradient-to-b from-violet-50/80 via-white to-white dark:border-violet-900/40"
+                      : "border-amber-200/80 bg-gradient-to-b from-amber-50/80 via-white to-white dark:border-amber-900/40"
+                  }`}
+                >
+                  <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                    <h2 className="text-base font-black tracking-tight text-zinc-800 dark:text-zinc-100 sm:text-lg">
+                      {activeTab === "knockout" ? "Knockout" : "Loser AB"} · Top{" "}
+                      {activeTab === "knockout"
+                        ? KNOCKOUT_QUALIFIERS
+                        : LOSER_AB_QUALIFIERS}{" "}
+                      → Top 16
+                    </h2>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white ${
+                        activeTab === "knockout"
+                          ? "bg-violet-600"
+                          : "bg-amber-600"
+                      }`}
+                    >
+                      {poolTopQualifiers.length}/
+                      {activeTab === "knockout"
+                        ? KNOCKOUT_QUALIFIERS
+                        : LOSER_AB_QUALIFIERS}{" "}
+                      qualified
+                    </span>
+                  </div>
+                  <p className="mb-4 text-xs text-zinc-500">
+                    {activeTab === "knockout"
+                      ? "Final Knockout round winners qualify to Top 16."
+                      : "Round 3 (4 → 2) winners qualify to Top 16."}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-2 lg:gap-4 lg:max-w-2xl">
+                    {poolTopQualifiers.map((team, i) => (
+                      <QualifierCard
+                        key={team._id}
+                        rank={i + 1}
+                        teamName={team.name}
+                        captainName={team.captain?.name || ""}
+                        photoUrl={team.captain?.profilePictureUrl || ""}
+                        group={activeTab === "knockout" ? "KO" : "AB"}
+                        wins={team.wins}
+                        points={team.points}
+                      />
+                    ))}
+                    {Array.from({ length: poolTopEmpty }).map((_, i) => (
+                      <QualifierCard
+                        key={`pool-empty-${i}`}
+                        rank={poolTopQualifiers.length + i + 1}
+                        empty
+                        group={activeTab === "knockout" ? "KO" : "AB"}
+                        waitingLabel={
+                          activeTab === "loser_ab"
+                            ? "Waiting R3"
+                            : "Waiting"
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="overflow-hidden rounded-2xl border-2 border-dashed border-emerald-300 bg-gradient-to-b from-emerald-50/80 to-white dark:border-emerald-800 dark:from-emerald-950/30 dark:to-zinc-950">
@@ -1257,7 +1893,7 @@ export default function AdminScoresPage() {
                   <>
                     <p className="mt-1 max-w-md text-center text-xs text-zinc-500">
                       {activeGroupTeams.length === TEAMS_PER_SECTION
-                        ? `${TEAMS_PER_SECTION} teams ready — generate Round 1 (${TEAMS_PER_SECTION / 2} matches) + Round 2 placeholders`
+                        ? `${TEAMS_PER_SECTION} teams ready — generate Round 1 (${TEAMS_PER_SECTION / 2} matches). Round 2 baad me Generate se.`
                         : activeGroupTeams.length > 0
                           ? `${activeGroupTeams.length}/${TEAMS_PER_SECTION} teams — assign ${TEAMS_PER_SECTION - activeGroupTeams.length} more to unlock generate`
                           : "Assign teams to this group from Teams page"}
@@ -1285,6 +1921,41 @@ export default function AdminScoresPage() {
                       </div>
                     )}
                   </>
+                ) : activeTab === "loser_ab" ? (
+                  <>
+                    <p className="mt-1 max-w-md text-center text-xs text-zinc-500">
+                      Pool = Group A Round 1 losers + Group B Round 1 losers (
+                      {loserAbPoolList.length}/{LOSER_AB_EXPECTED}). Jab{" "}
+                      {LOSER_AB_EXPECTED} teams ready hon, fixtures generate karo.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={regeneratingLoserAb || !loserAbCanGenerate}
+                      onClick={regenerateLoserAbFixtures}
+                      className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-amber-500/25 transition hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      <Wand2 size={16} />
+                      {regeneratingLoserAb
+                        ? "Generating…"
+                        : "Generate Loser AB fixtures"}
+                    </button>
+                  </>
+                ) : activeTab === "knockout" ? (
+                  <>
+                    <p className="mt-1 max-w-md text-center text-xs text-zinc-500">
+                      Group C ke {KNOCKOUT_BASE_EXPECTED} R1 losers + new entries (total
+                      8+) — Rebuild se Round 1. Odd winners pe bye spinner.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={regeneratingKnockout}
+                      onClick={regenerateKnockoutFixtures}
+                      className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-md transition hover:bg-violet-700 disabled:opacity-50"
+                    >
+                      <RefreshCw size={16} />
+                      {regeneratingKnockout ? "Rebuilding…" : "Generate Knockout fixtures"}
+                    </button>
+                  </>
                 ) : (
                   <p className="mt-1 text-xs text-zinc-400">
                     Generate fixtures after teams are registered
@@ -1298,19 +1969,26 @@ export default function AdminScoresPage() {
 
       <ConfirmModal
         isOpen={Boolean(resetTarget)}
-        title="Reset round?"
+        title={
+          resetTarget?.deleteFixtures ? "Clear fixtures?" : "Reset round?"
+        }
         message={
           resetTarget
-            ? `Clear all scores for ${resetTarget.label} and every later round in this group. Wins/losses will be undone${
-                resetTarget.round === 1 && ["A", "B"].includes(resetTarget.section)
-                  ? ". Loser AB pool matches will also be deleted (they regenerate after R1 is completed again)"
-                  : resetTarget.round === 1 && resetTarget.section === "C"
-                    ? ". Knockout pool matches will also be deleted (they regenerate after Group C R1 completes again)"
-                    : ""
-              }. This cannot be undone from here.`
+            ? resetTarget.deleteFixtures
+              ? `Round ${resetTarget.round} aur uske baad ki saari matches delete ho jayengi (${resetTarget.label}). Pehle rounds rehte hain — phir Generate Round fixtures se naye matches banenge.`
+              : `Clear all scores for ${resetTarget.label} and every later round in this group. Wins/losses will be undone${
+                  resetTarget.round === 1 &&
+                  ["A", "B"].includes(resetTarget.section)
+                    ? ". Loser AB pool matches will also be deleted (they regenerate after R1 is completed again)"
+                    : resetTarget.round === 1 && resetTarget.section === "C"
+                      ? ". Knockout pool matches will also be deleted (they regenerate after Group C R1 completes again)"
+                      : ""
+                }. This cannot be undone from here.`
             : ""
         }
-        confirmText="Reset Round"
+        confirmText={
+          resetTarget?.deleteFixtures ? "Clear fixtures" : "Reset Round"
+        }
         cancelText="Cancel"
         danger
         loading={resetting}
@@ -1325,7 +2003,7 @@ export default function AdminScoresPage() {
         title={`Generate Group ${confirmGenerateSection} fixtures?`}
         message={
           confirmGenerateSection
-            ? `Create Round 1 pairings for all ${TEAMS_PER_SECTION} teams in Group ${confirmGenerateSection} (${TEAMS_PER_SECTION / 2} matches) plus Round 2 placeholders. Entry fee status does not matter.`
+            ? `Create Round 1 pairings for all ${TEAMS_PER_SECTION} teams in Group ${confirmGenerateSection} (${TEAMS_PER_SECTION / 2} matches). Round 2 Round 1 complete hone ke baad alag Generate se banega.`
             : ""
         }
         confirmText="Generate fixtures"
@@ -1393,6 +2071,7 @@ function QualifierCard({
   wins,
   points,
   empty = false,
+  waitingLabel = "Waiting R2",
 }) {
   const src =
     photoUrl || teamPortrait(teamName, captainName) || "/cricket_action_shot.png";
@@ -1408,7 +2087,7 @@ function QualifierCard({
         </span>
         <div className="mb-4 h-24 w-24 rounded-full border-2 border-dashed border-slate-200 bg-slate-50 sm:h-28 sm:w-28" />
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          Waiting R2
+          {waitingLabel}
         </p>
       </div>
     );
@@ -1507,7 +2186,11 @@ function QualifierCard({
 
           <div className="mt-auto flex flex-wrap items-center justify-center gap-1.5 pt-3">
             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
-              Group {group}
+              {group === "AB"
+                ? "Loser AB"
+                : group === "KO"
+                  ? "Knockout"
+                  : `Group ${group}`}
             </span>
             {(wins != null || points != null) && (
               <span className="rounded-full bg-slate-50 px-2 py-0.5 font-mono text-[9px] font-bold text-slate-600 ring-1 ring-slate-200">
@@ -1655,6 +2338,16 @@ function ScoreUpdateForm({
               {generatingPost ? "…" : "Post"}
             </button>
           )}
+          {match.team1 && match.team2 && match.status !== "completed" && (
+            <Link
+              href={`/admin/scores/live/${match._id}`}
+              className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-rose-700 shadow-sm transition hover:bg-rose-100"
+              title="Ball-by-ball live scorer + OBS overlay"
+            >
+              <Radio size={10} />
+              {match.status === "live" ? "Scoring" : "Live"}
+            </Link>
+          )}
         </div>
 
         <div className="text-center">
@@ -1672,26 +2365,28 @@ function ScoreUpdateForm({
           </p>
         </div>
 
-        <div className="relative mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-0.5 sm:mt-5 sm:items-center sm:gap-1">
-          <TeamAvatar
-            name={t1Name}
-            captainName={t1Captain}
-            photoUrl={t1Photo}
-            isWinner={Boolean(
-              displayWinnerId &&
-                match.team1?._id &&
-                displayWinnerId === match.team1._id
-            )}
-            selected={canPickWinner && winnerId === match.team1?._id}
-            onSelect={
-              canPickWinner && match.team1
-                ? () => setWinnerId(match.team1._id)
-                : undefined
-            }
-          />
+        <div className="relative mx-auto mt-4 flex max-w-xl items-start justify-center gap-6 sm:mt-5 sm:gap-10">
+          <div className="w-[8.5rem] shrink-0 sm:w-[10rem]">
+            <TeamAvatar
+              name={t1Name}
+              captainName={t1Captain}
+              photoUrl={t1Photo}
+              isWinner={Boolean(
+                displayWinnerId &&
+                  match.team1?._id &&
+                  displayWinnerId === match.team1._id
+              )}
+              selected={canPickWinner && winnerId === match.team1?._id}
+              onSelect={
+                canPickWinner && match.team1
+                  ? () => setWinnerId(match.team1._id)
+                  : undefined
+              }
+            />
+          </div>
 
-          <div className="relative z-10 flex h-20 w-11 items-center justify-center self-center sm:h-24 sm:w-16">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 sm:h-[3.6rem] sm:w-[3.6rem]">
+          <div className="relative z-10 flex h-24 w-14 shrink-0 items-center justify-center self-center sm:h-28 sm:w-16">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 sm:h-16 sm:w-16">
               <span
                 className="text-base font-black tracking-tight sm:text-xl"
                 style={{ color: CARD_GREEN }}
@@ -1701,22 +2396,24 @@ function ScoreUpdateForm({
             </div>
           </div>
 
-          <TeamAvatar
-            name={t2Name}
-            captainName={t2Captain}
-            photoUrl={t2Photo}
-            isWinner={Boolean(
-              displayWinnerId &&
-                match.team2?._id &&
-                displayWinnerId === match.team2._id
-            )}
-            selected={canPickWinner && winnerId === match.team2?._id}
-            onSelect={
-              canPickWinner && match.team2
-                ? () => setWinnerId(match.team2._id)
-                : undefined
-            }
-          />
+          <div className="w-[8.5rem] shrink-0 sm:w-[10rem]">
+            <TeamAvatar
+              name={t2Name}
+              captainName={t2Captain}
+              photoUrl={t2Photo}
+              isWinner={Boolean(
+                displayWinnerId &&
+                  match.team2?._id &&
+                  displayWinnerId === match.team2._id
+              )}
+              selected={canPickWinner && winnerId === match.team2?._id}
+              onSelect={
+                canPickWinner && match.team2
+                  ? () => setWinnerId(match.team2._id)
+                  : undefined
+              }
+            />
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-0.5 sm:mt-4">
@@ -1940,18 +2637,18 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
         </p>
 
         <div className="relative flex w-full flex-col items-center">
-          {/* Soft dashed rings — smaller on mobile */}
+          {/* Soft dashed rings */}
           <div
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[2rem] h-[5.4rem] w-[5.4rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-200 sm:top-[2.4rem] sm:h-[6.6rem] sm:w-[6.6rem]"
+            className="pointer-events-none absolute left-1/2 top-[2.6rem] h-[7rem] w-[7rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-200 sm:top-[3.1rem] sm:h-[8.25rem] sm:w-[8.25rem]"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[2rem] h-[4.7rem] w-[4.7rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-100 sm:top-[2.4rem] sm:h-[5.7rem] sm:w-[5.7rem]"
+            className="pointer-events-none absolute left-1/2 top-[2.6rem] h-[6.1rem] w-[6.1rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-100 sm:top-[3.1rem] sm:h-[7.2rem] sm:w-[7.2rem]"
           />
 
           <div
-            className="relative h-[4.25rem] w-[4.25rem] rounded-full p-[2.5px] sm:h-[5.1rem] sm:w-[5.1rem] sm:p-[3px]"
+            className="relative h-[5.5rem] w-[5.5rem] rounded-full p-[3px] sm:h-[6.5rem] sm:w-[6.5rem] sm:p-[3.5px]"
             style={{
               background: showWin
                 ? `linear-gradient(135deg, #86efac, ${CARD_GREEN}, #16a34a)`
@@ -1979,7 +2676,7 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
 
           {showWin && (
             <span
-              className="absolute right-0 top-0 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase text-white shadow sm:-right-1"
+              className="absolute right-0 top-0 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase text-white shadow sm:-right-1 sm:text-[8px]"
               style={{ background: CARD_GREEN }}
             >
               {isWinner ? "Winner" : "Win"}
@@ -1987,7 +2684,7 @@ function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSe
           )}
 
           <div
-            className="relative z-10 mt-2 w-full max-w-[9.5rem] rounded-full px-2 py-1 text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-sm line-clamp-2 break-words sm:max-w-[11rem] sm:px-3 sm:text-[10px]"
+            className="relative z-10 mt-2.5 w-full max-w-[8.5rem] rounded-full px-2.5 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide text-white shadow-sm line-clamp-2 break-words sm:max-w-[9.5rem] sm:px-3 sm:text-[10px]"
             style={{
               background: isTbd ? "#94a3b8" : CARD_GREEN,
             }}

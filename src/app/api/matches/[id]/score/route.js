@@ -16,6 +16,13 @@ import {
   poolRoundNeedsByeSpin,
 } from "@/lib/tournament-logic";
 import { fetchKnockoutPoolIds } from "@/lib/knockout-pool";
+import {
+  clearSectionPoolByes,
+  clearPoolBye,
+  setPoolBye,
+  getPoolBye,
+  expectedR1PlayingCount,
+} from "@/lib/pool-bye";
 
 export async function POST(request, { params }) {
   const session = await getAdminSession();
@@ -424,7 +431,33 @@ async function advancePoolWinner(match, winnerId) {
   );
 
   if (!playMatches.length) {
-    await writeClient.patch(winnerId).set({ status: "qualified_loser" }).commit();
+    // Next round not generated yet — qualify when winners (+ deferred bye)
+    // already equal the Top 16 slots (usually 2).
+    const roundDone = await writeClient.fetch(
+      `*[_type == "match" && section == $section && round == $round] | order(matchNumber asc) {
+        status, "winnerId": winner._ref
+      }`,
+      { section: match.section, round: Number(match.round) }
+    );
+    const allDone =
+      roundDone?.length > 0 &&
+      roundDone.every((m) => m.status === "completed" && m.winnerId);
+    const winners = (roundDone || []).map((m) => m.winnerId).filter(Boolean);
+    const joinBye = await getPoolBye(match.section, playRound);
+    const entering = [
+      ...new Set(
+        [...winners, joinBye?.teamId].filter(Boolean)
+      ),
+    ];
+    const targetQualifiers = 2;
+    if (allDone && entering.length > 0 && entering.length <= targetQualifiers) {
+      for (const id of entering) {
+        await writeClient.patch(id).set({ status: "qualified_loser" }).commit();
+      }
+      if (joinBye?.teamId) {
+        await clearPoolBye(match.section, playRound);
+      }
+    }
     return;
   }
 
@@ -478,38 +511,45 @@ async function detectPoolByeSpin(match) {
   }
 
   const winners = roundMatches.map((m) => m.winner).filter(Boolean);
+  const winnerIds = winners.map((w) => w._id);
   const playRound = fromRound + 1;
-  const playCount = await writeClient.fetch(
-    `count(*[_type == "match" && section == $section && round == $playRound])`,
-    { section: match.section, playRound }
-  );
+  const byeRound = playRound + 1;
 
-  if (!poolRoundNeedsByeSpin(winners.length, playCount)) {
+  const joinBye = await getPoolBye(match.section, playRound);
+  let joinByeTeam = null;
+  if (joinBye?.teamId && !winnerIds.includes(joinBye.teamId)) {
+    joinByeTeam = await writeClient.fetch(
+      `*[_type == "team" && _id == $id][0]{ _id, name, captainName }`,
+      { id: joinBye.teamId }
+    );
+  }
+
+  const entering = [
+    ...winners,
+    ...(joinByeTeam ? [joinByeTeam] : []),
+  ];
+  if (entering.length < 2 || entering.length % 2 === 0) {
     return null;
   }
 
-  // Confirm bye not already settled
-  const byeRound = playRound + 1;
   const playMatches = await writeClient.fetch(
-    `*[_type == "match" && section == $section && round == $playRound]{ team1, team2 }`,
+    `*[_type == "match" && section == $section && round == $playRound]{ team1, team2, status }`,
     { section: match.section, playRound }
   );
-  const byeMatches = await writeClient.fetch(
-    `*[_type == "match" && section == $section && round == $byeRound]{ team1, team2 }`,
-    { section: match.section, byeRound }
-  );
-  const winnerIds = winners.map((w) => w._id);
-  const idsInPlay = new Set(
-    playMatches.flatMap((m) => [m.team1?._ref, m.team2?._ref]).filter(Boolean)
-  );
-  const idsInBye = new Set(
-    byeMatches.flatMap((m) => [m.team1?._ref, m.team2?._ref]).filter(Boolean)
-  );
-  const byeSettled = winnerIds.some(
-    (id) => idsInBye.has(id) && !idsInPlay.has(id)
-  );
-  if (byeSettled && winnerIds.filter((id) => idsInPlay.has(id)).length === playCount * 2) {
-    return null;
+
+  if (playMatches?.length) {
+    const playSlots = playMatches.length * 2;
+    if (!poolRoundNeedsByeSpin(entering.length, playMatches.length)) {
+      return null;
+    }
+    const deferred = await getPoolBye(match.section, byeRound);
+    const idsInPlay = new Set(
+      playMatches.flatMap((m) => [m.team1?._ref, m.team2?._ref]).filter(Boolean)
+    );
+    const inPlayCount = entering.filter((t) => idsInPlay.has(t._id)).length;
+    if (deferred?.teamId && inPlayCount === playSlots) {
+      return null;
+    }
   }
 
   return {
@@ -518,7 +558,7 @@ async function detectPoolByeSpin(match) {
     fromRound,
     playRound,
     byeRound,
-    teams: winners,
+    teams: entering,
   };
 }
 
@@ -530,9 +570,11 @@ async function advanceWinner(match, winnerId) {
 
   const next = await getNextMatchTarget(match);
   if (!next) {
-    // Main group qualifying round → Top 16 pool
+    // Main group: only Round 2+ winners qualify to Top 16 (R1 waits for Generate R2)
     if (match.bracketType === "main") {
-      await writeClient.patch(winnerId).set({ status: "qualified_main" }).commit();
+      if (Number(match.round) >= 2) {
+        await writeClient.patch(winnerId).set({ status: "qualified_main" }).commit();
+      }
       return;
     }
 
@@ -624,10 +666,13 @@ async function getNextMatchTarget(match) {
     return getLoserAbNextMatch(match.round, match.matchNumber);
   }
   if (match.section === SECTION_KNOCKOUT) {
-    const startSize = await writeClient.fetch(
-      `count(*[_type == "match" && section == $section && round == 1]) * 2`,
+    const r1Count = await writeClient.fetch(
+      `count(*[_type == "match" && section == $section && round == 1])`,
       { section: SECTION_KNOCKOUT }
     );
+    const openingBye = await getPoolBye(SECTION_KNOCKOUT, 2);
+    const startSize =
+      (Number(r1Count) || 0) * 2 + (openingBye?.teamId ? 1 : 0);
     return getKnockoutNextMatch(
       match.round,
       match.matchNumber,
@@ -725,8 +770,17 @@ async function maybeGenerateKnockout() {
       if (m.team1?._ref) r1TeamIds.add(m.team1._ref);
       if (m.team2?._ref) r1TeamIds.add(m.team2._ref);
     }
-    const poolGrew = pool.some((id) => !r1TeamIds.has(id));
-    needsBuild = poolGrew || r1TeamIds.size < pool.length;
+    const expectedPlaying = expectedR1PlayingCount(pool.length);
+    const uncovered = pool.filter((id) => !r1TeamIds.has(id));
+    const openingByeOk =
+      pool.length % 2 === 1 &&
+      r1TeamIds.size === expectedPlaying &&
+      uncovered.length === 1;
+    const coverageOk =
+      (r1TeamIds.size === pool.length && pool.length % 2 === 0) ||
+      openingByeOk;
+    const poolGrew = uncovered.length > (openingByeOk ? 1 : 0);
+    needsBuild = poolGrew || !coverageOk;
   }
   if (!needsBuild) return;
 
@@ -759,8 +813,13 @@ async function maybeGenerateKnockout() {
       }
     }
 
-    const fixtures = buildKnockoutGroupFixtures(pool);
+    await clearSectionPoolByes(SECTION_KNOCKOUT);
+    const built = buildKnockoutGroupFixtures(pool);
+    const fixtures = built.matches || [];
     await createPoolMatches(fixtures, "Knockout");
+    if (built.openingByeTeamId) {
+      await setPoolBye(SECTION_KNOCKOUT, 2, built.openingByeTeamId, 0);
+    }
 
     const tournament = await writeClient.fetch(`*[_type == "tournament"][0]._id`);
     if (tournament) {

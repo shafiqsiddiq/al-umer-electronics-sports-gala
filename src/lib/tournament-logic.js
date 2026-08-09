@@ -10,8 +10,9 @@
  *   Loser AB: 16 R1 losers (A+B) → 16→8→4→2 → 2 to Top 16
  *
  * After C Round 1 complete:
- *   Knockout Group: 8 C R1 losers (+ optional new-entry teams)
- *   → reduce to 2 → Top 16
+ *   Knockout Group: 8 C R1 losers (guaranteed) + optional new entries
+ *   Pool size flexible (8, 9, 10, 14, …) → reduce to 2 → Top 16
+ *   Odd pools / odd winner counts use bye spinner
  *
  * Top 16: 4+4+4+2+2 = 16
  *   R16 → QF → SF → Final
@@ -23,8 +24,18 @@ export const TOTAL_TEAMS = 48;
 export const MAIN_QUALIFIERS_PER_SECTION = 4;
 export const LOSER_AB_EXPECTED = 16; // A+B R1 losers
 export const LOSER_AB_QUALIFIERS = 2;
-export const KNOCKOUT_BASE_EXPECTED = 8; // C R1 losers
+export const KNOCKOUT_BASE_EXPECTED = 8; // C R1 losers (guaranteed minimum from Group C)
 export const KNOCKOUT_QUALIFIERS = 2;
+
+/** Teams that play Round 1 (excludes one opening bye when pool is odd). */
+export function expectedR1PlayingCount(poolSize) {
+  const n = Number(poolSize) || 0;
+  return n - (n % 2);
+}
+
+export function expectedR1MatchCount(poolSize) {
+  return Math.floor((Number(poolSize) || 0) / 2);
+}
 export const LOSER_QUALIFIERS = LOSER_AB_QUALIFIERS + KNOCKOUT_QUALIFIERS; // 4 total
 export const TOP_SIXTEEN = 16;
 /** @deprecated use TOP_SIXTEEN — kept as alias for older imports */
@@ -108,6 +119,7 @@ export function generateKnockoutPairings(teams) {
   return pairings;
 }
 
+/** Round 1 only — later rounds are generated after winners are ready. */
 export function buildSectionFixtures(sectionTeams, section) {
   const matches = [];
   const round1Pairings = generateKnockoutPairings(sectionTeams);
@@ -121,36 +133,51 @@ export function buildSectionFixtures(sectionTeams, section) {
       team1Id: pair.team1._id,
       team2Id: pair.team2._id,
       sendLoserToBracket: true,
-      qualifies: round1Pairings.length === MAIN_QUALIFIERS_PER_SECTION,
+      qualifies: false,
     });
   });
-
-  let currentRoundMatches = round1Pairings.length;
-  let currentRound = 1;
-
-  while (currentRoundMatches > MAIN_QUALIFIERS_PER_SECTION) {
-    currentRound++;
-    currentRoundMatches = currentRoundMatches / 2;
-    for (let i = 0; i < currentRoundMatches; i++) {
-      matches.push({
-        section,
-        bracketType: "main",
-        round: currentRound,
-        matchNumber: i + 1,
-        team1Id: null,
-        team2Id: null,
-        placeholder: true,
-        qualifies: currentRoundMatches === MAIN_QUALIFIERS_PER_SECTION,
-      });
-    }
-  }
 
   return matches;
 }
 
 /**
- * Generic knockout pool: pair teams each round until `qualifiers` winners remain.
- * Odd counts get a bye — leftover team is seeded into Round 2 Match 1.
+ * Pair previous-round winners in match order: (1v2), (3v4), …
+ * @param {string[]} winnerIds ordered by previous matchNumber
+ */
+export function buildNextRoundFixtures(
+  winnerIds,
+  { section, bracketType, round }
+) {
+  const ids = (winnerIds || []).filter(Boolean);
+  if (ids.length < 2) {
+    throw new Error("Need at least 2 winners to generate the next round");
+  }
+  if (ids.length % 2 === 1) {
+    throw new Error(
+      `Odd number of winners (${ids.length}) — resolve bye / spinner first`
+    );
+  }
+
+  const matches = [];
+  for (let i = 0; i < ids.length; i += 2) {
+    matches.push({
+      section,
+      bracketType,
+      round,
+      matchNumber: i / 2 + 1,
+      team1Id: ids[i],
+      team2Id: ids[i + 1],
+    });
+  }
+  return matches;
+}
+
+/**
+ * Generic knockout pool Round 1: pair teams.
+ * Odd pool → one opening bye (returned separately; joins Round 2 via poolBye).
+ * Later rounds are generated after winners (bye spinner when odd).
+ *
+ * @returns {{ matches: object[], openingByeTeamId: string|null, poolSize: number }}
  */
 export function buildReduceToQualifiersFixtures(
   teamIds,
@@ -162,54 +189,34 @@ export function buildReduceToQualifiersFixtures(
     );
   }
   if (teamIds.length === qualifiers) {
-    return [];
+    return { matches: [], openingByeTeamId: null, poolSize: teamIds.length };
+  }
+
+  const shuffled = shuffleArray([...teamIds].filter(Boolean));
+  let openingByeTeamId = null;
+  let playing = shuffled;
+  if (shuffled.length % 2 === 1) {
+    openingByeTeamId = shuffled[shuffled.length - 1];
+    playing = shuffled.slice(0, -1);
   }
 
   const matches = [];
-  const shuffled = shuffleArray([...teamIds].filter(Boolean));
-  let round = 1;
-  let remaining = shuffled.length;
-
-  // Round 1 with assigned teams
-  const r1Count = Math.floor(remaining / 2);
-  for (let i = 0; i < r1Count; i++) {
+  for (let i = 0; i < playing.length; i += 2) {
     matches.push({
       section,
       bracketType,
       round: 1,
-      matchNumber: i + 1,
-      team1Id: shuffled[i * 2],
-      team2Id: shuffled[i * 2 + 1],
+      matchNumber: i / 2 + 1,
+      team1Id: playing[i],
+      team2Id: playing[i + 1],
     });
   }
 
-  // Odd team gets a bye into Round 2
-  const byeTeamId = remaining % 2 === 1 ? shuffled[remaining - 1] : null;
-  remaining = r1Count + (byeTeamId ? 1 : 0);
+  return { matches, openingByeTeamId, poolSize: teamIds.length };
+}
 
-  while (remaining > qualifiers) {
-    round++;
-    const matchCount = Math.floor(remaining / 2);
-    for (let i = 0; i < matchCount; i++) {
-      const fixture = {
-        section,
-        bracketType,
-        round,
-        matchNumber: i + 1,
-        team1Id: null,
-        team2Id: null,
-        placeholder: true,
-      };
-      // Seed bye into first slot of Round 2 Match 1
-      if (round === 2 && i === 0 && byeTeamId) {
-        fixture.team1Id = byeTeamId;
-      }
-      matches.push(fixture);
-    }
-    remaining = matchCount + (remaining % 2);
-  }
-
-  return matches;
+function fixturesOnly(result) {
+  return Array.isArray(result) ? result : result?.matches || [];
 }
 
 /** Loser AB: 16 teams from Group A+B R1 losers → 2 qualifiers */
@@ -219,17 +226,27 @@ export function buildLoserAbFixtures(loserTeamIds) {
       `Expected ${LOSER_AB_EXPECTED} Loser AB teams, got ${loserTeamIds.length}`
     );
   }
-  return buildReduceToQualifiersFixtures(loserTeamIds, {
-    section: SECTION_LOSER_AB,
-    bracketType: "loser",
-    qualifiers: LOSER_AB_QUALIFIERS,
-  });
+  return fixturesOnly(
+    buildReduceToQualifiersFixtures(loserTeamIds, {
+      section: SECTION_LOSER_AB,
+      bracketType: "loser",
+      qualifiers: LOSER_AB_QUALIFIERS,
+    })
+  );
 }
 
 /**
- * Knockout Group: Group C R1 losers (8) + optional new-entry team ids → 2 qualifiers
+ * Knockout Group: Group C R1 losers (8+) + optional new-entry teams → 2 qualifiers.
+ * Pool may be 8, or larger (9, 10, 14, …). Odd counts get an opening bye into Round 2.
+ *
+ * @returns {{ matches: object[], openingByeTeamId: string|null, poolSize: number }}
  */
 export function buildKnockoutGroupFixtures(teamIds) {
+  if (teamIds.length < KNOCKOUT_BASE_EXPECTED) {
+    throw new Error(
+      `Need at least ${KNOCKOUT_BASE_EXPECTED} Knockout teams (Group C R1 losers), got ${teamIds.length}`
+    );
+  }
   if (teamIds.length < KNOCKOUT_QUALIFIERS) {
     throw new Error(
       `Expected at least ${KNOCKOUT_QUALIFIERS} Knockout teams, got ${teamIds.length}`
@@ -247,11 +264,34 @@ export function buildLoserBracketFixtures(loserTeamIds) {
   if (loserTeamIds.length === LOSER_AB_EXPECTED) {
     return buildLoserAbFixtures(loserTeamIds);
   }
-  return buildReduceToQualifiersFixtures(loserTeamIds, {
-    section: "loser",
-    bracketType: "loser",
-    qualifiers: 2,
-  });
+  return fixturesOnly(
+    buildReduceToQualifiersFixtures(loserTeamIds, {
+      section: "loser",
+      bracketType: "loser",
+      qualifiers: 2,
+    })
+  );
+}
+
+/**
+ * Short label for knockout reduce rounds given starting pool size.
+ * Approximate (bye spins can shift mid-path); good enough for UI headers.
+ */
+export function knockoutRoundSizeLabel(poolSize, round, qualifiers = KNOCKOUT_QUALIFIERS) {
+  let size = Number(poolSize) || 0;
+  if (size < qualifiers) return `Round ${round}`;
+  for (let r = 1; r < Number(round); r++) {
+    const matches = Math.floor(size / 2);
+    const bye = size % 2;
+    size = matches + bye;
+    if (size <= qualifiers) break;
+  }
+  const matches = Math.floor(size / 2);
+  const next = matches + (size % 2);
+  if (next <= qualifiers && matches === qualifiers) {
+    return `Round ${round} · ${size} → ${qualifiers} Top 16`;
+  }
+  return `Round ${round} · ${size} teams (${matches} match${matches === 1 ? "" : "es"})`;
 }
 
 export function buildTopSixteenFixtures(qualifiedTeamIds) {

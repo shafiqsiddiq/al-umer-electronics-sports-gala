@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
+import CricketLoader from "@/components/CricketLoader";
 import { downloadExcel } from "@/lib/export-excel";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
@@ -490,9 +491,8 @@ export default function ExpensesPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-zinc-500">
-        <Loader2 className="mr-2 animate-spin" size={16} />
-        Loading expenses...
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <CricketLoader label="Loading expenses…" />
       </div>
     );
   }

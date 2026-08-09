@@ -12,6 +12,11 @@ import {
   fetchKnockoutPoolIds,
   assertKnockoutPoolReady,
 } from "@/lib/knockout-pool";
+import {
+  clearSectionPoolByes,
+  setPoolBye,
+  expectedR1PlayingCount,
+} from "@/lib/pool-bye";
 
 /**
  * POST body (optional): { pool: "loser_ab" | "knockout" | "both", force?: boolean }
@@ -38,7 +43,11 @@ export async function POST(request) {
     const created = {};
 
     if (pool === "loser_ab" || pool === "both") {
-      created.loserAb = await generateLoserAb(true);
+      // Admin generate/rebuild: A+B Round 1 losers → Loser AB fixtures
+      created.loserAb = await generateLoserAb(
+        true,
+        force || pool === "loser_ab"
+      );
     }
     if (pool === "knockout" || pool === "both") {
       // Admin "Rebuild fixtures" always force-rebuilds from full pool
@@ -55,7 +64,12 @@ export async function POST(request) {
   }
 }
 
-async function generateLoserAb(replaceExisting) {
+/**
+ * Pool = Group A Round 1 losers + Group B Round 1 losers (16 teams).
+ * @param {boolean} replaceExisting
+ * @param {boolean} force - delete existing Loser AB matches even if scored
+ */
+async function generateLoserAb(replaceExisting, force = false) {
   const pending = await writeClient.fetch(`
     count(*[_type == "match" && bracketType == "main" && round == 1 && section in ["A","B"] && status != "completed"])
   `);
@@ -65,36 +79,73 @@ async function generateLoserAb(replaceExisting) {
     );
   }
 
-  const losers = await writeClient.fetch(`
-    *[_type == "match" && bracketType == "main" && round == 1 && section in ["A","B"] && status == "completed"].loser._ref
+  const loserRows = await writeClient.fetch(`
+    *[_type == "match" && bracketType == "main" && round == 1 && section in ["A","B"] && status == "completed" && defined(loser)] | order(section asc, matchNumber asc) {
+      section,
+      "loserId": loser._ref
+    }
   `);
-  const uniqueLosers = [...new Set(losers.filter(Boolean))];
+  const uniqueLosers = [];
+  const seen = new Set();
+  let fromA = 0;
+  let fromB = 0;
+  for (const row of loserRows || []) {
+    if (!row?.loserId || seen.has(row.loserId)) continue;
+    seen.add(row.loserId);
+    uniqueLosers.push(row.loserId);
+    if (row.section === "A") fromA += 1;
+    if (row.section === "B") fromB += 1;
+  }
+
   if (uniqueLosers.length !== LOSER_AB_EXPECTED) {
     throw new Error(
-      `Need ${LOSER_AB_EXPECTED} A+B Round 1 losers, have ${uniqueLosers.length}.`
+      `Need ${LOSER_AB_EXPECTED} A+B Round 1 losers (Group A + Group B), have ${uniqueLosers.length} (A:${fromA} B:${fromB}).`
     );
   }
 
   const existing = await writeClient.fetch(
-    `*[_type == "match" && section == $section]._id`,
+    `*[_type == "match" && (section == $section || section == "loser")]{ _id, status, round }`,
     { section: SECTION_LOSER_AB }
   );
   if (existing.length > 0) {
-    if (!replaceExisting) return { skipped: true, reason: "already exists" };
-    const delTx = writeClient.transaction();
-    for (const id of existing) delTx.delete(id);
-    await delTx.commit();
+    if (!replaceExisting) {
+      return { skipped: true, reason: "already exists" };
+    }
+    const hasResults = existing.some(
+      (m) => m.status === "completed" || m.status === "live"
+    );
+    if (hasResults && !force) {
+      return {
+        skipped: true,
+        reason: "Loser AB has live/completed matches — use force rebuild",
+      };
+    }
+    const ids = existing.map((m) => m._id);
+    for (let i = 0; i < ids.length; i += 50) {
+      const chunk = ids.slice(i, i + 50);
+      const delTx = writeClient.transaction();
+      for (const id of chunk) delTx.delete(id);
+      await delTx.commit();
+    }
   }
 
   const fixtures = buildLoserAbFixtures(uniqueLosers);
   await commitFixtures(fixtures, "Loser AB");
 
+  const r1 = fixtures.filter((f) => f.round === 1);
   const tournament = await writeClient.fetch(`*[_type == "tournament"][0]._id`);
   if (tournament) {
     await writeClient.patch(tournament).set({ status: "loser_bracket" }).commit();
   }
 
-  return { matchesCreated: fixtures.length, teams: uniqueLosers.length };
+  return {
+    matchesCreated: fixtures.length,
+    teams: uniqueLosers.length,
+    round1Matches: r1.length,
+    fromA,
+    fromB,
+    rebuilt: true,
+  };
 }
 
 /**
@@ -138,9 +189,16 @@ async function generateKnockout(replaceExisting, force = false) {
       if (m.team1?._ref) r1TeamIds.add(m.team1._ref);
       if (m.team2?._ref) r1TeamIds.add(m.team2._ref);
     }
-    const poolGrew = pool.some((id) => !r1TeamIds.has(id));
-    const coverageShort = r1TeamIds.size < pool.length;
-    const needsRebuild = force || poolGrew || coverageShort;
+    const expectedPlaying = expectedR1PlayingCount(pool.length);
+    const uncovered = pool.filter((id) => !r1TeamIds.has(id));
+    const openingByeOk =
+      pool.length % 2 === 1 &&
+      r1TeamIds.size === expectedPlaying &&
+      uncovered.length === 1;
+    const coverageOk =
+      (r1TeamIds.size === pool.length && pool.length % 2 === 0) || openingByeOk;
+    const poolGrew = uncovered.length > (openingByeOk ? 1 : 0);
+    const needsRebuild = force || poolGrew || !coverageOk;
 
     if (!needsRebuild) {
       return {
@@ -162,8 +220,15 @@ async function generateKnockout(replaceExisting, force = false) {
     }
   }
 
-  const fixtures = buildKnockoutGroupFixtures(pool);
+  await clearSectionPoolByes(SECTION_KNOCKOUT);
+
+  const built = buildKnockoutGroupFixtures(pool);
+  const fixtures = built.matches || [];
   await commitFixtures(fixtures, "Knockout");
+
+  if (built.openingByeTeamId) {
+    await setPoolBye(SECTION_KNOCKOUT, 2, built.openingByeTeamId, 0);
+  }
 
   const r1 = fixtures.filter((f) => f.round === 1);
   const r1TeamIds = new Set();
@@ -172,16 +237,10 @@ async function generateKnockout(replaceExisting, force = false) {
     if (f.team2Id) r1TeamIds.add(f.team2Id);
   }
 
-  // Odd leftover is seeded as bye into R2 — count that too
-  const expectedCovered = pool.length;
-  if (r1TeamIds.size < expectedCovered && pool.length % 2 === 0) {
+  const expectedPlaying = expectedR1PlayingCount(pool.length);
+  if (r1TeamIds.size !== expectedPlaying) {
     throw new Error(
-      `Fixture build failed: pool ${pool.length} but Round 1 only paired ${r1TeamIds.size}.`
-    );
-  }
-  if (pool.length % 2 === 1 && r1TeamIds.size !== pool.length - 1) {
-    throw new Error(
-      `Fixture build failed: odd pool ${pool.length} should pair ${pool.length - 1} in Round 1.`
+      `Fixture build failed: pool ${pool.length} should pair ${expectedPlaying} in Round 1, got ${r1TeamIds.size}.`
     );
   }
 
@@ -195,6 +254,7 @@ async function generateKnockout(replaceExisting, force = false) {
     teams: pool.length,
     round1Matches: r1.length,
     round1Teams: r1TeamIds.size,
+    openingBye: built.openingByeTeamId || null,
     newEntries: newEntries.length,
     cLosers: uniqueLosers.length,
     rebuilt: true,

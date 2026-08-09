@@ -6,10 +6,10 @@ import AdminStatsCards from "@/components/AdminStatsCards";
 import AdminDashboardCharts from "@/components/AdminDashboardCharts";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
+import CricketLoader from "@/components/CricketLoader";
 import { TOTAL_TEAMS } from "@/lib/tournament-logic";
 import {
   Trophy,
-  Loader2,
   Swords,
   ShieldAlert,
   Medal,
@@ -104,8 +104,8 @@ export default function AdminDashboard() {
 
   if (loadingStats && !stats) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <CricketLoader label="Loading dashboard…" />
       </div>
     );
   }

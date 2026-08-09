@@ -4,6 +4,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthRedirect from "@/components/AuthRedirect";
+import OverlayChromeHider from "@/components/OverlayChromeHider";
 
 export const metadata = {
   title: "Cricket Tournament",
@@ -17,9 +18,13 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <ToastProvider>
             <AuthRedirect />
-            <Navbar />
+            <OverlayChromeHider>
+              <Navbar />
+            </OverlayChromeHider>
             <main className="flex-1">{children}</main>
-            <Footer />
+            <OverlayChromeHider>
+              <Footer />
+            </OverlayChromeHider>
           </ToastProvider>
         </ThemeProvider>
       </body>

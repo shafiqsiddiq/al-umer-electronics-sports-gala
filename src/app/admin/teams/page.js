@@ -8,6 +8,7 @@ import { TOTAL_PLAYER_SLOTS } from "@/lib/tournament-logic";
 import { Eye, Edit, Trash2, CheckCircle, ShieldCheck, XCircle, Play, MoreVertical, Key, Search, X, ChevronLeft, ChevronRight, ChevronDown, ImageDown, Loader2, FileSpreadsheet, UserPlus } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import ConfirmModal from "@/components/ConfirmModal";
+import CricketLoader from "@/components/CricketLoader";
 import { generateWelcomePost } from "@/lib/welcome-post";
 import { downloadExcel } from "@/lib/export-excel";
 import { VILLAGES } from "@/lib/villages";
@@ -757,7 +758,13 @@ export default function AdminTeamsPage() {
       </div>
     ) : null;
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <CricketLoader label="Loading teams…" />
+      </div>
+    );
+  }
 
   return (
     <div>

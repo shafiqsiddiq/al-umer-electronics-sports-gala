@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import MatchCard from "@/components/MatchCard";
+import CricketLoader from "@/components/CricketLoader";
 import { CalendarX2, GitBranch } from "lucide-react";
 
 export default function AdminFixturesPage() {
@@ -28,8 +29,8 @@ export default function AdminFixturesPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-[40vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <CricketLoader label="Loading fixtures…" />
         </div>
       ) : matches.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white/60 px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-900/40">

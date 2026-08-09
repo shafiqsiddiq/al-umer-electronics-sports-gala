@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Trophy, Users } from "lucide-react";
+import CricketLoader from "@/components/CricketLoader";
 import {
   SECTIONS,
   MAIN_QUALIFIERS_PER_SECTION,
@@ -23,8 +24,8 @@ export default function AdminBracketsPage() {
 
   if (!summary) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <CricketLoader label="Loading brackets…" />
       </div>
     );
   }
@@ -88,7 +89,7 @@ export default function AdminBracketsPage() {
         <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
           <h2 className="mb-3 font-semibold">Knockout Group</h2>
           <p className="mb-1 text-xs text-zinc-400">
-            Group C Round 1 losers (8) + optional new entries → 2 Top 16 spots
+            Group C R1 losers (8 fixed) + optional new entries (pool 8+) → 2 Top 16
           </p>
           <p className="text-sm text-zinc-500">
             Pool: {summary.knockout?.pool || 0}
