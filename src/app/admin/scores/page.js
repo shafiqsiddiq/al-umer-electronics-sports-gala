@@ -68,7 +68,7 @@ const SCORES_TAB_IDS = [
   "top8",
   "final",
 ];
-
+const test=10
 function readStoredScoresTab() {
   if (typeof window === "undefined") return "A";
   try {
