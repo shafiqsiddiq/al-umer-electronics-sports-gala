@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AuthRedirect from "@/components/AuthRedirect";
 import OverlayChromeHider from "@/components/OverlayChromeHider";
+import HideWhenLoggedIn from "@/components/HideWhenLoggedIn";
 
 export const metadata = {
   title: "Cricket Tournament",
@@ -23,7 +24,9 @@ export default function RootLayout({ children }) {
             </OverlayChromeHider>
             <main className="flex-1">{children}</main>
             <OverlayChromeHider>
-              <Footer />
+              <HideWhenLoggedIn>
+                <Footer />
+              </HideWhenLoggedIn>
             </OverlayChromeHider>
           </ToastProvider>
         </ThemeProvider>

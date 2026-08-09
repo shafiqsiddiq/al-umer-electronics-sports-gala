@@ -184,6 +184,8 @@ export default function AdminScoresPage() {
   const [confirmClearSection, setConfirmClearSection] = useState(null); // "A"|"B"|"C"
   const [clearingSection, setClearingSection] = useState(null);
   const [changeTeamsMatch, setChangeTeamsMatch] = useState(null);
+  const [resetMatchTarget, setResetMatchTarget] = useState(null);
+  const [resettingMatch, setResettingMatch] = useState(false);
   const [generatingMatchPostId, setGeneratingMatchPostId] = useState(null);
   const [generatingTop4, setGeneratingTop4] = useState(false);
 
@@ -429,6 +431,31 @@ export default function AdminScoresPage() {
       toast(err.message, "error");
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function confirmResetMatch() {
+    if (!resetMatchTarget?._id) return;
+    const match = resetMatchTarget;
+    setResettingMatch(true);
+    try {
+      const res = await fetch(`/api/admin/matches/${match._id}/reset`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reset match");
+      toast(
+        `Match ${match.matchNumber} reset — result cleared. Ab Change se teams update kar sakte ho.`,
+        "success"
+      );
+      setResetMatchTarget(null);
+      await fetchMatches();
+      await fetchTop8();
+      await checkLuckyDraw();
+    } catch (err) {
+      toast(err.message || "Failed to reset match", "error");
+    } finally {
+      setResettingMatch(false);
     }
   }
 
@@ -1112,81 +1139,85 @@ export default function AdminScoresPage() {
       {cricketBusyLabel && (
         <CricketLoader fullscreen label={cricketBusyLabel} />
       )}
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 px-4 py-4 text-white shadow-md dark:border-emerald-800 sm:px-5">
-        <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10" />
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-              <ClipboardList size={20} />
-            </span>
-            <div>
-              <h1 className="text-xl font-black tracking-tight sm:text-2xl">
-                Score Updates
-              </h1>
-              <p className="text-xs text-emerald-50/90 sm:text-sm">
-                Enter results and advance brackets
-              </p>
+
+      {/* Sticky: Score Updates banner + group tabs (below site navbar) */}
+      <div className="sticky top-[7.25rem] z-30 -mx-4 space-y-3 border-b border-emerald-200/60 bg-gradient-to-b from-emerald-50 via-emerald-50/95 to-emerald-50/90 px-4 py-3 shadow-[0_8px_24px_rgba(15,118,110,0.06)] backdrop-blur-md md:top-16 md:-mx-6 md:px-6 dark:border-emerald-900/40 dark:from-zinc-950 dark:via-zinc-950/95 dark:to-zinc-950/90">
+        {/* Hero */}
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 px-4 py-3 text-white shadow-md dark:border-emerald-800 sm:px-5 sm:py-4">
+          <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-white/10" />
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+                <ClipboardList size={20} />
+              </span>
+              <div>
+                <h1 className="text-xl font-black tracking-tight sm:text-2xl">
+                  Score Updates
+                </h1>
+                <p className="text-xs text-emerald-50/90 sm:text-sm">
+                  Enter results and advance brackets
+                </p>
+              </div>
+            </div>
+            <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">
+              {["A", "B", "C"].includes(activeTab)
+                ? `${activeGroupTeams.length} teams · ${tabMatchCount} matches`
+                : `${tabMatchCount} ${
+                    activeTab === "top8" ? "qualified" : "matches"
+                  }`}
             </div>
           </div>
-          <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold">
-            {["A", "B", "C"].includes(activeTab)
-              ? `${activeGroupTeams.length} teams · ${tabMatchCount} matches`
-              : `${tabMatchCount} ${
-                  activeTab === "top8" ? "qualified" : "matches"
-                }`}
-          </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          const groupCount =
-            ["A", "B", "C"].includes(tab.id)
-              ? sectionTeamsByGroup[tab.id]?.length || 0
-              : null;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => switchTab(tab.id, tab.label)}
-              disabled={Boolean(switchingTabLabel)}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition ${
-                isActive
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25"
-                  : "border border-zinc-200 bg-white text-zinc-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-              } disabled:opacity-60`}
-            >
-              <Icon size={14} />
-              {tab.label}
-              {groupCount !== null && (
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                    isActive
-                      ? "bg-white/20 text-white"
-                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                  }`}
-                >
-                  {groupCount}
-                </span>
-              )}
-              {tab.id === "top8" && (
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                    isActive
-                      ? "bg-white/20 text-white"
-                      : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                  }`}
-                >
-                  {top8.count || 0}/{top8.capacity || TOP_SIXTEEN}
-                </span>
-              )}
-            </button>
-          );
-        })}
+        {/* Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-thin">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            const groupCount =
+              ["A", "B", "C"].includes(tab.id)
+                ? sectionTeamsByGroup[tab.id]?.length || 0
+                : null;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => switchTab(tab.id, tab.label)}
+                disabled={Boolean(switchingTabLabel)}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold transition ${
+                  isActive
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25"
+                    : "border border-zinc-200 bg-white text-zinc-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+                } disabled:opacity-60`}
+              >
+                <Icon size={14} />
+                {tab.label}
+                {groupCount !== null && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                    }`}
+                  >
+                    {groupCount}
+                  </span>
+                )}
+                {tab.id === "top8" && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                    }`}
+                  >
+                    {top8.count || 0}/{top8.capacity || TOP_SIXTEEN}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {["A", "B", "C"].includes(activeTab) && (
@@ -1748,9 +1779,33 @@ export default function AdminScoresPage() {
                         updating={updating === match._id}
                         onSubmit={(form) => updateScore(match._id, form)}
                         onChangeTeams={
-                          match.status !== "completed"
-                            ? () => setChangeTeamsMatch(match)
+                          match.team1 && match.team2
+                            ? () => {
+                                if (match.status === "completed") {
+                                  toast(
+                                    "Pehle is match ko Reset karo, phir Change se teams badlo.",
+                                    "error"
+                                  );
+                                  return;
+                                }
+                                setChangeTeamsMatch(match);
+                              }
                             : undefined
+                        }
+                        onResetMatch={
+                          match.team1 &&
+                          match.team2 &&
+                          (match.status === "completed" ||
+                            match.status === "live" ||
+                            match.winner ||
+                            match.team1Score ||
+                            match.team2Score)
+                            ? () => setResetMatchTarget(match)
+                            : undefined
+                        }
+                        resettingMatch={
+                          resettingMatch &&
+                          resetMatchTarget?._id === match._id
                         }
                         slot={getMatchSlot(match, roundMatches)}
                         generatingPost={generatingMatchPostId === match._id}
@@ -1966,6 +2021,24 @@ export default function AdminScoresPage() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={Boolean(resetMatchTarget)}
+        title="Reset this match?"
+        message={
+          resetMatchTarget
+            ? `Match ${resetMatchTarget.matchNumber} ka result clear ho jayega (scores + winner). Teams same rahengi — phir Change se pairing badal sakte ho ya naya result save karo.`
+            : ""
+        }
+        confirmText="Reset Match"
+        cancelText="Cancel"
+        danger
+        loading={resettingMatch}
+        onConfirm={confirmResetMatch}
+        onCancel={() => {
+          if (!resettingMatch) setResetMatchTarget(null);
+        }}
+      />
 
       <ConfirmModal
         isOpen={Boolean(resetTarget)}
@@ -2209,6 +2282,8 @@ function ScoreUpdateForm({
   updating,
   onSubmit,
   onChangeTeams,
+  onResetMatch,
+  resettingMatch,
   slot,
   generatingPost,
   onGeneratePost,
@@ -2320,10 +2395,26 @@ function ScoreUpdateForm({
               type="button"
               onClick={onChangeTeams}
               className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-emerald-700 shadow-sm transition hover:bg-emerald-50"
-              title="Change teams / fix pairing (any group)"
+              title={
+                match.status === "completed"
+                  ? "Reset match first, then change teams"
+                  : "Change teams / fix pairing"
+              }
             >
               <ArrowLeftRight size={10} />
               Change
+            </button>
+          )}
+          {onResetMatch && (
+            <button
+              type="button"
+              disabled={Boolean(resettingMatch)}
+              onClick={onResetMatch}
+              className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-amber-800 shadow-sm transition hover:bg-amber-100 disabled:opacity-50"
+              title="Clear this match result (keep teams)"
+            >
+              <RotateCcw size={10} />
+              {resettingMatch ? "…" : "Reset"}
             </button>
           )}
           {onGeneratePost && match.team1 && match.team2 && (

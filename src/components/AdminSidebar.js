@@ -25,7 +25,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-full shrink-0 border-b border-zinc-200 bg-gradient-to-b from-emerald-50/80 via-white to-white md:w-64 md:border-b-0 md:border-r dark:border-zinc-800 dark:from-emerald-950/30 dark:via-zinc-950 dark:to-zinc-950">
+    <aside className="sticky top-16 z-40 w-full shrink-0 self-start border-b border-zinc-200 bg-gradient-to-b from-emerald-50/95 via-white to-white backdrop-blur-md md:h-[calc(100vh-4rem)] md:w-64 md:overflow-y-auto md:border-b-0 md:border-r dark:border-zinc-800 dark:from-emerald-950/40 dark:via-zinc-950 dark:to-zinc-950">
       <div className="hidden items-center gap-3 p-5 md:flex">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30">
           <Trophy size={18} />
