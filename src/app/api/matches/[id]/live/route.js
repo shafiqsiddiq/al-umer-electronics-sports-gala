@@ -8,6 +8,7 @@ import {
   startSecondInnings,
   patchLiveFields,
   scoreSummaryStrings,
+  finalizeLiveMatch,
 } from "@/lib/live-score";
 
 function parseLive(json) {
@@ -164,7 +165,7 @@ export async function POST(request, { params }) {
     }
 
     if (action === "end") {
-      live = { ...live, status: "ended", updatedAt: new Date().toISOString() };
+      live = finalizeLiveMatch(live);
       await saveLive(id, live);
       return NextResponse.json(publicPayload(match, live));
     }
