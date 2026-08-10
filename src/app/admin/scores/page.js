@@ -2357,7 +2357,7 @@ function ScoreUpdateForm({
         }}
       />
 
-      <div className="relative px-3 pb-3 pt-3 pl-4 sm:px-4 sm:pl-5 sm:pt-4">
+      <div className="relative px-2.5 pb-3 pt-3 pl-3.5 sm:px-4 sm:pl-5 sm:pt-4">
         {/* Time row — full width so badges don't overlap chips */}
         {(slot?.startLabel || slot?.endLabel) && (
           <div className="mb-2 flex items-center justify-between gap-2">
@@ -2456,55 +2456,78 @@ function ScoreUpdateForm({
           </p>
         </div>
 
-        <div className="relative mx-auto mt-4 flex max-w-xl items-start justify-center gap-6 sm:mt-5 sm:gap-10">
-          <div className="w-[8.5rem] shrink-0 sm:w-[10rem]">
-            <TeamAvatar
-              name={t1Name}
-              captainName={t1Captain}
-              photoUrl={t1Photo}
-              isWinner={Boolean(
-                displayWinnerId &&
-                  match.team1?._id &&
-                  displayWinnerId === match.team1._id
-              )}
-              selected={canPickWinner && winnerId === match.team1?._id}
-              onSelect={
-                canPickWinner && match.team1
-                  ? () => setWinnerId(match.team1._id)
-                  : undefined
-              }
-            />
-          </div>
+        <div className="relative mx-auto mt-4 grid w-full max-w-xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-x-3 gap-y-0 sm:mt-5 sm:gap-x-6">
+          {/* Row 1 — team names (fixed height) */}
+          <MatchupTeamName name={t1Name} />
+          <div aria-hidden className="w-11 sm:w-16" />
+          <MatchupTeamName name={t2Name} />
 
-          <div className="relative z-10 flex h-24 w-14 shrink-0 items-center justify-center self-center sm:h-28 sm:w-16">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 sm:h-16 sm:w-16">
+          {/* Row 2 — photos + VS (same baseline) */}
+          <MatchupPhoto
+            name={t1Name}
+            captainName={t1Captain}
+            photoUrl={t1Photo}
+            isWinner={Boolean(
+              displayWinnerId &&
+                match.team1?._id &&
+                displayWinnerId === match.team1._id
+            )}
+            selected={canPickWinner && winnerId === match.team1?._id}
+            onSelect={
+              canPickWinner && match.team1
+                ? () => setWinnerId(match.team1._id)
+                : undefined
+            }
+          />
+          <div className="flex w-11 items-center justify-center self-center sm:w-16">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-slate-100 sm:h-16 sm:w-16">
               <span
-                className="text-base font-black tracking-tight sm:text-xl"
+                className="text-xs font-black tracking-tight sm:text-xl"
                 style={{ color: CARD_GREEN }}
               >
                 VS
               </span>
             </div>
           </div>
+          <MatchupPhoto
+            name={t2Name}
+            captainName={t2Captain}
+            photoUrl={t2Photo}
+            isWinner={Boolean(
+              displayWinnerId &&
+                match.team2?._id &&
+                displayWinnerId === match.team2._id
+            )}
+            selected={canPickWinner && winnerId === match.team2?._id}
+            onSelect={
+              canPickWinner && match.team2
+                ? () => setWinnerId(match.team2._id)
+                : undefined
+            }
+          />
 
-          <div className="w-[8.5rem] shrink-0 sm:w-[10rem]">
-            <TeamAvatar
-              name={t2Name}
-              captainName={t2Captain}
-              photoUrl={t2Photo}
-              isWinner={Boolean(
-                displayWinnerId &&
-                  match.team2?._id &&
-                  displayWinnerId === match.team2._id
-              )}
-              selected={canPickWinner && winnerId === match.team2?._id}
-              onSelect={
-                canPickWinner && match.team2
-                  ? () => setWinnerId(match.team2._id)
-                  : undefined
-              }
-            />
-          </div>
+          {/* Row 3 — captain pills (fixed height, same line) */}
+          <MatchupCaptain
+            name={t1Name}
+            captainName={t1Captain}
+            isTbd={!match.team1}
+            onSelect={
+              canPickWinner && match.team1
+                ? () => setWinnerId(match.team1._id)
+                : undefined
+            }
+          />
+          <div aria-hidden className="w-11 sm:w-16" />
+          <MatchupCaptain
+            name={t2Name}
+            captainName={t2Captain}
+            isTbd={!match.team2}
+            onSelect={
+              canPickWinner && match.team2
+                ? () => setWinnerId(match.team2._id)
+                : undefined
+            }
+          />
         </div>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 px-0.5 sm:mt-4">
@@ -2556,8 +2579,8 @@ function ScoreUpdateForm({
               </div>
             </div>
             <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-              <Trophy size={14} style={{ color: CARD_GREEN }} />
-              <p className="text-xs font-bold" style={{ color: CARD_NAVY }}>
+              <Trophy size={14} className="shrink-0" style={{ color: CARD_GREEN }} />
+              <p className="min-w-0 break-words text-center text-xs font-bold" style={{ color: CARD_NAVY }}>
                 Winner: {match.winner?.name || "—"}
               </p>
             </div>
@@ -2699,93 +2722,133 @@ function sectionLabelFallback(match) {
   return `Group ${match.section}`;
 }
 
-function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSelect }) {
+function MatchupTeamName({ name }) {
+  const isTbd = !name || name === "TBD";
+  return (
+    <p
+      className={`mb-1.5 flex h-[2.1rem] min-w-0 items-end justify-center overflow-hidden px-1 text-center text-[9px] font-black uppercase leading-tight tracking-wide line-clamp-2 break-words sm:mb-2 sm:h-[2.6rem] sm:px-1.5 sm:text-[12px] ${
+        isTbd ? "italic text-slate-300" : ""
+      }`}
+      style={{ color: isTbd ? undefined : CARD_NAVY }}
+      title={name}
+    >
+      {name}
+    </p>
+  );
+}
+
+function MatchupPhoto({
+  name,
+  captainName,
+  photoUrl = "",
+  isWinner,
+  selected,
+  onSelect,
+}) {
   const Comp = onSelect ? "button" : "div";
   const isTbd = !name || name === "TBD";
   const src = isTbd
     ? ""
     : photoUrl || teamPortrait(name, captainName) || "/cricket_action_shot.png";
   const showWin = !isTbd && Boolean(isWinner || selected);
-  const captainLabel = captainName || (isTbd ? "TBA" : name);
 
   return (
     <Comp
       type={onSelect ? "button" : undefined}
       onClick={onSelect}
-      className={`min-w-0 w-full rounded-xl px-0.5 py-1 transition ${
-        onSelect ? "cursor-pointer hover:-translate-y-0.5" : ""
+      className={`relative mx-auto flex h-[4.25rem] w-full min-w-0 max-w-full items-center justify-center overflow-hidden sm:h-[6.5rem] ${
+        onSelect ? "cursor-pointer" : ""
       }`}
     >
-      <div className="flex w-full flex-col items-center text-center">
-        <p
-          className={`mb-2 w-full px-0.5 text-[10px] font-black uppercase leading-tight tracking-wide line-clamp-2 break-words sm:text-[12px] ${
-            isTbd ? "italic text-slate-300" : ""
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[5.5rem] w-[5.5rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-200 sm:h-[8.25rem] sm:w-[8.25rem]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[4.75rem] w-[4.75rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-100 sm:h-[7.2rem] sm:w-[7.2rem]"
+      />
+      <div
+        className="relative h-[4.25rem] w-[4.25rem] shrink-0 rounded-full p-[2.5px] sm:h-[6.5rem] sm:w-[6.5rem] sm:p-[3.5px]"
+        style={{
+          background: showWin
+            ? `linear-gradient(135deg, #86efac, ${CARD_GREEN}, #16a34a)`
+            : `linear-gradient(135deg, #bbf7d0, ${CARD_GREEN})`,
+          boxShadow: showWin
+            ? `0 0 0 3px rgba(34,197,94,0.15), 0 8px 18px rgba(34,197,94,0.35)`
+            : `0 6px 16px rgba(34,197,94,0.22)`,
+        }}
+      >
+        <div
+          className={`h-full w-full overflow-hidden rounded-full bg-slate-100 ring-2 ring-white ${
+            isTbd ? "bg-slate-200" : ""
           }`}
-          style={{ color: isTbd ? undefined : CARD_NAVY }}
-          title={name}
         >
-          {name}
-        </p>
-
-        <div className="relative flex w-full flex-col items-center">
-          {/* Soft dashed rings */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[2.6rem] h-[7rem] w-[7rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-200 sm:top-[3.1rem] sm:h-[8.25rem] sm:w-[8.25rem]"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-[2.6rem] h-[6.1rem] w-[6.1rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-slate-100 sm:top-[3.1rem] sm:h-[7.2rem] sm:w-[7.2rem]"
-          />
-
-          <div
-            className="relative h-[5.5rem] w-[5.5rem] rounded-full p-[3px] sm:h-[6.5rem] sm:w-[6.5rem] sm:p-[3.5px]"
-            style={{
-              background: showWin
-                ? `linear-gradient(135deg, #86efac, ${CARD_GREEN}, #16a34a)`
-                : `linear-gradient(135deg, #bbf7d0, ${CARD_GREEN})`,
-              boxShadow: showWin
-                ? `0 0 0 4px rgba(34,197,94,0.15), 0 10px 24px rgba(34,197,94,0.35)`
-                : `0 8px 20px rgba(34,197,94,0.22)`,
-            }}
-          >
-            <div
-              className={`h-full w-full overflow-hidden rounded-full bg-slate-100 ring-2 ring-white ${
-                isTbd ? "bg-slate-200" : ""
-              }`}
-            >
-              {!isTbd && src ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={src}
-                  alt={captainName || name || "Captain"}
-                  className="h-full w-full object-cover object-[center_15%]"
-                />
-              ) : null}
-            </div>
-          </div>
-
-          {showWin && (
-            <span
-              className="absolute right-0 top-0 rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase text-white shadow sm:-right-1 sm:text-[8px]"
-              style={{ background: CARD_GREEN }}
-            >
-              {isWinner ? "Winner" : "Win"}
-            </span>
-          )}
-
-          <div
-            className="relative z-10 mt-2.5 w-full max-w-[8.5rem] rounded-full px-2.5 py-1 text-[9px] font-bold uppercase leading-tight tracking-wide text-white shadow-sm line-clamp-2 break-words sm:max-w-[9.5rem] sm:px-3 sm:text-[10px]"
-            style={{
-              background: isTbd ? "#94a3b8" : CARD_GREEN,
-            }}
-            title={captainLabel}
-          >
-            {captainLabel}
-          </div>
+          {!isTbd && src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={src}
+              alt={captainName || name || "Captain"}
+              className="h-full w-full object-cover object-[center_15%]"
+            />
+          ) : null}
         </div>
       </div>
+      {showWin && (
+        <span
+          className="absolute right-0.5 top-0 z-10 rounded-full px-1 py-0.5 text-[6px] font-black uppercase text-white shadow sm:right-1 sm:px-1.5 sm:text-[8px]"
+          style={{ background: CARD_GREEN }}
+        >
+          {isWinner ? "Winner" : "Win"}
+        </span>
+      )}
     </Comp>
+  );
+}
+
+function MatchupCaptain({ name, captainName, isTbd, onSelect }) {
+  const Comp = onSelect ? "button" : "div";
+  const captainLabel = captainName || (isTbd ? "TBA" : name);
+  return (
+    <Comp
+      type={onSelect ? "button" : undefined}
+      onClick={onSelect}
+      className={`mt-2 flex h-[2.15rem] w-full min-w-0 items-center justify-center px-0.5 sm:mt-2.5 sm:h-[2.4rem] ${
+        onSelect ? "cursor-pointer" : ""
+      }`}
+    >
+      <span
+        className="line-clamp-2 w-full max-w-full break-words rounded-full px-1.5 py-1 text-center text-[8px] font-bold uppercase leading-tight tracking-wide text-white shadow-sm sm:max-w-[9.5rem] sm:px-3 sm:text-[10px]"
+        style={{ background: isTbd ? "#94a3b8" : CARD_GREEN }}
+        title={captainLabel}
+      >
+        {captainLabel}
+      </span>
+    </Comp>
+  );
+}
+
+function TeamAvatar({ name, captainName, photoUrl = "", isWinner, selected, onSelect }) {
+  // Kept for any leftover callers — same locked layout
+  const isTbd = !name || name === "TBD";
+  return (
+    <div className="grid w-full min-w-0 grid-rows-[auto_auto_auto] justify-items-stretch">
+      <MatchupTeamName name={name} />
+      <MatchupPhoto
+        name={name}
+        captainName={captainName}
+        photoUrl={photoUrl}
+        isWinner={isWinner}
+        selected={selected}
+        onSelect={onSelect}
+      />
+      <MatchupCaptain
+        name={name}
+        captainName={captainName}
+        isTbd={isTbd}
+        onSelect={onSelect}
+      />
+    </div>
   );
 }
 
