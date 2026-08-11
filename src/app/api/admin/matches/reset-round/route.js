@@ -128,6 +128,26 @@ export async function POST(request) {
         await clearSectionMainQualifiers(section);
       }
 
+      // Top 16 clear: restore qualified_* for teams stuck on final_eight / champion
+      if (section === "final") {
+        const lingering = await writeClient.fetch(
+          `*[_type == "team" && status in ["final_eight", "champion"]]._id`
+        );
+        for (const id of lingering || []) {
+          await recomputeTeamStatus(id);
+        }
+        await clearChampionIfNeeded();
+        const tournament = await writeClient.fetch(
+          `*[_type == "tournament"][0]{ _id, status }`
+        );
+        if (tournament?._id && tournament.status === "final_eight") {
+          await writeClient
+            .patch(tournament._id)
+            .set({ status: "active" })
+            .commit();
+        }
+      }
+
       return NextResponse.json({
         success: true,
         deletedFixtures: true,

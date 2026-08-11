@@ -183,6 +183,10 @@ export default function AdminScoresPage() {
   const [confirmGenerateSection, setConfirmGenerateSection] = useState(null); // "A"|"B"|"C"
   const [confirmClearSection, setConfirmClearSection] = useState(null); // "A"|"B"|"C"
   const [clearingSection, setClearingSection] = useState(null);
+  const [confirmGenerateTop16, setConfirmGenerateTop16] = useState(false);
+  const [confirmClearTop16, setConfirmClearTop16] = useState(false);
+  const [generatingTop16, setGeneratingTop16] = useState(false);
+  const [clearingTop16, setClearingTop16] = useState(false);
   const [changeTeamsMatch, setChangeTeamsMatch] = useState(null);
   const [resetMatchTarget, setResetMatchTarget] = useState(null);
   const [resettingMatch, setResettingMatch] = useState(false);
@@ -616,6 +620,60 @@ export default function AdminScoresPage() {
     }
   }
 
+  async function confirmGenerateTop16Fixtures() {
+    setGeneratingTop16(true);
+    setConfirmGenerateTop16(false);
+    await new Promise((r) => window.setTimeout(r, 80));
+    try {
+      const res = await fetch("/api/tournament/generate-final-eight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate Top 16");
+      toast(
+        `Top 16 ready — ${data.matchesCreated} matches (${data.teams} teams). Final Stage tab pe scores update karo.`,
+        "success"
+      );
+      await fetchMatches();
+      await fetchTop8();
+      setActiveTab("final");
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setGeneratingTop16(false);
+    }
+  }
+
+  async function confirmClearTop16Fixtures() {
+    setClearingTop16(true);
+    setConfirmClearTop16(false);
+    // Let React paint the cricket loader before the API call
+    await new Promise((r) => window.setTimeout(r, 80));
+    try {
+      const res = await fetch("/api/tournament/generate-final-eight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to clear Top 16");
+      toast(
+        data.deleted
+          ? `Top 16 fixtures cleared (${data.deleted} matches). Teams wapas pool mein hain — Generate dabao.`
+          : data.message || "No Top 16 fixtures to clear",
+        "success"
+      );
+      await fetchMatches();
+      await fetchTop8();
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setClearingTop16(false);
+    }
+  }
+
   function handleDownloadRoundPdf(section, round, roundMatches) {
     const ready = (roundMatches || []).filter((m) => m.team1 || m.team2);
     if (!ready.length) {
@@ -894,6 +952,9 @@ export default function AdminScoresPage() {
   }
 
   const emptySlots = Math.max(0, (top8.capacity || TOP_SIXTEEN) - (top8.teams?.length || 0));
+  const finalStageMatches = matches.filter((m) => m.section === "final");
+  const top16PoolReady = (top8.count || 0) >= TOP_SIXTEEN;
+  const hasTop16Fixtures = finalStageMatches.length > 0;
 
   // Group Top 4: prefer R2 match winners (same portraits as cards above), else brackets API
   const groupTop4 = (() => {
@@ -1124,15 +1185,19 @@ export default function AdminScoresPage() {
         ? `Generating Group ${generatingSection} fixtures…`
         : generatingRound
           ? `Generating Round ${generatingRound.round}…`
-          : clearingSection
-            ? `Clearing Group ${clearingSection} fixtures…`
-            : regeneratingLoserAb
-              ? "Generating Loser AB fixtures…"
-              : regeneratingKnockout
-                ? "Rebuilding Knockout fixtures…"
-                : resetting
-                  ? "Resetting round…"
-                  : null;
+          : generatingTop16
+            ? "Generating Top 16 fixtures…"
+            : clearingTop16
+              ? "Clearing Top 16 fixtures…"
+              : clearingSection
+                ? `Clearing Group ${clearingSection} fixtures…`
+                : regeneratingLoserAb
+                  ? "Generating Loser AB fixtures…"
+                  : regeneratingKnockout
+                    ? "Rebuilding Knockout fixtures…"
+                    : resetting
+                      ? "Resetting round…"
+                      : null;
 
   return (
     <div className="relative w-full space-y-5">
@@ -1495,17 +1560,60 @@ export default function AdminScoresPage() {
         )}
 
       {activeTab === "top8" ? (
-        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50/80 to-white dark:border-emerald-900/50 dark:from-emerald-950/30 dark:to-zinc-950">
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-b from-emerald-50/80 to-white dark:border-emerald-900/50 dark:from-emerald-950/30 dark:to-zinc-950">
+          {(generatingTop16 || clearingTop16) && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/85 backdrop-blur-[2px] dark:bg-zinc-950/85">
+              <CricketLoader
+                label={
+                  clearingTop16
+                    ? "Clearing Top 16 fixtures…"
+                    : "Generating Top 16 fixtures…"
+                }
+              />
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 px-4 py-3 dark:border-emerald-900/40 sm:px-5">
             <div>
               <h2 className="font-black text-zinc-900 dark:text-white">Top 16 Pool</h2>
               <p className="text-xs text-zinc-500">
                 4 from each group A/B/C + 2 Loser AB + 2 Knockout
+                {hasTop16Fixtures
+                  ? ` · ${finalStageMatches.length} final-stage matches live`
+                  : top16PoolReady
+                    ? " · Ready to generate R16 → Final"
+                    : ` · Need ${TOP_SIXTEEN} qualifiers`}
               </p>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-              <Users size={13} />
-              {top8.count || 0}/{top8.capacity || TOP_SIXTEEN}
+            <div className="flex flex-wrap items-center gap-2">
+              {hasTop16Fixtures && (
+                <button
+                  type="button"
+                  disabled={clearingTop16 || generatingTop16}
+                  onClick={() => setConfirmClearTop16(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-white px-3.5 py-1.5 text-[11px] font-bold text-rose-700 shadow-sm transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
+                >
+                  <Trash2 size={13} />
+                  {clearingTop16 ? "Clearing…" : "Clear fixtures"}
+                </button>
+              )}
+              {top16PoolReady && !hasTop16Fixtures && (
+                <button
+                  type="button"
+                  disabled={generatingTop16 || clearingTop16}
+                  onClick={() => setConfirmGenerateTop16(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  <Wand2
+                    size={13}
+                    className={generatingTop16 ? "animate-spin" : ""}
+                  />
+                  {generatingTop16 ? "Generating…" : "Generate fixtures"}
+                </button>
+              )}
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                <Users size={13} />
+                {top8.count || 0}/{top8.capacity || TOP_SIXTEEN}
+              </div>
             </div>
           </div>
 
@@ -1515,38 +1623,38 @@ export default function AdminScoresPage() {
               <p className="font-medium text-zinc-500">No qualifiers yet</p>
             </div>
           ) : (
-            <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-              {top8.teams.map((team, i) => (
-                <div
-                  key={team._id}
-                  className="rounded-xl border border-emerald-200/80 bg-white p-3.5 shadow-sm dark:border-emerald-900/40 dark:bg-zinc-900"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
-                      {i + 1}
-                    </span>
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                      {team.source}
-                    </span>
-                  </div>
-                  <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">
-                    {team.name}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">
-                    {team.wins ?? 0}W · {team.points ?? 0} pts
-                  </p>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3 p-4 lg:grid-cols-4 lg:gap-4">
+              {top8.teams.map((team, i) => {
+                const groupKey =
+                  team.section === "A" ||
+                  team.section === "B" ||
+                  team.section === "C"
+                    ? team.section
+                    : team.status === "qualified_loser"
+                      ? team.section === "knockout"
+                        ? "KO"
+                        : "AB"
+                      : "A";
+                return (
+                  <QualifierCard
+                    key={team._id}
+                    rank={i + 1}
+                    teamName={team.name}
+                    captainName={team.captain?.name || ""}
+                    photoUrl={team.captain?.profilePictureUrl || ""}
+                    group={groupKey}
+                    wins={team.wins}
+                    points={team.points}
+                  />
+                );
+              })}
               {Array.from({ length: emptySlots }).map((_, i) => (
-                <div
-                  key={`empty-${i}`}
-                  className="flex min-h-[88px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/70 p-3 text-center dark:border-zinc-700 dark:bg-zinc-900/40"
-                >
-                  <span className="mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-bold text-zinc-500 dark:bg-zinc-800">
-                    {(top8.teams?.length || 0) + i + 1}
-                  </span>
-                  <p className="text-[10px] font-medium text-zinc-400">Waiting…</p>
-                </div>
+                <QualifierCard
+                  key={`t16-empty-${i}`}
+                  rank={(top8.teams?.length || 0) + i + 1}
+                  empty
+                  waitingLabel="Waiting…"
+                />
               ))}
             </div>
           )}
@@ -2104,6 +2212,34 @@ export default function AdminScoresPage() {
         onConfirm={confirmClearGroupFixtures}
         onCancel={() => {
           if (!clearingSection) setConfirmClearSection(null);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={confirmGenerateTop16}
+        title="Generate Top 16 fixtures?"
+        message={`Create Round of 16 → Quarters → Semis → Final from all ${TOP_SIXTEEN} qualified teams. Matches Final Stage tab pe dikhengi.`}
+        confirmText="Generate Top 16"
+        cancelText="Cancel"
+        danger={false}
+        loading={generatingTop16}
+        onConfirm={confirmGenerateTop16Fixtures}
+        onCancel={() => {
+          if (!generatingTop16) setConfirmGenerateTop16(false);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={confirmClearTop16}
+        title="Clear Top 16 fixtures?"
+        message="Final Stage ki saari matches delete ho jayengi (R16 → Final). Scores/wins undo honge aur teams wapas Top 16 pool mein qualified status pe aa jayengi. Phir Generate se naye fixtures banenge."
+        confirmText="Clear fixtures"
+        cancelText="Cancel"
+        danger
+        loading={clearingTop16}
+        onConfirm={confirmClearTop16Fixtures}
+        onCancel={() => {
+          if (!clearingTop16) setConfirmClearTop16(false);
         }}
       />
 

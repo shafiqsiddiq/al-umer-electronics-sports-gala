@@ -2,17 +2,10 @@ import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/auth";
 import { writeClient } from "@/lib/sanity";
 import { TOP_SIXTEEN } from "@/lib/tournament-logic";
-
-function sourceLabel(team) {
-  if (team.status === "qualified_loser") {
-    // Infer pool from which loser section they last appeared in if possible
-    return "Second Chance";
-  }
-  if (team.section === "A" || team.section === "B" || team.section === "C") {
-    return `Group ${team.section}`;
-  }
-  return "Top 16";
-}
+import {
+  fetchTopSixteenQualifiers,
+  syncTopSixteenQualifierStatuses,
+} from "@/lib/top16-qualifiers";
 
 export async function GET() {
   const session = await getAdminSession();
@@ -64,7 +57,7 @@ export async function GET() {
     r1LoserCRows,
     loserQualifiedTeams,
     finalMatches,
-    top16Raw,
+    top16Bundle,
   ] = await Promise.all([
     writeClient.fetch(`
       *[_type == "match" && bracketType == "main" && round == 1 && section in ["A","B"] && status == "completed" && defined(loser)] | order(section asc, matchNumber asc) {
@@ -84,18 +77,16 @@ export async function GET() {
       }`
     ),
     writeClient.fetch(`count(*[_type == "match" && section == "final"])`),
-    writeClient.fetch(
-      `*[_type == "team" && status in ["qualified_main", "qualified_loser", "final_eight"]] | order(section asc, name asc) {
-        _id, name, status, section,
-        "wins": coalesce(wins, 0),
-        "points": coalesce(points, 0),
-        captain->{
-          _id, name,
-          "profilePictureUrl": profilePicture.asset->url
-        }
-      }`
-    ),
+    fetchTopSixteenQualifiers(writeClient),
   ]);
+
+  // Repair statuses if Clear / R16 losses left winners as "eliminated"
+  const statusOk = await writeClient.fetch(
+    `count(*[_type == "team" && status in ["qualified_main", "qualified_loser", "final_eight"]])`
+  );
+  if ((top16Bundle.count || 0) > statusOk) {
+    await syncTopSixteenQualifierStatuses(writeClient);
+  }
 
   function uniqPool(rows) {
     const seen = new Set();
@@ -135,13 +126,9 @@ export async function GET() {
         lostMatchNumber: null,
       })),
   ];
-  // Combined for legacy UI that still reads loserBracket.poolTeams
   const loserPoolTeams = [...loserAbPoolTeams, ...knockoutPoolTeams];
 
-  const top16Teams = (top16Raw || []).map((team) => ({
-    ...team,
-    source: sourceLabel(team),
-  }));
+  const top16Teams = top16Bundle.teams || [];
 
   return NextResponse.json({
     sections,
@@ -171,11 +158,13 @@ export async function GET() {
       teams: top16Teams,
       count: top16Teams.length,
       capacity: TOP_SIXTEEN,
+      breakdown: top16Bundle.breakdown,
     },
     top16: {
       teams: top16Teams,
       count: top16Teams.length,
       capacity: TOP_SIXTEEN,
+      breakdown: top16Bundle.breakdown,
     },
   });
   } catch (err) {

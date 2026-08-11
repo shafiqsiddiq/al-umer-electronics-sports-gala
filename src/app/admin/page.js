@@ -90,7 +90,11 @@ export default function AdminDashboard() {
     setConfirmFinalEight(false);
     setGenerating(true);
     try {
-      const res = await fetch("/api/tournament/generate-final-eight", { method: "POST" });
+      const res = await fetch("/api/tournament/generate-final-eight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate Top 16");
       toast(`Top 16 generated! ${data.matchesCreated} matches created.`, "success");
